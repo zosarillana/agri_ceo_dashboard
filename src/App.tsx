@@ -1,7 +1,25 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/card";
+
 export default function App() {
   return (
-    <h1 className="text-3xl font-bold text-blue-500">
-      Tailwind is working 🚀
-    </h1>
+    <Card>
+      <CardHeader>
+        <CardTitle>Card Title</CardTitle>
+        <CardDescription>Card Description</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>Card Content</p>
+      </CardContent>
+      <CardFooter>
+        <p>Card Footer</p>
+      </CardFooter>
+    </Card>
   );
 }
