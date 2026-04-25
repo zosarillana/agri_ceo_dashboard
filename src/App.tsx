@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./components/ui/card";
-import { ModeToggle } from "./components/ui/mode-toggle";
+import { ModeToggle } from "@/components/theme/mode-toggle";
 
 function App() {
   const [count, setCount] = useState(0);
