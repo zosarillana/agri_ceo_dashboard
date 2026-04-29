@@ -244,13 +244,13 @@ export function GlobalNavbar({
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => handleNavigate("/dashboard/profile")}
+                      onClick={() => handleNavigate("/auth/admin/profile/")}
                     >
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => handleNavigate("/dashboard/settings")}
+                      onClick={() => handleNavigate("/auth/admin/profile/settings/")}
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Settings</span>

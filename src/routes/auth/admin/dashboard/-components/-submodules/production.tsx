@@ -15,8 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-import { mockData } from "../../data/mock-data";
+import { mockData } from "@/routes/auth/admin/dashboard/data/mock-data";
 
 function fmt(n: number) {
   return n.toLocaleString();

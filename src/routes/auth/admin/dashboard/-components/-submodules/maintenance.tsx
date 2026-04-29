@@ -4,7 +4,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { mockData } from "../../data/mock-data";
+import { mockData } from "@/routes/auth/admin/dashboard/data/mock-data";
 
 function statusBadge(status: string) {
   if (status === "operational") return <Badge>Operational</Badge>;
