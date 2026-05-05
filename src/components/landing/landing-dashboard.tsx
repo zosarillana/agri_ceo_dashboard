@@ -1,8 +1,8 @@
+// src/components/landing/landing-dashboard.tsx
 import * as React from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Link, useLocation } from "@tanstack/react-router";
-
+import { toast, Toaster } from "sonner";
 import {
   Factory,
   ShoppingCart,
@@ -12,9 +12,10 @@ import {
   FlaskConical,
   Users,
   Wrench,
+  Lock,
 } from "lucide-react";
 
-import { mockData } from "../data/mock-data";
+import { mockData } from "@/routes/auth/admin/dashboard/data/mock-data";
 
 /* ───────────────────────────────────────── */
 
@@ -126,22 +127,18 @@ const groups = [
   },
 ];
 
-type DashboardSegment =
-  | "production"
-  | "procurement"
-  | "sales"
-  | "accounts"
-  | "trading"
-  | "qc"
-  | "workforce"
-  | "maintenance";
+/* ───────────────────────────────────────── */
 
-type DashboardRoute = `/auth/admin/dashboard/${DashboardSegment}`;
+function handleCardClick(label: string) {
+  toast(`${label} — Sign in required`, {
+    description: "Sign in to view detailed reports and insights.",
+    icon: <Lock className="h-4 w-4" />,
+  });
+}
 
 /* ───────────────────────────────────────── */
 
-export default function CEODashboard() {
-  const location = useLocation();
+export function LandingDashboard() {
   const [time, setTime] = React.useState(new Date());
 
   React.useEffect(() => {
@@ -149,12 +146,15 @@ export default function CEODashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const isActive = (id: string) =>
-    location.pathname === `/auth/admin/dashboard/${id}`;
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto py-0 space-y-5">
+    <div className="w-full">
+      <Toaster
+        position="bottom-center"
+        richColors
+        toastOptions={{ style: { width: "420px" } }}
+      />
+
+      <div className="space-y-5">
 
         {/* Last updated */}
         <div className="flex items-center justify-end gap-1.5">
@@ -175,7 +175,6 @@ export default function CEODashboard() {
         <div className="grid md:grid-cols-2 gap-3">
           {groups.map((g, i) => {
             const Icon = g.icon;
-            const active = isActive(g.id);
             const { label: timeLabel, fresh } = relativeTime(g.updatedAt);
 
             return (
@@ -186,57 +185,51 @@ export default function CEODashboard() {
                 transition={{ delay: i * 0.03 }}
                 whileHover={{ y: -3, scale: 1.005 }}
               >
-                <Link
-                  to={`/auth/admin/dashboard/${g.id}` as DashboardRoute}
-                  className="block"
+                <Card
+                  className="cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/60"
+                  onClick={() => handleCardClick(g.label)}
                 >
-                  <Card
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/60 ${
-                      active ? "border-primary shadow-sm" : ""
-                    }`}
-                  >
-                    <CardContent className="px-5 py-4">
-                      <div className="flex items-start justify-between gap-4">
+                  <CardContent className="px-5 py-4">
+                    <div className="flex items-start justify-between gap-4">
 
-                        {/* Left — icon + label */}
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm leading-tight">{g.label}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              {g.summary}
-                            </p>
-                          </div>
+                      {/* Left — icon + label */}
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
+                          <Icon className="h-4 w-4 text-muted-foreground" />
                         </div>
-
-                        {/* Right — stat + freshness */}
-                        <div className="text-right shrink-0">
-                          <p className="text-xl font-bold tracking-tight leading-tight">
-                            {g.stat}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm leading-tight">{g.label}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {g.summary}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{g.unit}</p>
-                          <span
-                            className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                              fresh
-                                ? "bg-emerald-500/10 text-emerald-600"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            <span
-                              className={`h-1 w-1 rounded-full inline-block ${
-                                fresh ? "bg-emerald-500" : "bg-muted-foreground/50"
-                              }`}
-                            />
-                            {timeLabel}
-                          </span>
                         </div>
-
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+
+                      {/* Right — stat + freshness */}
+                      <div className="text-right shrink-0">
+                        <p className="text-xl font-bold tracking-tight leading-tight">
+                          {g.stat}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{g.unit}</p>
+                        <span
+                          className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                            fresh
+                              ? "bg-emerald-500/10 text-emerald-600"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <span
+                            className={`h-1 w-1 rounded-full inline-block ${
+                              fresh ? "bg-emerald-500" : "bg-muted-foreground/50"
+                            }`}
+                          />
+                          {timeLabel}
+                        </span>
+                      </div>
+
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             );
           })}

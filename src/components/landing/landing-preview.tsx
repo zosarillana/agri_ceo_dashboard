@@ -16,7 +16,7 @@ export function LandingPreview() {
           <span className="w-3 h-3 rounded-full bg-[#febc2e]" />
           <span className="w-3 h-3 rounded-full bg-[#28c840]" />
           <span className="ml-2 text-xs text-muted-foreground font-medium">
-            Agriexim FZE.app/dashboard
+            Agriexim Global Inc.app/dashboard
           </span>
         </div>
 
@@ -84,7 +84,7 @@ export function LandingPreview() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="text-2xl font-bold mb-4 bg-gradient-to-r from-[#1a9e6e] to-[#1a9e6e]/60 bg-clip-text text-transparent"
             >
-              About Agriexim FZE
+              About Agriexim Global Inc
             </motion.h2>
             
             <motion.div
@@ -94,7 +94,7 @@ export function LandingPreview() {
               className="space-y-4"
             >
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Agriexim FZE is a pioneering force in agricultural trade technology,
+                Agriexim Global Inc is a pioneering force in agricultural trade technology,
                 dedicated to streamlining global food supply chains. Our platform
                 combines cutting-edge analytics with real-time market insights to
                 empower growers, distributors, and buyers worldwide.

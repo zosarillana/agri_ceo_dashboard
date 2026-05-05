@@ -4,19 +4,21 @@
 // Shared Types
 // ─────────────────────────────────────────────────────────────
 
-export type UnitStatus =
-  | "operational"
-  | "down"
-  | "maintenance"
-  | "standby";
+export type UnitStatus = "operational" | "down" | "maintenance" | "standby";
+
+export interface ProductionLine {
+  actual: number;
+  target: number;
+  unit: string;
+}
 
 export interface ProductionData {
-  coconutWater: number;
-  cwc: number;
-  coconutOil: number;
-  creamUHT: number;
-  creamFrozen: number;
-  cakeFlour: number;
+  coconutWater: ProductionLine;
+  cwc: ProductionLine;
+  coconutOil: ProductionLine;
+  creamUHT: ProductionLine;
+  creamFrozen: ProductionLine;
+  cakeFlour: ProductionLine;
 }
 
 export interface ProcurementItem {
@@ -76,6 +78,7 @@ export interface WorkforceData {
 
 export interface MaintenanceUnit {
   name: string;
+  plant: string;
   status: UnitStatus;
   lastChecked: string;
   nextScheduled: string;
@@ -87,14 +90,14 @@ export interface MaintenanceUnit {
 // ─────────────────────────────────────────────────────────────
 
 export const mockData = {
-  production: {
-    coconutWater: 12400,
-    cwc: 8750,
-    coconutOil: 3200,
-    creamUHT: 5600,
-    creamFrozen: 2100,
-    cakeFlour: 9800,
-  } as ProductionData,
+production: {
+  coconutWater: { actual: 12400, target: 13000, unit: "units" },
+  cwc: { actual: 8750, target: 8500, unit: "units" },
+  coconutOil: { actual: 3200, target: 3500, unit: "liters" },
+  creamUHT: { actual: 5600, target: 5000, unit: "units" },
+  creamFrozen: { actual: 2100, target: 2500, unit: "kg" },
+  cakeFlour: { actual: 9800, target: 9500, unit: "kg" },
+} as ProductionData,
 
   procurement: [
     {
@@ -325,6 +328,7 @@ export const mockData = {
   maintenance: [
     {
       name: "Unit 1",
+      plant: "Plant A",
       status: "operational",
       lastChecked: "Today 06:00",
       nextScheduled: "2024-02-01",
@@ -332,6 +336,7 @@ export const mockData = {
     },
     {
       name: "Unit 2",
+      plant: "Plant A",
       status: "operational",
       lastChecked: "Today 06:00",
       nextScheduled: "2024-02-08",
@@ -339,10 +344,11 @@ export const mockData = {
     },
     {
       name: "Unit 3",
-      status: "maintenance",
-      lastChecked: "Yesterday",
-      nextScheduled: "Today PM",
-      notes: "Scheduled PM — bearings replacement",
+      plant: "Plant B",
+      status: "operational",
+      lastChecked: "Today 06:00",
+      nextScheduled: "2024-02-08",
+      notes: "Running normally",
     },
   ] as MaintenanceUnit[],
 };

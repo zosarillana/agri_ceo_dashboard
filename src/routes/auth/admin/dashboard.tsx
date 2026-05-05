@@ -46,14 +46,14 @@ function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 ">
+      <div className="max-w-7xl mx-auto px-6 ">
 
         {/* HEADER */}
         <div className="flex items-center justify-between">
           {!activeTab ? (
             // Overview header
             <>
-              <div>
+              <div  className="mt-2">              
                 <h1 className="text-3xl font-bold tracking-tight">CEO Dashboard</h1>
                 <p className="text-sm text-muted-foreground mt-1">{today}</p>
               </div>

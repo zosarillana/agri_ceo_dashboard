@@ -147,7 +147,7 @@ export function GlobalNavbar({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="w-8 h-8 bg-[#1a9e6e] rounded-md flex items-center justify-center cursor-pointer"
-            onClick={() => handleNavigate(isAuthenticated ? "/dashboard" : "/")}
+            // onClick={() => handleNavigate(isAuthenticated ? "/dashboard" : "/")}
           >
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
               <path
@@ -167,7 +167,7 @@ export function GlobalNavbar({
             className="text-sm font-medium cursor-pointer hover:text-[#1a9e6e] transition-colors"
             onClick={() => handleNavigate(isAuthenticated ? "/auth/admin/dashboard" : "/auth/admin")}
           >
-            Agriexim FZE
+            Agriexim Global Inc
           </span>
         </div>
 

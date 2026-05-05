@@ -80,11 +80,11 @@ export function LandingNavbar() {
               />
             </svg>
           </motion.div>
-          <span className="text-sm font-medium">Agriexim FZE</span>
+          <span className="text-sm font-medium">Agriexim Global Inc</span>
         </a>
 
         <div className="flex items-center gap-6">
-          <a
+          {/* <a
             href="#about-section"
             onClick={handleAboutClick}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -97,7 +97,7 @@ export function LandingNavbar() {
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Features
-          </a>
+          </a> */}
           <ModeToggle />
           <motion.button
             whileHover={{ scale: 1.02 }}
