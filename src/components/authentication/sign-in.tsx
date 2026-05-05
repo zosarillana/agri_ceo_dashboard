@@ -74,7 +74,7 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                     Welcome back
                   </DialogTitle>
                   <DialogDescription className="text-muted-foreground mt-2">
-                    Sign in to your Agriexim Global Inc account
+                    Sign in to your Agri Exim Global Inc. - CEO Daily Operations Dashboard account
                   </DialogDescription>
                 </motion.div>
               </DialogHeader>

@@ -25,6 +25,7 @@ import { Route as AuthAdminDashboardQcRouteImport } from './routes/auth/admin/da
 import { Route as AuthAdminDashboardProductionRouteImport } from './routes/auth/admin/dashboard/production'
 import { Route as AuthAdminDashboardProcurementRouteImport } from './routes/auth/admin/dashboard/procurement'
 import { Route as AuthAdminDashboardMaintenanceRouteImport } from './routes/auth/admin/dashboard/maintenance'
+import { Route as AuthAdminDashboardEnergyRouteImport } from './routes/auth/admin/dashboard/energy'
 import { Route as AuthAdminDashboardAccountsRouteImport } from './routes/auth/admin/dashboard/accounts'
 import { Route as AuthAdminProfileSettingsIndexRouteImport } from './routes/auth/admin/profile/settings/index'
 
@@ -113,6 +114,12 @@ const AuthAdminDashboardMaintenanceRoute =
     path: '/maintenance',
     getParentRoute: () => AuthAdminDashboardRoute,
   } as any)
+const AuthAdminDashboardEnergyRoute =
+  AuthAdminDashboardEnergyRouteImport.update({
+    id: '/energy',
+    path: '/energy',
+    getParentRoute: () => AuthAdminDashboardRoute,
+  } as any)
 const AuthAdminDashboardAccountsRoute =
   AuthAdminDashboardAccountsRouteImport.update({
     id: '/accounts',
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
   '/auth/admin/': typeof AuthAdminIndexRoute
   '/auth/admin/dashboard/accounts': typeof AuthAdminDashboardAccountsRoute
+  '/auth/admin/dashboard/energy': typeof AuthAdminDashboardEnergyRoute
   '/auth/admin/dashboard/maintenance': typeof AuthAdminDashboardMaintenanceRoute
   '/auth/admin/dashboard/procurement': typeof AuthAdminDashboardProcurementRoute
   '/auth/admin/dashboard/production': typeof AuthAdminDashboardProductionRoute
@@ -153,6 +161,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/auth/admin': typeof AuthAdminIndexRoute
   '/auth/admin/dashboard/accounts': typeof AuthAdminDashboardAccountsRoute
+  '/auth/admin/dashboard/energy': typeof AuthAdminDashboardEnergyRoute
   '/auth/admin/dashboard/maintenance': typeof AuthAdminDashboardMaintenanceRoute
   '/auth/admin/dashboard/procurement': typeof AuthAdminDashboardProcurementRoute
   '/auth/admin/dashboard/production': typeof AuthAdminDashboardProductionRoute
@@ -174,6 +183,7 @@ export interface FileRoutesById {
   '/auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
   '/auth/admin/': typeof AuthAdminIndexRoute
   '/auth/admin/dashboard/accounts': typeof AuthAdminDashboardAccountsRoute
+  '/auth/admin/dashboard/energy': typeof AuthAdminDashboardEnergyRoute
   '/auth/admin/dashboard/maintenance': typeof AuthAdminDashboardMaintenanceRoute
   '/auth/admin/dashboard/procurement': typeof AuthAdminDashboardProcurementRoute
   '/auth/admin/dashboard/production': typeof AuthAdminDashboardProductionRoute
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/auth/admin/dashboard'
     | '/auth/admin/'
     | '/auth/admin/dashboard/accounts'
+    | '/auth/admin/dashboard/energy'
     | '/auth/admin/dashboard/maintenance'
     | '/auth/admin/dashboard/procurement'
     | '/auth/admin/dashboard/production'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/auth/admin'
     | '/auth/admin/dashboard/accounts'
+    | '/auth/admin/dashboard/energy'
     | '/auth/admin/dashboard/maintenance'
     | '/auth/admin/dashboard/procurement'
     | '/auth/admin/dashboard/production'
@@ -234,6 +246,7 @@ export interface FileRouteTypes {
     | '/auth/admin/dashboard'
     | '/auth/admin/'
     | '/auth/admin/dashboard/accounts'
+    | '/auth/admin/dashboard/energy'
     | '/auth/admin/dashboard/maintenance'
     | '/auth/admin/dashboard/procurement'
     | '/auth/admin/dashboard/production'
@@ -368,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminDashboardMaintenanceRouteImport
       parentRoute: typeof AuthAdminDashboardRoute
     }
+    '/auth/admin/dashboard/energy': {
+      id: '/auth/admin/dashboard/energy'
+      path: '/energy'
+      fullPath: '/auth/admin/dashboard/energy'
+      preLoaderRoute: typeof AuthAdminDashboardEnergyRouteImport
+      parentRoute: typeof AuthAdminDashboardRoute
+    }
     '/auth/admin/dashboard/accounts': {
       id: '/auth/admin/dashboard/accounts'
       path: '/accounts'
@@ -387,6 +407,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthAdminDashboardRouteChildren {
   AuthAdminDashboardAccountsRoute: typeof AuthAdminDashboardAccountsRoute
+  AuthAdminDashboardEnergyRoute: typeof AuthAdminDashboardEnergyRoute
   AuthAdminDashboardMaintenanceRoute: typeof AuthAdminDashboardMaintenanceRoute
   AuthAdminDashboardProcurementRoute: typeof AuthAdminDashboardProcurementRoute
   AuthAdminDashboardProductionRoute: typeof AuthAdminDashboardProductionRoute
@@ -399,6 +420,7 @@ interface AuthAdminDashboardRouteChildren {
 
 const AuthAdminDashboardRouteChildren: AuthAdminDashboardRouteChildren = {
   AuthAdminDashboardAccountsRoute: AuthAdminDashboardAccountsRoute,
+  AuthAdminDashboardEnergyRoute: AuthAdminDashboardEnergyRoute,
   AuthAdminDashboardMaintenanceRoute: AuthAdminDashboardMaintenanceRoute,
   AuthAdminDashboardProcurementRoute: AuthAdminDashboardProcurementRoute,
   AuthAdminDashboardProductionRoute: AuthAdminDashboardProductionRoute,

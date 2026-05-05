@@ -29,6 +29,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import Logo from "@/assets/suminter-logo-nbg.svg?react";
 
 interface NavbarProps {
   userEmail?: string;
@@ -117,7 +118,11 @@ export function GlobalNavbar({
   ];
 
   const dashboardNavItems: DashboardNavItem[] = [
-    { label: "Dashboard", path: "/auth/admin/dashboard", icon: LayoutDashboard },
+    {
+      label: "Dashboard",
+      path: "/auth/admin/dashboard",
+      icon: LayoutDashboard,
+    },
   ];
 
   const navItems: NavItem[] = isDashboardPage
@@ -143,32 +148,21 @@ export function GlobalNavbar({
       >
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-8 h-8 bg-[#1a9e6e] rounded-md flex items-center justify-center cursor-pointer"
-            // onClick={() => handleNavigate(isAuthenticated ? "/dashboard" : "/")}
+          <a
+            href="#about-section"
+            className="flex items-center gap-2 cursor-pointer"
           >
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M8 2C5.5 2 3.5 4 3.5 6.5C3.5 9 5.5 11 8 11C10.5 11 12.5 9 12.5 6.5C12.5 4 10.5 2 8 2Z"
-                fill="white"
-                opacity="0.9"
-              />
-              <path
-                d="M8 11V14M5 14H11"
-                stroke="white"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </motion.div>
-          <span
-            className="text-sm font-medium cursor-pointer hover:text-[#1a9e6e] transition-colors"
-            onClick={() => handleNavigate(isAuthenticated ? "/auth/admin/dashboard" : "/auth/admin")}
-          >
-            Agriexim Global Inc
-          </span>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-8 h-8 bg-[#1a9e6e] rounded-md flex items-center justify-center"
+            >
+              <Logo className="h-6 w-auto text-foreground" />
+            </motion.div>
+            <span className="text-md font-medium">
+              Agri Exim Global Inc. - CEO Daily Operations Dashboard
+            </span>
+          </a>
         </div>
 
         {/* Desktop Navigation */}
@@ -250,7 +244,9 @@ export function GlobalNavbar({
                       <span>Profile</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => handleNavigate("/auth/admin/profile/settings/")}
+                      onClick={() =>
+                        handleNavigate("/auth/admin/profile/settings/")
+                      }
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Settings</span>

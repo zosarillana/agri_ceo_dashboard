@@ -16,7 +16,7 @@ export function LandingPreview() {
           <span className="w-3 h-3 rounded-full bg-[#febc2e]" />
           <span className="w-3 h-3 rounded-full bg-[#28c840]" />
           <span className="ml-2 text-xs text-muted-foreground font-medium">
-            Agriexim Global Inc.app/dashboard
+            Agri Exim Global Inc. - CEO Daily Operations Dashboard
           </span>
         </div>
 

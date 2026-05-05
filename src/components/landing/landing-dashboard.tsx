@@ -1,8 +1,12 @@
-// src/components/landing/landing-dashboard.tsx
+"use client";
+
 import * as React from "react";
 import { motion } from "framer-motion";
+import { format } from "date-fns";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
+
 import {
   Factory,
   ShoppingCart,
@@ -13,7 +17,17 @@ import {
   Users,
   Wrench,
   Lock,
+  Zap,
+  Calendar as CalendarIcon,
 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 import { mockData } from "@/routes/auth/admin/dashboard/data/mock-data";
 
@@ -125,6 +139,18 @@ const groups = [
     unit: "units monitored",
     updatedAt: daysAgo(3),
   },
+  {
+    id: "energy",
+    label: "Energy",
+    icon: Zap,
+    summary: "Accounts 2 & 3",
+    stat: fmtPHP(
+      mockData.energy.account2.reduce((s, r) => s + r.billedAmount, 0) +
+        mockData.energy.account3.reduce((s, r) => s + r.billedAmount, 0),
+    ),
+    unit: "total billing YTD",
+    updatedAt: daysAgo(1),
+  },
 ];
 
 /* ───────────────────────────────────────── */
@@ -140,6 +166,7 @@ function handleCardClick(label: string) {
 
 export function LandingDashboard() {
   const [time, setTime] = React.useState(new Date());
+  const [date, setDate] = React.useState<Date>(new Date());
 
   React.useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
@@ -155,12 +182,12 @@ export function LandingDashboard() {
       />
 
       <div className="space-y-5">
-
-        {/* Last updated */}
-        <div className="flex items-center justify-end gap-1.5">
+        {/* Header with Date Picker */}
+        <div className="flex items-center justify-end gap-3">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs text-muted-foreground">
-            Live dashboard —{" "}
+
+          <span className="text-xs text-muted-foreground flex items-center gap-2">
+            Live dashboard —{/* Time */}
             <span className="font-medium text-foreground">
               {time.toLocaleTimeString("en-PH", {
                 hour: "2-digit",
@@ -168,6 +195,29 @@ export function LandingDashboard() {
                 second: "2-digit",
               })}
             </span>
+            {/* Date */}
+            <span className="text-muted-foreground">{format(date, "PPP")}</span>
+            {/* Calendar */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(d) => d && setDate(d)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </span>
         </div>
 
@@ -191,26 +241,27 @@ export function LandingDashboard() {
                 >
                   <CardContent className="px-5 py-4">
                     <div className="flex items-start justify-between gap-4">
-
-                      {/* Left — icon + label */}
                       <div className="flex items-start gap-3 min-w-0">
                         <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
                           <Icon className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm leading-tight">{g.label}</p>
+                          <p className="font-semibold text-lg leading-tight">
+                            {g.label}
+                          </p>
                           <p className="text-xs text-muted-foreground mt-0.5 truncate">
                             {g.summary}
                           </p>
                         </div>
                       </div>
 
-                      {/* Right — stat + freshness */}
                       <div className="text-right shrink-0">
-                        <p className="text-xl font-bold tracking-tight leading-tight">
+                        <p className="text-2xl font-bold tracking-tight leading-tight">
                           {g.stat}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{g.unit}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {g.unit}
+                        </p>
                         <span
                           className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                             fresh
@@ -220,13 +271,14 @@ export function LandingDashboard() {
                         >
                           <span
                             className={`h-1 w-1 rounded-full inline-block ${
-                              fresh ? "bg-emerald-500" : "bg-muted-foreground/50"
+                              fresh
+                                ? "bg-emerald-500"
+                                : "bg-muted-foreground/50"
                             }`}
                           />
                           {timeLabel}
                         </span>
                       </div>
-
                     </div>
                   </CardContent>
                 </Card>

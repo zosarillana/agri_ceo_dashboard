@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
+import DatePickerInline from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/auth/admin/dashboard")({
   component: DashboardLayout,
@@ -24,6 +25,7 @@ const tabs = [
   { id: "qc",          label: "Quality Control" },
   { id: "workforce",   label: "Workforce" },
   { id: "maintenance", label: "Maintenance" },
+  { id: "energy",      label: "Energy" },
 ] as const;
 
 type DashboardSegment = (typeof tabs)[number]["id"];
@@ -55,7 +57,7 @@ function DashboardLayout() {
             <>
               <div  className="mt-2">              
                 <h1 className="text-3xl font-bold tracking-tight">CEO Dashboard</h1>
-                <p className="text-sm text-muted-foreground mt-1">{today}</p>
+                <p className="text-sm text-muted-foreground mt-1">{today}</p> <DatePickerInline/>
               </div>
               <Badge variant="outline">Overview</Badge>
             </>

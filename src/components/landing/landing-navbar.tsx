@@ -2,32 +2,10 @@ import { useState } from "react";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { motion } from "framer-motion";
 import { SignInModal } from "@/components/authentication/sign-in";
+import Logo from "@/assets/suminter-logo-nbg.svg?react";
 
 export function LandingNavbar() {
   const [isSignInOpen, setIsSignInOpen] = useState(false);
-
-  const handleFeaturesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const featuresSection = document.getElementById("features");
-    if (featuresSection) {
-      featuresSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
-  const handleAboutClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const aboutSection = document.getElementById("about-section");
-    if (aboutSection) {
-      const offset = 180;
-      const elementPosition = aboutSection.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth",
-      });
-    }
-  };
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -64,23 +42,13 @@ export function LandingNavbar() {
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="w-7 h-7 bg-[#1a9e6e] rounded-md flex items-center justify-center"
+            className="w-8 h-8 bg-[#1a9e6e] rounded-md flex items-center justify-center"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M8 2C5.5 2 3.5 4 3.5 6.5C3.5 9 5.5 11 8 11C10.5 11 12.5 9 12.5 6.5C12.5 4 10.5 2 8 2Z"
-                fill="white"
-                opacity="0.9"
-              />
-              <path
-                d="M8 11V14M5 14H11"
-                stroke="white"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            <Logo className="h-6 w-auto text-foreground" />
           </motion.div>
-          <span className="text-sm font-medium">Agriexim Global Inc</span>
+          <span className="text-md font-medium">
+            Agri Exim Global Inc. - CEO Daily Operations Dashboard
+          </span>
         </a>
 
         <div className="flex items-center gap-6">

@@ -12,6 +12,7 @@ import {
   FlaskConical,
   Users,
   Wrench,
+  Zap,
 } from "lucide-react";
 
 import { mockData } from "../data/mock-data";
@@ -124,6 +125,18 @@ const groups = [
     unit: "units monitored",
     updatedAt: daysAgo(3),
   },
+  {
+    id: "energy",
+    label: "Energy",
+    icon: Zap,
+    summary: "Accounts 2 & 3",
+    stat: fmtPHP(
+      mockData.energy.account2.reduce((s, r) => s + r.billedAmount, 0) +
+        mockData.energy.account3.reduce((s, r) => s + r.billedAmount, 0),
+    ),
+    unit: "total billing YTD",
+    updatedAt: daysAgo(1),
+  },
 ];
 
 type DashboardSegment =
@@ -134,7 +147,8 @@ type DashboardSegment =
   | "trading"
   | "qc"
   | "workforce"
-  | "maintenance";
+  | "maintenance"
+  | "energy";
 
 type DashboardRoute = `/auth/admin/dashboard/${DashboardSegment}`;
 
@@ -155,7 +169,6 @@ export default function CEODashboard() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto py-0 space-y-5">
-
         {/* Last updated */}
         <div className="flex items-center justify-end gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -197,14 +210,15 @@ export default function CEODashboard() {
                   >
                     <CardContent className="px-5 py-4">
                       <div className="flex items-start justify-between gap-4">
-
                         {/* Left — icon + label */}
                         <div className="flex items-start gap-3 min-w-0">
                           <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
                             <Icon className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-sm leading-tight">{g.label}</p>
+                            <p className="font-semibold text-lg leading-tight">
+                              {g.label}
+                            </p>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">
                               {g.summary}
                             </p>
@@ -213,10 +227,12 @@ export default function CEODashboard() {
 
                         {/* Right — stat + freshness */}
                         <div className="text-right shrink-0">
-                          <p className="text-xl font-bold tracking-tight leading-tight">
+                          <p className="text-2xl font-bold tracking-tight leading-tight">
                             {g.stat}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{g.unit}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {g.unit}
+                          </p>
                           <span
                             className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                               fresh
@@ -226,13 +242,14 @@ export default function CEODashboard() {
                           >
                             <span
                               className={`h-1 w-1 rounded-full inline-block ${
-                                fresh ? "bg-emerald-500" : "bg-muted-foreground/50"
+                                fresh
+                                  ? "bg-emerald-500"
+                                  : "bg-muted-foreground/50"
                               }`}
                             />
                             {timeLabel}
                           </span>
                         </div>
-
                       </div>
                     </CardContent>
                   </Card>

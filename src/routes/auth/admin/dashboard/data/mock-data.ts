@@ -85,19 +85,47 @@ export interface MaintenanceUnit {
   notes: string;
 }
 
+// Add these types
+export interface EnergyAccount {
+  month: string;
+  kw: number;
+  demand: number;
+  billedAmount: number;
+}
+
+export interface EnergyData {
+  account2: EnergyAccount[];
+  account3: EnergyAccount[];
+}
+
 // ─────────────────────────────────────────────────────────────
 // Mock Data
 // ─────────────────────────────────────────────────────────────
 
 export const mockData = {
-production: {
-  coconutWater: { actual: 12400, target: 13000, unit: "units" },
-  cwc: { actual: 8750, target: 8500, unit: "units" },
-  coconutOil: { actual: 3200, target: 3500, unit: "liters" },
-  creamUHT: { actual: 5600, target: 5000, unit: "units" },
-  creamFrozen: { actual: 2100, target: 2500, unit: "kg" },
-  cakeFlour: { actual: 9800, target: 9500, unit: "kg" },
-} as ProductionData,
+  energy: {
+    account2: [
+      { month: "Jan", kw: 49, demand: 16092, billedAmount: 182834.77 },
+      { month: "Feb", kw: 53, demand: 17093, billedAmount: 185092.43 },
+      { month: "Mar", kw: 55, demand: 16759, billedAmount: 191635.48 },
+      { month: "Apr", kw: 58, demand: 19428, billedAmount: 218094.81 },
+    ],
+    account3: [
+      { month: "Jan", kw: 1036, demand: 441000, billedAmount: 4743488.36 },
+      { month: "Feb", kw: 882, demand: 494200, billedAmount: 4731517.51 },
+      { month: "Mar", kw: 868, demand: 422800, billedAmount: 4389996.59 },
+      { month: "Apr", kw: 895, demand: 431605, billedAmount: 4584650.27 },
+    ],
+  } as EnergyData,
+
+  production: {
+    coconutWater: { actual: 12400, target: 13000, unit: "units" },
+    cwc: { actual: 8750, target: 8500, unit: "units" },
+    coconutOil: { actual: 3200, target: 3500, unit: "liters" },
+    creamUHT: { actual: 5600, target: 5000, unit: "units" },
+    creamFrozen: { actual: 2100, target: 2500, unit: "kg" },
+    cakeFlour: { actual: 9800, target: 9500, unit: "kg" },
+  } as ProductionData,
 
   procurement: [
     {
