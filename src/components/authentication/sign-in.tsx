@@ -12,6 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuthStore } from "@/store/auth.store";
+import { getDashboardRoute } from "@/lib/redirect";
+import { toast } from "sonner";
 
 interface SignInModalProps {
   open: boolean;
@@ -20,33 +23,46 @@ interface SignInModalProps {
 
 export function SignInModal({ open, onOpenChange }: SignInModalProps) {
   const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Helper function to determine redirect path based on email
-  const getRedirectPath = (email: string): string => {
-    const localPart = email.split("@")[0];
-    if (localPart.toLowerCase() === "admin") {
-      return "/auth/admin/dashboard";
-    }
-    return "/dashboard";
-  };
+  const { login, isLoading } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Sign in with:", { email, password });
-      setIsLoading(false);
+    try {
+      await login(email, password);
+
+      const user = useAuthStore.getState().user;
+
+      if (!user) {
+        throw new Error("User not found after login");
+      }
+
       onOpenChange(false);
 
-      // Redirect based on email pattern
-      const redirectPath = getRedirectPath(email);
-      navigate({ to: redirectPath });
-    }, 1500);
+      navigate({
+        to: getDashboardRoute(user.role),
+      });
+
+      // 👇 fire AFTER navigation so Toaster is still mounted on the new page
+      setTimeout(() => {
+        toast.success(`Welcome back, ${user.name}! 👋`, {
+          description: "You have successfully signed in.",
+          duration: 4000,
+        });
+      }, 100);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Login failed", {
+        description:
+          err?.response?.data?.message ||
+          err?.message ||
+          "Please check your credentials and try again.",
+      });
+    }
   };
 
   return (
@@ -74,12 +90,14 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                     Welcome back
                   </DialogTitle>
                   <DialogDescription className="text-muted-foreground mt-2">
-                    Sign in to your Agri Exim Global Inc. - CEO Daily Operations Dashboard account
+                    Sign in to your Agri Exim Global Inc. - CEO Daily Operations
+                    Dashboard account
                   </DialogDescription>
                 </motion.div>
               </DialogHeader>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Email */}
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -94,10 +112,11 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="transition-all focus:ring-[#1a9e6e] focus:ring-offset-0"
+                    className="transition-all focus:ring-[#1a9e6e]"
                   />
                 </motion.div>
 
+                {/* Password */}
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -112,10 +131,11 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="transition-all focus:ring-[#1a9e6e] focus:ring-offset-0"
+                    className="transition-all focus:ring-[#1a9e6e]"
                   />
                 </motion.div>
 
+                {/* Options */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -126,11 +146,10 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                     <input type="checkbox" className="rounded border-border" />
                     <span className="text-muted-foreground">Remember me</span>
                   </label>
-                  <a href="#" className="text-[#1a9e6e] hover:underline">
-                    Forgot password?
-                  </a>
+          
                 </motion.div>
 
+                {/* Submit */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -157,19 +176,19 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                   </Button>
                 </motion.div>
 
+                {/* Footer */}
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.6 }}
-                  className="text-center text-sm text-muted-foreground mt-4"
+                  className="flex text-center text-sm text-muted-foreground mt-4"
                 >
-                  Don't have an account?{" "}
-                  <a
-                    href="#"
-                    className="text-[#1a9e6e] hover:underline font-medium"
+                  Don't have an account? {" "}
+                  <p                  
+                    className="ml-1 text-[#1a9e6e] font-medium"
                   >
-                    Sign up
-                  </a>
+                    Contact Admin.
+                  </p>
                 </motion.p>
               </form>
             </div>

@@ -30,13 +30,7 @@ import {
   X,
 } from "lucide-react";
 import Logo from "@/assets/suminter-logo-nbg.svg?react";
-
-interface NavbarProps {
-  userEmail?: string;
-  userName?: string;
-  userAvatar?: string;
-  isAuthenticated?: boolean;
-}
+import { useAuthStore } from "@/store/auth.store";
 
 // Define types for navigation items
 type LandingNavItem = {
@@ -69,19 +63,29 @@ export function ModeToggle() {
   );
 }
 
-export function GlobalNavbar({
-  userEmail = "admin@gmail.com",
-  userName = "Admin User",
-  userAvatar,
-  isAuthenticated = true,
-}: NavbarProps) {
+export function GlobalNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuthStore();
 
-  const handleSignOut = () => {
-    console.log("Signing out...");
-    navigate({ to: "/" });
+  // remove the hardcoded defaults, use store values:
+  const userName = user?.name ?? "Guest";
+  const userEmail = user?.email ?? "";
+  const userAvatar = user?.avatar ?? undefined;
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+
+      // optional: clear any local auth state
+      // e.g. zustand / redux / context
+      // authStore.setState({ user: null, isAuthenticated: false });
+
+      navigate({ to: "/" });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   const handleNavigate = (path: string) => {

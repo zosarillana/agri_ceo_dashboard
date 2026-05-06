@@ -15,7 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { mockData } from "../data/mock-data";
+import { mockData } from "../data/-mock-data";
 
 /* ───────────────────────────────────────── */
 

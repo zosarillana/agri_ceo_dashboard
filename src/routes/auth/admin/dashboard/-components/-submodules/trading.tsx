@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { mockData } from "@/routes/auth/admin/dashboard/data/mock-data";
+import { mockData } from "@/routes/auth/admin/dashboard/data/-mock-data";
 
 function fmt(n: number) {
   return n.toLocaleString();

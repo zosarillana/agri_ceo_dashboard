@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 
 import {
   Factory,
@@ -29,7 +29,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-import { mockData } from "@/routes/auth/admin/dashboard/data/mock-data";
+import { mockData } from "@/routes/auth/admin/dashboard/data/-mock-data";
 
 /* ───────────────────────────────────────── */
 
@@ -175,12 +175,6 @@ export function LandingDashboard() {
 
   return (
     <div className="w-full">
-      <Toaster
-        position="bottom-center"
-        richColors
-        toastOptions={{ style: { width: "420px" } }}
-      />
-
       <div className="space-y-5">
         {/* Header with Date Picker */}
         <div className="flex items-center justify-end gap-3">

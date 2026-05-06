@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ChevronDown, Activity, Clock, CalendarClock, Factory } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mockData } from "@/routes/auth/admin/dashboard/data/mock-data";
+import { mockData } from "@/routes/auth/admin/dashboard/data/-mock-data";
 
 function statusBadge(status: string) {
   if (status === "operational")
