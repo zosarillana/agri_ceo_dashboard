@@ -1,23 +1,29 @@
 import { create } from "zustand";
 import * as authService from "@/services/auth.service";
+import { User } from "@/types/user.types";
 
 interface AuthState {
-  user: any | null;
+  user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+  isInitializing: boolean;
+  isLoggingIn: boolean;
+  initialized: boolean;
+
+  initializeAuth: () => Promise<void>;
 
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
 }
-
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isInitializing: false,
+  isLoggingIn: false,
+  initialized: false,
 
   login: async (email, password) => {
-    set({ isLoading: true });
+    set({ isLoggingIn: true });
 
     try {
       const user = await authService.login(email, password);
@@ -27,7 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: true,
       });
     } finally {
-      set({ isLoading: false });
+      set({ isLoggingIn: false });
     }
   },
 
@@ -40,6 +46,50 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
+  initializeAuth: async () => {
+    const state = useAuthStore.getState();
+
+    console.log("🚀 initializeAuth called");
+    console.log("📦 current state:", state);
+
+    if (state.initialized || state.isInitializing) {
+      console.log("⏭️ skipped initializeAuth");
+      return;
+    }
+
+    set({ isInitializing: true });
+
+    try {
+      const user = await authService.getUser();
+
+      console.log("✅ initializeAuth success", user);
+
+      set({
+        user,
+        isAuthenticated: true,
+        initialized: true,
+      });
+
+      console.log("📦 state after success:", useAuthStore.getState());
+    } catch (err) {
+      console.log("❌ initializeAuth failed", err);
+
+      set({
+        user: null,
+        isAuthenticated: false,
+        initialized: true,
+      });
+
+      console.log("📦 state after fail:", useAuthStore.getState());
+    } finally {
+      set({
+        isInitializing: false,
+      });
+
+      console.log("🏁 initializeAuth finished");
+    }
+  },
+
   fetchUser: async () => {
     try {
       const user = await authService.getUser();
@@ -47,11 +97,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({
         user,
         isAuthenticated: true,
+        initialized: true,
       });
     } catch {
       set({
         user: null,
         isAuthenticated: false,
+        initialized: true,
+      });
+    } finally {
+      set({
+        isLoggingIn: false,
       });
     }
   },

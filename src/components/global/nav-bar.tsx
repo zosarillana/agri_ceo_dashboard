@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import Logo from "@/assets/suminter-logo-nbg.svg?react";
 import { useAuthStore } from "@/store/auth.store";
+import { Link } from "@tanstack/react-router";
+import { getDashboardRouteByRole } from "@/lib/auth.guard";
 
 // Define types for navigation items
 type LandingNavItem = {
@@ -48,7 +50,7 @@ type DashboardNavItem = {
 
 type NavItem = LandingNavItem | DashboardNavItem;
 
-export function ModeToggle() {
+function ModeToggle() {
   const { theme, setTheme } = useTheme();
 
   return (
@@ -72,7 +74,9 @@ export function GlobalNavbar() {
   // remove the hardcoded defaults, use store values:
   const userName = user?.name ?? "Guest";
   const userEmail = user?.email ?? "";
-  const userAvatar = user?.avatar ?? undefined;
+
+  const logoTo =
+    isAuthenticated && user ? getDashboardRouteByRole(user.role) : "/";
 
   const handleSignOut = async () => {
     try {
@@ -152,10 +156,7 @@ export function GlobalNavbar() {
       >
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <a
-            href="#about-section"
-            className="flex items-center gap-2 cursor-pointer"
-          >
+          <Link to={logoTo} className="flex items-center gap-2 cursor-pointer">
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -166,7 +167,7 @@ export function GlobalNavbar() {
             <span className="text-md font-medium">
               Agri Exim Global Inc. - CEO Daily Operations Dashboard
             </span>
-          </a>
+          </Link>
         </div>
 
         {/* Desktop Navigation */}
@@ -218,7 +219,7 @@ export function GlobalNavbar() {
                       className="relative h-10 w-auto gap-2 px-2"
                     >
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={userAvatar} alt={userName} />
+                        <AvatarImage src={undefined} alt={userName} />
                         <AvatarFallback className="bg-[#1a9e6e] text-white text-xs">
                           {getInitials(userName)}
                         </AvatarFallback>
@@ -273,7 +274,7 @@ export function GlobalNavbar() {
                   className="h-8 w-8 cursor-pointer"
                   onClick={() => handleNavigate("/dashboard/profile")}
                 >
-                  <AvatarImage src={userAvatar} alt={userName} />
+                  <AvatarImage src={undefined} alt={userName} />
                   <AvatarFallback className="bg-[#1a9e6e] text-white text-xs">
                     {getInitials(userName)}
                   </AvatarFallback>

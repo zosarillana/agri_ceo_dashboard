@@ -15,19 +15,20 @@ import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as AuthAdminRouteImport } from './routes/auth/admin'
 import { Route as AuthAdminIndexRouteImport } from './routes/auth/admin/index'
-import { Route as AuthAdminDashboardRouteImport } from './routes/auth/admin/dashboard'
-import { Route as AuthAdminProfileIndexRouteImport } from './routes/auth/admin/profile/index'
-import { Route as AuthAdminDashboardIndexRouteImport } from './routes/auth/admin/dashboard/index'
-import { Route as AuthAdminDashboardWorkforceRouteImport } from './routes/auth/admin/dashboard/workforce'
-import { Route as AuthAdminDashboardTradingRouteImport } from './routes/auth/admin/dashboard/trading'
-import { Route as AuthAdminDashboardSalesRouteImport } from './routes/auth/admin/dashboard/sales'
-import { Route as AuthAdminDashboardQcRouteImport } from './routes/auth/admin/dashboard/qc'
-import { Route as AuthAdminDashboardProductionRouteImport } from './routes/auth/admin/dashboard/production'
-import { Route as AuthAdminDashboardProcurementRouteImport } from './routes/auth/admin/dashboard/procurement'
-import { Route as AuthAdminDashboardMaintenanceRouteImport } from './routes/auth/admin/dashboard/maintenance'
-import { Route as AuthAdminDashboardEnergyRouteImport } from './routes/auth/admin/dashboard/energy'
-import { Route as AuthAdminDashboardAccountsRouteImport } from './routes/auth/admin/dashboard/accounts'
-import { Route as AuthAdminProfileSettingsIndexRouteImport } from './routes/auth/admin/profile/settings/index'
+import { Route as AuthAdminLayoutRouteImport } from './routes/auth/admin/_layout'
+import { Route as AuthAdminLayoutDashboardRouteImport } from './routes/auth/admin/_layout/dashboard'
+import { Route as AuthAdminLayoutProfileIndexRouteImport } from './routes/auth/admin/_layout/profile/index'
+import { Route as AuthAdminLayoutDashboardIndexRouteImport } from './routes/auth/admin/_layout/dashboard/index'
+import { Route as AuthAdminLayoutDashboardWorkforceRouteImport } from './routes/auth/admin/_layout/dashboard/workforce'
+import { Route as AuthAdminLayoutDashboardTradingRouteImport } from './routes/auth/admin/_layout/dashboard/trading'
+import { Route as AuthAdminLayoutDashboardSalesRouteImport } from './routes/auth/admin/_layout/dashboard/sales'
+import { Route as AuthAdminLayoutDashboardQcRouteImport } from './routes/auth/admin/_layout/dashboard/qc'
+import { Route as AuthAdminLayoutDashboardProductionRouteImport } from './routes/auth/admin/_layout/dashboard/production'
+import { Route as AuthAdminLayoutDashboardProcurementRouteImport } from './routes/auth/admin/_layout/dashboard/procurement'
+import { Route as AuthAdminLayoutDashboardMaintenanceRouteImport } from './routes/auth/admin/_layout/dashboard/maintenance'
+import { Route as AuthAdminLayoutDashboardEnergyRouteImport } from './routes/auth/admin/_layout/dashboard/energy'
+import { Route as AuthAdminLayoutDashboardAccountsRouteImport } from './routes/auth/admin/_layout/dashboard/accounts'
+import { Route as AuthAdminLayoutProfileSettingsIndexRouteImport } from './routes/auth/admin/_layout/profile/settings/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,100 +60,109 @@ const AuthAdminIndexRoute = AuthAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthAdminRoute,
 } as any)
-const AuthAdminDashboardRoute = AuthAdminDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AuthAdminLayoutRoute = AuthAdminLayoutRouteImport.update({
+  id: '/_layout',
   getParentRoute: () => AuthAdminRoute,
 } as any)
-const AuthAdminProfileIndexRoute = AuthAdminProfileIndexRouteImport.update({
-  id: '/profile/',
-  path: '/profile/',
-  getParentRoute: () => AuthAdminRoute,
-} as any)
-const AuthAdminDashboardIndexRoute = AuthAdminDashboardIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthAdminDashboardRoute,
-} as any)
-const AuthAdminDashboardWorkforceRoute =
-  AuthAdminDashboardWorkforceRouteImport.update({
+const AuthAdminLayoutDashboardRoute =
+  AuthAdminLayoutDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthAdminLayoutRoute,
+  } as any)
+const AuthAdminLayoutProfileIndexRoute =
+  AuthAdminLayoutProfileIndexRouteImport.update({
+    id: '/profile/',
+    path: '/profile/',
+    getParentRoute: () => AuthAdminLayoutRoute,
+  } as any)
+const AuthAdminLayoutDashboardIndexRoute =
+  AuthAdminLayoutDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
+  } as any)
+const AuthAdminLayoutDashboardWorkforceRoute =
+  AuthAdminLayoutDashboardWorkforceRouteImport.update({
     id: '/workforce',
     path: '/workforce',
-    getParentRoute: () => AuthAdminDashboardRoute,
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
   } as any)
-const AuthAdminDashboardTradingRoute =
-  AuthAdminDashboardTradingRouteImport.update({
+const AuthAdminLayoutDashboardTradingRoute =
+  AuthAdminLayoutDashboardTradingRouteImport.update({
     id: '/trading',
     path: '/trading',
-    getParentRoute: () => AuthAdminDashboardRoute,
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
   } as any)
-const AuthAdminDashboardSalesRoute = AuthAdminDashboardSalesRouteImport.update({
-  id: '/sales',
-  path: '/sales',
-  getParentRoute: () => AuthAdminDashboardRoute,
-} as any)
-const AuthAdminDashboardQcRoute = AuthAdminDashboardQcRouteImport.update({
-  id: '/qc',
-  path: '/qc',
-  getParentRoute: () => AuthAdminDashboardRoute,
-} as any)
-const AuthAdminDashboardProductionRoute =
-  AuthAdminDashboardProductionRouteImport.update({
+const AuthAdminLayoutDashboardSalesRoute =
+  AuthAdminLayoutDashboardSalesRouteImport.update({
+    id: '/sales',
+    path: '/sales',
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
+  } as any)
+const AuthAdminLayoutDashboardQcRoute =
+  AuthAdminLayoutDashboardQcRouteImport.update({
+    id: '/qc',
+    path: '/qc',
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
+  } as any)
+const AuthAdminLayoutDashboardProductionRoute =
+  AuthAdminLayoutDashboardProductionRouteImport.update({
     id: '/production',
     path: '/production',
-    getParentRoute: () => AuthAdminDashboardRoute,
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
   } as any)
-const AuthAdminDashboardProcurementRoute =
-  AuthAdminDashboardProcurementRouteImport.update({
+const AuthAdminLayoutDashboardProcurementRoute =
+  AuthAdminLayoutDashboardProcurementRouteImport.update({
     id: '/procurement',
     path: '/procurement',
-    getParentRoute: () => AuthAdminDashboardRoute,
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
   } as any)
-const AuthAdminDashboardMaintenanceRoute =
-  AuthAdminDashboardMaintenanceRouteImport.update({
+const AuthAdminLayoutDashboardMaintenanceRoute =
+  AuthAdminLayoutDashboardMaintenanceRouteImport.update({
     id: '/maintenance',
     path: '/maintenance',
-    getParentRoute: () => AuthAdminDashboardRoute,
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
   } as any)
-const AuthAdminDashboardEnergyRoute =
-  AuthAdminDashboardEnergyRouteImport.update({
+const AuthAdminLayoutDashboardEnergyRoute =
+  AuthAdminLayoutDashboardEnergyRouteImport.update({
     id: '/energy',
     path: '/energy',
-    getParentRoute: () => AuthAdminDashboardRoute,
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
   } as any)
-const AuthAdminDashboardAccountsRoute =
-  AuthAdminDashboardAccountsRouteImport.update({
+const AuthAdminLayoutDashboardAccountsRoute =
+  AuthAdminLayoutDashboardAccountsRouteImport.update({
     id: '/accounts',
     path: '/accounts',
-    getParentRoute: () => AuthAdminDashboardRoute,
+    getParentRoute: () => AuthAdminLayoutDashboardRoute,
   } as any)
-const AuthAdminProfileSettingsIndexRoute =
-  AuthAdminProfileSettingsIndexRouteImport.update({
+const AuthAdminLayoutProfileSettingsIndexRoute =
+  AuthAdminLayoutProfileSettingsIndexRouteImport.update({
     id: '/profile/settings/',
     path: '/profile/settings/',
-    getParentRoute: () => AuthAdminRoute,
+    getParentRoute: () => AuthAdminLayoutRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth/admin': typeof AuthAdminRouteWithChildren
+  '/auth/admin': typeof AuthAdminLayoutRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/auth/': typeof AuthIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
-  '/auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
   '/auth/admin/': typeof AuthAdminIndexRoute
-  '/auth/admin/dashboard/accounts': typeof AuthAdminDashboardAccountsRoute
-  '/auth/admin/dashboard/energy': typeof AuthAdminDashboardEnergyRoute
-  '/auth/admin/dashboard/maintenance': typeof AuthAdminDashboardMaintenanceRoute
-  '/auth/admin/dashboard/procurement': typeof AuthAdminDashboardProcurementRoute
-  '/auth/admin/dashboard/production': typeof AuthAdminDashboardProductionRoute
-  '/auth/admin/dashboard/qc': typeof AuthAdminDashboardQcRoute
-  '/auth/admin/dashboard/sales': typeof AuthAdminDashboardSalesRoute
-  '/auth/admin/dashboard/trading': typeof AuthAdminDashboardTradingRoute
-  '/auth/admin/dashboard/workforce': typeof AuthAdminDashboardWorkforceRoute
-  '/auth/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
-  '/auth/admin/profile/': typeof AuthAdminProfileIndexRoute
-  '/auth/admin/profile/settings/': typeof AuthAdminProfileSettingsIndexRoute
+  '/auth/admin/dashboard': typeof AuthAdminLayoutDashboardRouteWithChildren
+  '/auth/admin/dashboard/accounts': typeof AuthAdminLayoutDashboardAccountsRoute
+  '/auth/admin/dashboard/energy': typeof AuthAdminLayoutDashboardEnergyRoute
+  '/auth/admin/dashboard/maintenance': typeof AuthAdminLayoutDashboardMaintenanceRoute
+  '/auth/admin/dashboard/procurement': typeof AuthAdminLayoutDashboardProcurementRoute
+  '/auth/admin/dashboard/production': typeof AuthAdminLayoutDashboardProductionRoute
+  '/auth/admin/dashboard/qc': typeof AuthAdminLayoutDashboardQcRoute
+  '/auth/admin/dashboard/sales': typeof AuthAdminLayoutDashboardSalesRoute
+  '/auth/admin/dashboard/trading': typeof AuthAdminLayoutDashboardTradingRoute
+  '/auth/admin/dashboard/workforce': typeof AuthAdminLayoutDashboardWorkforceRoute
+  '/auth/admin/dashboard/': typeof AuthAdminLayoutDashboardIndexRoute
+  '/auth/admin/profile/': typeof AuthAdminLayoutProfileIndexRoute
+  '/auth/admin/profile/settings/': typeof AuthAdminLayoutProfileSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -160,18 +170,18 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/auth/admin': typeof AuthAdminIndexRoute
-  '/auth/admin/dashboard/accounts': typeof AuthAdminDashboardAccountsRoute
-  '/auth/admin/dashboard/energy': typeof AuthAdminDashboardEnergyRoute
-  '/auth/admin/dashboard/maintenance': typeof AuthAdminDashboardMaintenanceRoute
-  '/auth/admin/dashboard/procurement': typeof AuthAdminDashboardProcurementRoute
-  '/auth/admin/dashboard/production': typeof AuthAdminDashboardProductionRoute
-  '/auth/admin/dashboard/qc': typeof AuthAdminDashboardQcRoute
-  '/auth/admin/dashboard/sales': typeof AuthAdminDashboardSalesRoute
-  '/auth/admin/dashboard/trading': typeof AuthAdminDashboardTradingRoute
-  '/auth/admin/dashboard/workforce': typeof AuthAdminDashboardWorkforceRoute
-  '/auth/admin/dashboard': typeof AuthAdminDashboardIndexRoute
-  '/auth/admin/profile': typeof AuthAdminProfileIndexRoute
-  '/auth/admin/profile/settings': typeof AuthAdminProfileSettingsIndexRoute
+  '/auth/admin/dashboard/accounts': typeof AuthAdminLayoutDashboardAccountsRoute
+  '/auth/admin/dashboard/energy': typeof AuthAdminLayoutDashboardEnergyRoute
+  '/auth/admin/dashboard/maintenance': typeof AuthAdminLayoutDashboardMaintenanceRoute
+  '/auth/admin/dashboard/procurement': typeof AuthAdminLayoutDashboardProcurementRoute
+  '/auth/admin/dashboard/production': typeof AuthAdminLayoutDashboardProductionRoute
+  '/auth/admin/dashboard/qc': typeof AuthAdminLayoutDashboardQcRoute
+  '/auth/admin/dashboard/sales': typeof AuthAdminLayoutDashboardSalesRoute
+  '/auth/admin/dashboard/trading': typeof AuthAdminLayoutDashboardTradingRoute
+  '/auth/admin/dashboard/workforce': typeof AuthAdminLayoutDashboardWorkforceRoute
+  '/auth/admin/dashboard': typeof AuthAdminLayoutDashboardIndexRoute
+  '/auth/admin/profile': typeof AuthAdminLayoutProfileIndexRoute
+  '/auth/admin/profile/settings': typeof AuthAdminLayoutProfileSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -180,20 +190,21 @@ export interface FileRoutesById {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/auth/': typeof AuthIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
-  '/auth/admin/dashboard': typeof AuthAdminDashboardRouteWithChildren
+  '/auth/admin/_layout': typeof AuthAdminLayoutRouteWithChildren
   '/auth/admin/': typeof AuthAdminIndexRoute
-  '/auth/admin/dashboard/accounts': typeof AuthAdminDashboardAccountsRoute
-  '/auth/admin/dashboard/energy': typeof AuthAdminDashboardEnergyRoute
-  '/auth/admin/dashboard/maintenance': typeof AuthAdminDashboardMaintenanceRoute
-  '/auth/admin/dashboard/procurement': typeof AuthAdminDashboardProcurementRoute
-  '/auth/admin/dashboard/production': typeof AuthAdminDashboardProductionRoute
-  '/auth/admin/dashboard/qc': typeof AuthAdminDashboardQcRoute
-  '/auth/admin/dashboard/sales': typeof AuthAdminDashboardSalesRoute
-  '/auth/admin/dashboard/trading': typeof AuthAdminDashboardTradingRoute
-  '/auth/admin/dashboard/workforce': typeof AuthAdminDashboardWorkforceRoute
-  '/auth/admin/dashboard/': typeof AuthAdminDashboardIndexRoute
-  '/auth/admin/profile/': typeof AuthAdminProfileIndexRoute
-  '/auth/admin/profile/settings/': typeof AuthAdminProfileSettingsIndexRoute
+  '/auth/admin/_layout/dashboard': typeof AuthAdminLayoutDashboardRouteWithChildren
+  '/auth/admin/_layout/dashboard/accounts': typeof AuthAdminLayoutDashboardAccountsRoute
+  '/auth/admin/_layout/dashboard/energy': typeof AuthAdminLayoutDashboardEnergyRoute
+  '/auth/admin/_layout/dashboard/maintenance': typeof AuthAdminLayoutDashboardMaintenanceRoute
+  '/auth/admin/_layout/dashboard/procurement': typeof AuthAdminLayoutDashboardProcurementRoute
+  '/auth/admin/_layout/dashboard/production': typeof AuthAdminLayoutDashboardProductionRoute
+  '/auth/admin/_layout/dashboard/qc': typeof AuthAdminLayoutDashboardQcRoute
+  '/auth/admin/_layout/dashboard/sales': typeof AuthAdminLayoutDashboardSalesRoute
+  '/auth/admin/_layout/dashboard/trading': typeof AuthAdminLayoutDashboardTradingRoute
+  '/auth/admin/_layout/dashboard/workforce': typeof AuthAdminLayoutDashboardWorkforceRoute
+  '/auth/admin/_layout/dashboard/': typeof AuthAdminLayoutDashboardIndexRoute
+  '/auth/admin/_layout/profile/': typeof AuthAdminLayoutProfileIndexRoute
+  '/auth/admin/_layout/profile/settings/': typeof AuthAdminLayoutProfileSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -203,8 +214,8 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/auth/'
     | '/dashboard/'
-    | '/auth/admin/dashboard'
     | '/auth/admin/'
+    | '/auth/admin/dashboard'
     | '/auth/admin/dashboard/accounts'
     | '/auth/admin/dashboard/energy'
     | '/auth/admin/dashboard/maintenance'
@@ -243,20 +254,21 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/auth/'
     | '/dashboard/'
-    | '/auth/admin/dashboard'
+    | '/auth/admin/_layout'
     | '/auth/admin/'
-    | '/auth/admin/dashboard/accounts'
-    | '/auth/admin/dashboard/energy'
-    | '/auth/admin/dashboard/maintenance'
-    | '/auth/admin/dashboard/procurement'
-    | '/auth/admin/dashboard/production'
-    | '/auth/admin/dashboard/qc'
-    | '/auth/admin/dashboard/sales'
-    | '/auth/admin/dashboard/trading'
-    | '/auth/admin/dashboard/workforce'
-    | '/auth/admin/dashboard/'
-    | '/auth/admin/profile/'
-    | '/auth/admin/profile/settings/'
+    | '/auth/admin/_layout/dashboard'
+    | '/auth/admin/_layout/dashboard/accounts'
+    | '/auth/admin/_layout/dashboard/energy'
+    | '/auth/admin/_layout/dashboard/maintenance'
+    | '/auth/admin/_layout/dashboard/procurement'
+    | '/auth/admin/_layout/dashboard/production'
+    | '/auth/admin/_layout/dashboard/qc'
+    | '/auth/admin/_layout/dashboard/sales'
+    | '/auth/admin/_layout/dashboard/trading'
+    | '/auth/admin/_layout/dashboard/workforce'
+    | '/auth/admin/_layout/dashboard/'
+    | '/auth/admin/_layout/profile/'
+    | '/auth/admin/_layout/profile/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -311,141 +323,169 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminIndexRouteImport
       parentRoute: typeof AuthAdminRoute
     }
-    '/auth/admin/dashboard': {
-      id: '/auth/admin/dashboard'
+    '/auth/admin/_layout': {
+      id: '/auth/admin/_layout'
+      path: ''
+      fullPath: '/auth/admin'
+      preLoaderRoute: typeof AuthAdminLayoutRouteImport
+      parentRoute: typeof AuthAdminRoute
+    }
+    '/auth/admin/_layout/dashboard': {
+      id: '/auth/admin/_layout/dashboard'
       path: '/dashboard'
       fullPath: '/auth/admin/dashboard'
-      preLoaderRoute: typeof AuthAdminDashboardRouteImport
-      parentRoute: typeof AuthAdminRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardRouteImport
+      parentRoute: typeof AuthAdminLayoutRoute
     }
-    '/auth/admin/profile/': {
-      id: '/auth/admin/profile/'
+    '/auth/admin/_layout/profile/': {
+      id: '/auth/admin/_layout/profile/'
       path: '/profile'
       fullPath: '/auth/admin/profile/'
-      preLoaderRoute: typeof AuthAdminProfileIndexRouteImport
-      parentRoute: typeof AuthAdminRoute
+      preLoaderRoute: typeof AuthAdminLayoutProfileIndexRouteImport
+      parentRoute: typeof AuthAdminLayoutRoute
     }
-    '/auth/admin/dashboard/': {
-      id: '/auth/admin/dashboard/'
+    '/auth/admin/_layout/dashboard/': {
+      id: '/auth/admin/_layout/dashboard/'
       path: '/'
       fullPath: '/auth/admin/dashboard/'
-      preLoaderRoute: typeof AuthAdminDashboardIndexRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardIndexRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/workforce': {
-      id: '/auth/admin/dashboard/workforce'
+    '/auth/admin/_layout/dashboard/workforce': {
+      id: '/auth/admin/_layout/dashboard/workforce'
       path: '/workforce'
       fullPath: '/auth/admin/dashboard/workforce'
-      preLoaderRoute: typeof AuthAdminDashboardWorkforceRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardWorkforceRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/trading': {
-      id: '/auth/admin/dashboard/trading'
+    '/auth/admin/_layout/dashboard/trading': {
+      id: '/auth/admin/_layout/dashboard/trading'
       path: '/trading'
       fullPath: '/auth/admin/dashboard/trading'
-      preLoaderRoute: typeof AuthAdminDashboardTradingRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardTradingRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/sales': {
-      id: '/auth/admin/dashboard/sales'
+    '/auth/admin/_layout/dashboard/sales': {
+      id: '/auth/admin/_layout/dashboard/sales'
       path: '/sales'
       fullPath: '/auth/admin/dashboard/sales'
-      preLoaderRoute: typeof AuthAdminDashboardSalesRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardSalesRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/qc': {
-      id: '/auth/admin/dashboard/qc'
+    '/auth/admin/_layout/dashboard/qc': {
+      id: '/auth/admin/_layout/dashboard/qc'
       path: '/qc'
       fullPath: '/auth/admin/dashboard/qc'
-      preLoaderRoute: typeof AuthAdminDashboardQcRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardQcRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/production': {
-      id: '/auth/admin/dashboard/production'
+    '/auth/admin/_layout/dashboard/production': {
+      id: '/auth/admin/_layout/dashboard/production'
       path: '/production'
       fullPath: '/auth/admin/dashboard/production'
-      preLoaderRoute: typeof AuthAdminDashboardProductionRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardProductionRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/procurement': {
-      id: '/auth/admin/dashboard/procurement'
+    '/auth/admin/_layout/dashboard/procurement': {
+      id: '/auth/admin/_layout/dashboard/procurement'
       path: '/procurement'
       fullPath: '/auth/admin/dashboard/procurement'
-      preLoaderRoute: typeof AuthAdminDashboardProcurementRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardProcurementRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/maintenance': {
-      id: '/auth/admin/dashboard/maintenance'
+    '/auth/admin/_layout/dashboard/maintenance': {
+      id: '/auth/admin/_layout/dashboard/maintenance'
       path: '/maintenance'
       fullPath: '/auth/admin/dashboard/maintenance'
-      preLoaderRoute: typeof AuthAdminDashboardMaintenanceRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardMaintenanceRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/energy': {
-      id: '/auth/admin/dashboard/energy'
+    '/auth/admin/_layout/dashboard/energy': {
+      id: '/auth/admin/_layout/dashboard/energy'
       path: '/energy'
       fullPath: '/auth/admin/dashboard/energy'
-      preLoaderRoute: typeof AuthAdminDashboardEnergyRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardEnergyRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/dashboard/accounts': {
-      id: '/auth/admin/dashboard/accounts'
+    '/auth/admin/_layout/dashboard/accounts': {
+      id: '/auth/admin/_layout/dashboard/accounts'
       path: '/accounts'
       fullPath: '/auth/admin/dashboard/accounts'
-      preLoaderRoute: typeof AuthAdminDashboardAccountsRouteImport
-      parentRoute: typeof AuthAdminDashboardRoute
+      preLoaderRoute: typeof AuthAdminLayoutDashboardAccountsRouteImport
+      parentRoute: typeof AuthAdminLayoutDashboardRoute
     }
-    '/auth/admin/profile/settings/': {
-      id: '/auth/admin/profile/settings/'
+    '/auth/admin/_layout/profile/settings/': {
+      id: '/auth/admin/_layout/profile/settings/'
       path: '/profile/settings'
       fullPath: '/auth/admin/profile/settings/'
-      preLoaderRoute: typeof AuthAdminProfileSettingsIndexRouteImport
-      parentRoute: typeof AuthAdminRoute
+      preLoaderRoute: typeof AuthAdminLayoutProfileSettingsIndexRouteImport
+      parentRoute: typeof AuthAdminLayoutRoute
     }
   }
 }
 
-interface AuthAdminDashboardRouteChildren {
-  AuthAdminDashboardAccountsRoute: typeof AuthAdminDashboardAccountsRoute
-  AuthAdminDashboardEnergyRoute: typeof AuthAdminDashboardEnergyRoute
-  AuthAdminDashboardMaintenanceRoute: typeof AuthAdminDashboardMaintenanceRoute
-  AuthAdminDashboardProcurementRoute: typeof AuthAdminDashboardProcurementRoute
-  AuthAdminDashboardProductionRoute: typeof AuthAdminDashboardProductionRoute
-  AuthAdminDashboardQcRoute: typeof AuthAdminDashboardQcRoute
-  AuthAdminDashboardSalesRoute: typeof AuthAdminDashboardSalesRoute
-  AuthAdminDashboardTradingRoute: typeof AuthAdminDashboardTradingRoute
-  AuthAdminDashboardWorkforceRoute: typeof AuthAdminDashboardWorkforceRoute
-  AuthAdminDashboardIndexRoute: typeof AuthAdminDashboardIndexRoute
+interface AuthAdminLayoutDashboardRouteChildren {
+  AuthAdminLayoutDashboardAccountsRoute: typeof AuthAdminLayoutDashboardAccountsRoute
+  AuthAdminLayoutDashboardEnergyRoute: typeof AuthAdminLayoutDashboardEnergyRoute
+  AuthAdminLayoutDashboardMaintenanceRoute: typeof AuthAdminLayoutDashboardMaintenanceRoute
+  AuthAdminLayoutDashboardProcurementRoute: typeof AuthAdminLayoutDashboardProcurementRoute
+  AuthAdminLayoutDashboardProductionRoute: typeof AuthAdminLayoutDashboardProductionRoute
+  AuthAdminLayoutDashboardQcRoute: typeof AuthAdminLayoutDashboardQcRoute
+  AuthAdminLayoutDashboardSalesRoute: typeof AuthAdminLayoutDashboardSalesRoute
+  AuthAdminLayoutDashboardTradingRoute: typeof AuthAdminLayoutDashboardTradingRoute
+  AuthAdminLayoutDashboardWorkforceRoute: typeof AuthAdminLayoutDashboardWorkforceRoute
+  AuthAdminLayoutDashboardIndexRoute: typeof AuthAdminLayoutDashboardIndexRoute
 }
 
-const AuthAdminDashboardRouteChildren: AuthAdminDashboardRouteChildren = {
-  AuthAdminDashboardAccountsRoute: AuthAdminDashboardAccountsRoute,
-  AuthAdminDashboardEnergyRoute: AuthAdminDashboardEnergyRoute,
-  AuthAdminDashboardMaintenanceRoute: AuthAdminDashboardMaintenanceRoute,
-  AuthAdminDashboardProcurementRoute: AuthAdminDashboardProcurementRoute,
-  AuthAdminDashboardProductionRoute: AuthAdminDashboardProductionRoute,
-  AuthAdminDashboardQcRoute: AuthAdminDashboardQcRoute,
-  AuthAdminDashboardSalesRoute: AuthAdminDashboardSalesRoute,
-  AuthAdminDashboardTradingRoute: AuthAdminDashboardTradingRoute,
-  AuthAdminDashboardWorkforceRoute: AuthAdminDashboardWorkforceRoute,
-  AuthAdminDashboardIndexRoute: AuthAdminDashboardIndexRoute,
+const AuthAdminLayoutDashboardRouteChildren: AuthAdminLayoutDashboardRouteChildren =
+  {
+    AuthAdminLayoutDashboardAccountsRoute:
+      AuthAdminLayoutDashboardAccountsRoute,
+    AuthAdminLayoutDashboardEnergyRoute: AuthAdminLayoutDashboardEnergyRoute,
+    AuthAdminLayoutDashboardMaintenanceRoute:
+      AuthAdminLayoutDashboardMaintenanceRoute,
+    AuthAdminLayoutDashboardProcurementRoute:
+      AuthAdminLayoutDashboardProcurementRoute,
+    AuthAdminLayoutDashboardProductionRoute:
+      AuthAdminLayoutDashboardProductionRoute,
+    AuthAdminLayoutDashboardQcRoute: AuthAdminLayoutDashboardQcRoute,
+    AuthAdminLayoutDashboardSalesRoute: AuthAdminLayoutDashboardSalesRoute,
+    AuthAdminLayoutDashboardTradingRoute: AuthAdminLayoutDashboardTradingRoute,
+    AuthAdminLayoutDashboardWorkforceRoute:
+      AuthAdminLayoutDashboardWorkforceRoute,
+    AuthAdminLayoutDashboardIndexRoute: AuthAdminLayoutDashboardIndexRoute,
+  }
+
+const AuthAdminLayoutDashboardRouteWithChildren =
+  AuthAdminLayoutDashboardRoute._addFileChildren(
+    AuthAdminLayoutDashboardRouteChildren,
+  )
+
+interface AuthAdminLayoutRouteChildren {
+  AuthAdminLayoutDashboardRoute: typeof AuthAdminLayoutDashboardRouteWithChildren
+  AuthAdminLayoutProfileIndexRoute: typeof AuthAdminLayoutProfileIndexRoute
+  AuthAdminLayoutProfileSettingsIndexRoute: typeof AuthAdminLayoutProfileSettingsIndexRoute
 }
 
-const AuthAdminDashboardRouteWithChildren =
-  AuthAdminDashboardRoute._addFileChildren(AuthAdminDashboardRouteChildren)
+const AuthAdminLayoutRouteChildren: AuthAdminLayoutRouteChildren = {
+  AuthAdminLayoutDashboardRoute: AuthAdminLayoutDashboardRouteWithChildren,
+  AuthAdminLayoutProfileIndexRoute: AuthAdminLayoutProfileIndexRoute,
+  AuthAdminLayoutProfileSettingsIndexRoute:
+    AuthAdminLayoutProfileSettingsIndexRoute,
+}
+
+const AuthAdminLayoutRouteWithChildren = AuthAdminLayoutRoute._addFileChildren(
+  AuthAdminLayoutRouteChildren,
+)
 
 interface AuthAdminRouteChildren {
-  AuthAdminDashboardRoute: typeof AuthAdminDashboardRouteWithChildren
+  AuthAdminLayoutRoute: typeof AuthAdminLayoutRouteWithChildren
   AuthAdminIndexRoute: typeof AuthAdminIndexRoute
-  AuthAdminProfileIndexRoute: typeof AuthAdminProfileIndexRoute
-  AuthAdminProfileSettingsIndexRoute: typeof AuthAdminProfileSettingsIndexRoute
 }
 
 const AuthAdminRouteChildren: AuthAdminRouteChildren = {
-  AuthAdminDashboardRoute: AuthAdminDashboardRouteWithChildren,
+  AuthAdminLayoutRoute: AuthAdminLayoutRouteWithChildren,
   AuthAdminIndexRoute: AuthAdminIndexRoute,
-  AuthAdminProfileIndexRoute: AuthAdminProfileIndexRoute,
-  AuthAdminProfileSettingsIndexRoute: AuthAdminProfileSettingsIndexRoute,
 }
 
 const AuthAdminRouteWithChildren = AuthAdminRoute._addFileChildren(

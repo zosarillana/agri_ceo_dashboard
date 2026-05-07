@@ -29,7 +29,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-import { mockData } from "@/routes/auth/admin/dashboard/data/-mock-data";
+import { mockData } from "@/routes/auth/admin/_layout/dashboard/data/-mock-data";
 
 /* ───────────────────────────────────────── */
 

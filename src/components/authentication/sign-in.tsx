@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth.store";
-import { getDashboardRoute } from "@/lib/redirect";
+import { getDashboardRouteByRole } from "@/lib/auth.guard";
 import { toast } from "sonner";
 
 interface SignInModalProps {
@@ -27,7 +27,7 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoggingIn } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +44,7 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
       onOpenChange(false);
 
       navigate({
-        to: getDashboardRoute(user.role),
+        to: getDashboardRouteByRole(user.role),
       });
 
       // 👇 fire AFTER navigation so Toaster is still mounted on the new page
@@ -158,9 +158,9 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                   <Button
                     type="submit"
                     className="w-full bg-[#1a9e6e] hover:bg-[#1a9e6e]/90 text-white"
-                    disabled={isLoading}
+                    disabled={isLoggingIn}
                   >
-                    {isLoading ? (
+                    {isLoggingIn ? (
                       <motion.div
                         animate={{ rotate: 360 }}
                         transition={{
@@ -184,11 +184,11 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
                   className="flex text-center text-sm text-muted-foreground mt-4"
                 >
                   Don't have an account? {" "}
-                  <p                  
+                  <span                  
                     className="ml-1 text-[#1a9e6e] font-medium"
                   >
                     Contact Admin.
-                  </p>
+                  </span>
                 </motion.p>
               </form>
             </div>
