@@ -272,7 +272,7 @@ export function GlobalNavbar() {
               <div className="md:hidden">
                 <Avatar
                   className="h-8 w-8 cursor-pointer"
-                  onClick={() => handleNavigate("/dashboard/profile")}
+                  onClick={() => handleNavigate("/auth/admin/profile")}
                 >
                   <AvatarImage src={undefined} alt={userName} />
                   <AvatarFallback className="bg-[#1a9e6e] text-white text-xs">
@@ -345,7 +345,7 @@ export function GlobalNavbar() {
                   <div
                     className="cursor-pointer py-2"
                     onClick={() => {
-                      handleNavigate("/dashboard/profile");
+                      handleNavigate("/auth/admin/profile");
                       setIsMobileMenuOpen(false);
                     }}
                   >
@@ -356,7 +356,7 @@ export function GlobalNavbar() {
                   <div
                     className="cursor-pointer py-2"
                     onClick={() => {
-                      handleNavigate("/dashboard/settings");
+                      handleNavigate("/auth/admin/profile/settings");
                       setIsMobileMenuOpen(false);
                     }}
                   >

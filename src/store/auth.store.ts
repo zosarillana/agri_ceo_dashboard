@@ -14,6 +14,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
+  setUser: (user: User) => void;
 }
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -110,5 +111,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoggingIn: false,
       });
     }
+  },
+
+  setUser: (user) => {
+    // 👈 add this
+    set({ user });
   },
 }));
