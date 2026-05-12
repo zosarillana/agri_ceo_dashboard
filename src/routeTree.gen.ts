@@ -14,8 +14,11 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as AuthAdminRouteImport } from './routes/auth/admin'
+import { Route as AuthUserIndexRouteImport } from './routes/auth/user/index'
 import { Route as AuthAdminIndexRouteImport } from './routes/auth/admin/index'
+import { Route as AuthUserLayoutRouteImport } from './routes/auth/user/_layout'
 import { Route as AuthAdminLayoutRouteImport } from './routes/auth/admin/_layout'
+import { Route as AuthUserLayoutDashboardRouteImport } from './routes/auth/user/_layout/dashboard'
 import { Route as AuthAdminLayoutDashboardRouteImport } from './routes/auth/admin/_layout/dashboard'
 import { Route as AuthAdminLayoutProfileIndexRouteImport } from './routes/auth/admin/_layout/profile/index'
 import { Route as AuthAdminLayoutDashboardIndexRouteImport } from './routes/auth/admin/_layout/dashboard/index'
@@ -55,14 +58,29 @@ const AuthAdminRoute = AuthAdminRouteImport.update({
   path: '/auth/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthUserIndexRoute = AuthUserIndexRouteImport.update({
+  id: '/auth/user/',
+  path: '/auth/user/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthAdminIndexRoute = AuthAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthAdminRoute,
 } as any)
+const AuthUserLayoutRoute = AuthUserLayoutRouteImport.update({
+  id: '/auth/user/_layout',
+  path: '/auth/user',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthAdminLayoutRoute = AuthAdminLayoutRouteImport.update({
   id: '/_layout',
   getParentRoute: () => AuthAdminRoute,
+} as any)
+const AuthUserLayoutDashboardRoute = AuthUserLayoutDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthUserLayoutRoute,
 } as any)
 const AuthAdminLayoutDashboardRoute =
   AuthAdminLayoutDashboardRouteImport.update({
@@ -149,8 +167,11 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/auth/': typeof AuthIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/auth/user': typeof AuthUserLayoutRouteWithChildren
   '/auth/admin/': typeof AuthAdminIndexRoute
+  '/auth/user/': typeof AuthUserIndexRoute
   '/auth/admin/dashboard': typeof AuthAdminLayoutDashboardRouteWithChildren
+  '/auth/user/dashboard': typeof AuthUserLayoutDashboardRoute
   '/auth/admin/dashboard/accounts': typeof AuthAdminLayoutDashboardAccountsRoute
   '/auth/admin/dashboard/energy': typeof AuthAdminLayoutDashboardEnergyRoute
   '/auth/admin/dashboard/maintenance': typeof AuthAdminLayoutDashboardMaintenanceRoute
@@ -170,6 +191,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/auth/admin': typeof AuthAdminIndexRoute
+  '/auth/user': typeof AuthUserIndexRoute
+  '/auth/user/dashboard': typeof AuthUserLayoutDashboardRoute
   '/auth/admin/dashboard/accounts': typeof AuthAdminLayoutDashboardAccountsRoute
   '/auth/admin/dashboard/energy': typeof AuthAdminLayoutDashboardEnergyRoute
   '/auth/admin/dashboard/maintenance': typeof AuthAdminLayoutDashboardMaintenanceRoute
@@ -191,8 +214,11 @@ export interface FileRoutesById {
   '/auth/': typeof AuthIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/auth/admin/_layout': typeof AuthAdminLayoutRouteWithChildren
+  '/auth/user/_layout': typeof AuthUserLayoutRouteWithChildren
   '/auth/admin/': typeof AuthAdminIndexRoute
+  '/auth/user/': typeof AuthUserIndexRoute
   '/auth/admin/_layout/dashboard': typeof AuthAdminLayoutDashboardRouteWithChildren
+  '/auth/user/_layout/dashboard': typeof AuthUserLayoutDashboardRoute
   '/auth/admin/_layout/dashboard/accounts': typeof AuthAdminLayoutDashboardAccountsRoute
   '/auth/admin/_layout/dashboard/energy': typeof AuthAdminLayoutDashboardEnergyRoute
   '/auth/admin/_layout/dashboard/maintenance': typeof AuthAdminLayoutDashboardMaintenanceRoute
@@ -214,8 +240,11 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/auth/'
     | '/dashboard/'
+    | '/auth/user'
     | '/auth/admin/'
+    | '/auth/user/'
     | '/auth/admin/dashboard'
+    | '/auth/user/dashboard'
     | '/auth/admin/dashboard/accounts'
     | '/auth/admin/dashboard/energy'
     | '/auth/admin/dashboard/maintenance'
@@ -235,6 +264,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/auth/admin'
+    | '/auth/user'
+    | '/auth/user/dashboard'
     | '/auth/admin/dashboard/accounts'
     | '/auth/admin/dashboard/energy'
     | '/auth/admin/dashboard/maintenance'
@@ -255,8 +286,11 @@ export interface FileRouteTypes {
     | '/auth/'
     | '/dashboard/'
     | '/auth/admin/_layout'
+    | '/auth/user/_layout'
     | '/auth/admin/'
+    | '/auth/user/'
     | '/auth/admin/_layout/dashboard'
+    | '/auth/user/_layout/dashboard'
     | '/auth/admin/_layout/dashboard/accounts'
     | '/auth/admin/_layout/dashboard/energy'
     | '/auth/admin/_layout/dashboard/maintenance'
@@ -277,6 +311,8 @@ export interface RootRouteChildren {
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   AuthIndexRoute: typeof AuthIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  AuthUserLayoutRoute: typeof AuthUserLayoutRouteWithChildren
+  AuthUserIndexRoute: typeof AuthUserIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -316,6 +352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/user/': {
+      id: '/auth/user/'
+      path: '/auth/user'
+      fullPath: '/auth/user/'
+      preLoaderRoute: typeof AuthUserIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/admin/': {
       id: '/auth/admin/'
       path: '/'
@@ -323,12 +366,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminIndexRouteImport
       parentRoute: typeof AuthAdminRoute
     }
+    '/auth/user/_layout': {
+      id: '/auth/user/_layout'
+      path: '/auth/user'
+      fullPath: '/auth/user'
+      preLoaderRoute: typeof AuthUserLayoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/admin/_layout': {
       id: '/auth/admin/_layout'
       path: ''
       fullPath: '/auth/admin'
       preLoaderRoute: typeof AuthAdminLayoutRouteImport
       parentRoute: typeof AuthAdminRoute
+    }
+    '/auth/user/_layout/dashboard': {
+      id: '/auth/user/_layout/dashboard'
+      path: '/dashboard'
+      fullPath: '/auth/user/dashboard'
+      preLoaderRoute: typeof AuthUserLayoutDashboardRouteImport
+      parentRoute: typeof AuthUserLayoutRoute
     }
     '/auth/admin/_layout/dashboard': {
       id: '/auth/admin/_layout/dashboard'
@@ -492,12 +549,26 @@ const AuthAdminRouteWithChildren = AuthAdminRoute._addFileChildren(
   AuthAdminRouteChildren,
 )
 
+interface AuthUserLayoutRouteChildren {
+  AuthUserLayoutDashboardRoute: typeof AuthUserLayoutDashboardRoute
+}
+
+const AuthUserLayoutRouteChildren: AuthUserLayoutRouteChildren = {
+  AuthUserLayoutDashboardRoute: AuthUserLayoutDashboardRoute,
+}
+
+const AuthUserLayoutRouteWithChildren = AuthUserLayoutRoute._addFileChildren(
+  AuthUserLayoutRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthAdminRoute: AuthAdminRouteWithChildren,
   DashboardSettingsRoute: DashboardSettingsRoute,
   AuthIndexRoute: AuthIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  AuthUserLayoutRoute: AuthUserLayoutRouteWithChildren,
+  AuthUserIndexRoute: AuthUserIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
