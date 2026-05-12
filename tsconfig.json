@@ -6,7 +6,6 @@
     },
     "ignoreDeprecations": "6.0"
   },
-  "include": ["src/**/*"],  // Add this
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
