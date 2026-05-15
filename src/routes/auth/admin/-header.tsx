@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import DatePickerInline from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import {
@@ -51,14 +50,6 @@ export function AdminHeader() {
         fuzzy: true,
       }),
     )?.id ?? null;
-
-  const today = new Date().toLocaleDateString("en-PH", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-
   // ---------------- NON DASHBOARD ----------------
   if (!isDashboard) {
     return (
