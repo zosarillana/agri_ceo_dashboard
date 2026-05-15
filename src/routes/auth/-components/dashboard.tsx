@@ -1,11 +1,15 @@
-"use client";
-
 import * as React from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-
 import { Card, CardContent } from "@/components/ui/card";
-import { toast } from "sonner";
+import { Link, useLocation } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 import {
   Factory,
@@ -16,21 +20,12 @@ import {
   FlaskConical,
   Users,
   Wrench,
-  Lock,
   Zap,
   Calendar as CalendarIcon,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-import { mockData } from "@/routes/auth/-data/-mock-data";
-import { dashboardService } from "@/services/dashboard.service";
+import { mockData } from "../-data/-mock-data";
+import { useDashboardStore } from "@/store/dashboard.store";
 import type { DashboardStats } from "@/types/dashboard.types";
 
 /* ── helpers ─────────────────────────────────────────────────────────────────── */
@@ -39,11 +34,11 @@ function getTodayISO() {
   return new Date().toLocaleDateString("en-CA");
 }
 
-function dateToISO(d: Date) {
-  return d.toLocaleDateString("en-CA"); // YYYY-MM-DD, no tz shift
+function toISO(d: Date) {
+  return d.toLocaleDateString("en-CA");
 }
 
-/* ── formatters ──────────────────────────────────────────────────────────────── */
+/* ── formatters ─────────────────────────────────────────────────────────────── */
 
 function fmt(n: number) {
   return n.toLocaleString();
@@ -67,11 +62,11 @@ function relativeTime(date: Date): { label: string; fresh: boolean } {
   const diffHours = Math.floor(diffMs / 3_600_000);
   const diffDays = Math.floor(diffMs / 86_400_000);
 
-  if (diffMins < 1) return { label: "Just now", fresh: true };
-  if (diffMins < 60) return { label: `${diffMins}m ago`, fresh: true };
-  if (diffHours < 24) return { label: `${diffHours}h ago`, fresh: true };
-  if (diffDays === 1) return { label: "Yesterday", fresh: false };
-  return { label: `${diffDays}d ago`, fresh: false };
+  if (diffMins < 1)   return { label: "Just now",          fresh: true  };
+  if (diffMins < 60)  return { label: `${diffMins}m ago`,   fresh: true  };
+  if (diffHours < 24) return { label: `${diffHours}h ago`,  fresh: true  };
+  if (diffDays === 1) return { label: "Yesterday",          fresh: false };
+  return                     { label: `${diffDays}d ago`,   fresh: false };
 }
 
 /* ── group builder ───────────────────────────────────────────────────────────── */
@@ -83,9 +78,9 @@ function buildGroups(
 ) {
   const isToday = selectedISO === getTodayISO();
   const now = new Date();
-  const minsAgo = (m: number) => new Date(now.getTime() - m * 60_000);
+  const minsAgo  = (m: number) => new Date(now.getTime() - m * 60_000);
   const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
-  const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
+  const daysAgo  = (d: number) => new Date(now.getTime() - d * 86_400_000);
 
   const productionStat = loadingStats
     ? "—"
@@ -101,6 +96,7 @@ function buildGroups(
 
   // The selected date as a Date object for display — used as dateLabel override
   const selectedDate = new Date(selectedISO + "T00:00:00");
+
   return [
     {
       id: "production",
@@ -201,78 +197,58 @@ function buildGroups(
   ];
 }
 
-/* ── click handler ───────────────────────────────────────────────────────────── */
+type DashboardSegment =
+  | "production"
+  | "procurement"
+  | "sales"
+  | "accounts"
+  | "trading"
+  | "qc"
+  | "workforce"
+  | "maintenance"
+  | "energy";
 
-function handleCardClick(label: string) {
-  toast(`${label} — Sign in required`, {
-    description: "Sign in to view detailed reports and insights.",
-    icon: <Lock className="h-4 w-4" />,
-  });
-}
+type DashboardRoute = `/auth/admin/dashboard/${DashboardSegment}`;
 
-/* ── component ───────────────────────────────────────────────────────────────── */
+/* ── component ──────────────────────────────────────────────────────────────── */
 
-export function LandingDashboard() {
+export default function CEODashboard() {
+  const location = useLocation();
+
   const [time, setTime] = React.useState(() => new Date());
-  const [selectedDate, setSelectedDate] = React.useState<Date>(
-    () => new Date(),
-  );
-  const selectedISO = dateToISO(selectedDate);
+  const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
+  const selectedISO = toISO(selectedDate);
 
-  const [stats, setStats] = React.useState<DashboardStats | null>(null);
-  const [loadingStats, setLoadingStats] = React.useState(true);
-
-  // Simple in-component cache — no Zustand needed for public page
-  const cache = React.useRef<Record<string, DashboardStats>>({});
+  const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
 
   const groupData = React.useMemo(
     () => buildGroups(stats, loadingStats, selectedISO),
     [stats, loadingStats, selectedISO],
   );
 
-  // Live clock — isolated
   React.useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1_000);
     return () => clearInterval(id);
   }, []);
 
-  // Fetch for a given date — uses cache to avoid duplicate requests
-  async function fetchForDate(iso: string) {
-    if (cache.current[iso]) {
-      setStats(cache.current[iso]);
-      setLoadingStats(false);
-      return;
-    }
-
-    setLoadingStats(true);
-    try {
-      const data = await dashboardService.getStats(iso);
-      cache.current[iso] = data;
-      setStats(data);
-    } catch (err) {
-      console.error("Dashboard load failed:", err);
-    } finally {
-      setLoadingStats(false);
-    }
-  }
-
-  // Fetch today on mount
   React.useEffect(() => {
-    fetchForDate(getTodayISO());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchStats();
+  }, [fetchStats]);
 
-  // Fetch when date picker changes
   function handleDateSelect(d: Date | undefined) {
     if (!d) return;
     setSelectedDate(d);
-    fetchForDate(dateToISO(d));
+    fetchStats(toISO(d));
   }
 
+  const isActive = (id: string) =>
+    location.pathname === `/auth/admin/dashboard/${id}`;
+
   return (
-    <div className="w-full">
-      <div className="space-y-5">
-        {/* Header */}
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto py-0 space-y-5">
+
+        {/* Header — clock + date picker */}
         <div className="flex items-center justify-end gap-3">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs text-muted-foreground flex items-center gap-2">
@@ -310,11 +286,13 @@ export function LandingDashboard() {
           </span>
         </div>
 
-        {/* MODULE GRID */}
+        {/* GRID */}
         <div className="grid md:grid-cols-2 gap-3">
           {groupData.map((g, i) => {
             const Icon = g.icon;
+            const active = isActive(g.id);
             const { label: timeLabel, fresh } = relativeTime(g.updatedAt);
+            // Production shows the selected date; all others show their updatedAt
             const dateLabel = fmtDate(g.dateOverride ?? g.updatedAt);
 
             return (
@@ -325,66 +303,74 @@ export function LandingDashboard() {
                 transition={{ delay: i * 0.03 }}
                 whileHover={{ y: -3, scale: 1.005 }}
               >
-                <Card
-                  className="cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/60"
-                  onClick={() => handleCardClick(g.label)}
+                <Link
+                  to={`/auth/admin/dashboard/${g.id}` as DashboardRoute}
+                  className="block"
                 >
-                  <CardContent className="px-5 py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Left — icon + label */}
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-lg leading-tight">
-                            {g.label}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            {g.summary}
-                          </p>
-                        </div>
-                      </div>
+                  <Card
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/60 ${
+                      active ? "border-primary shadow-sm" : ""
+                    }`}
+                  >
+                    <CardContent className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-4">
 
-                      {/* Right — stat + timestamp */}
-                      <div className="text-right shrink-0">
-                        <p className="text-2xl font-bold tracking-tight leading-tight">
-                          {g.stat}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {g.unit}
-                        </p>
+                        {/* Left — icon + label */}
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
+                            <Icon className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-lg leading-tight">
+                              {g.label}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {g.summary}
+                            </p>
+                          </div>
+                        </div>
 
-                        {/* Relative badge + absolute date */}
-                        <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                          <span
-                            className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                              fresh
-                                ? "bg-emerald-500/10 text-emerald-600"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
+                        {/* Right — stat + timestamp */}
+                        <div className="text-right shrink-0">
+                          <p className="text-2xl font-bold tracking-tight leading-tight">
+                            {g.stat}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {g.unit}
+                          </p>
+
+                          <div className="flex items-center justify-end gap-1.5 mt-1.5">
                             <span
-                              className={`h-1 w-1 rounded-full inline-block ${
+                              className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                                 fresh
-                                  ? "bg-emerald-500"
-                                  : "bg-muted-foreground/50"
+                                  ? "bg-emerald-500/10 text-emerald-600"
+                                  : "bg-muted text-muted-foreground"
                               }`}
-                            />
-                            {timeLabel}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground/70">
-                            {dateLabel}
-                          </span>
+                            >
+                              <span
+                                className={`h-1 w-1 rounded-full inline-block ${
+                                  fresh
+                                    ? "bg-emerald-500"
+                                    : "bg-muted-foreground/50"
+                                }`}
+                              />
+                              {timeLabel}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground/70">
+                              {dateLabel}
+                            </span>
+                          </div>
                         </div>
+
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               </motion.div>
             );
           })}
         </div>
+
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import ProductionDash from "@/routes/auth/admin/_layout/dashboard/-components/-submodules/production";
+import ProductionDash from "@/routes/auth/-components/-submodules/production";
 
 export const Route = createFileRoute('/auth/admin/_layout/dashboard/production')({
   component: RouteComponent,
