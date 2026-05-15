@@ -13,7 +13,7 @@ type ProductStore = {
   deleteProduct: (id: number) => Promise<void>;
 };
 
-export const useProductsStore = create<ProductStore>((set, get) => ({
+export const useProductsStore = create<ProductStore>((set) => ({
   products: [],
   loading: false,
   error: null,
