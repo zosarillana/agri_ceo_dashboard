@@ -14,7 +14,7 @@ import {
   ChartLegend, ChartLegendContent, type ChartConfig,
 } from "@/components/ui/chart";
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { mockData } from "@/routes/auth/admin/_layout/dashboard/data/-mock-data";
+import { mockData } from "@/routes/auth/-data/-mock-data";
 
 function fmt(n: number) { return n.toLocaleString(); }
 function fmtPHP(n: number) {

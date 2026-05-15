@@ -89,8 +89,8 @@ export function AdminHeader() {
         <div className="flex justify-between mt-2">
           <div>
             <h1 className="text-3xl font-bold">CEO Dashboard</h1>
-            <p className="text-sm text-muted-foreground">{today}</p>
-            <DatePickerInline />
+            {/* <p className="text-sm text-muted-foreground">{today}</p>
+            <DatePickerInline /> */}
           </div>
           <Badge>Overview</Badge>
         </div>
