@@ -26,8 +26,23 @@ interface ProductDraft {
   defaultTarget: string;
 }
 
+// Build-safe UUID generator
+function generateUUID(): string {
+  // Check for browser environment with crypto support
+  if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  
+  // Fallback for build time / older environments
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function newDraft(): ProductDraft {
-  return { localId: crypto.randomUUID(), name: "", unit: "", defaultTarget: "" };
+  return { localId: generateUUID(), name: "", unit: "", defaultTarget: "" };
 }
 
 interface ProductInputFormProps {

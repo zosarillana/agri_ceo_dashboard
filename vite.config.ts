@@ -3,14 +3,14 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
-import svgr from "vite-plugin-svgr"
+import svgr from "vite-plugin-svgr";
 
 export default defineConfig({
   base: '/',
   plugins: [
-    TanStackRouterVite({ routesDirectory: './src/routes' }),
-    react(),
+    TanStackRouterVite({ routesDirectory: "./src/routes" }),
     svgr(),
+    react(),
     tailwindcss(),
   ],
   resolve: {
@@ -18,4 +18,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-})
+});
