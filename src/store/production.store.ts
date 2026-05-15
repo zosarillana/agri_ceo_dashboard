@@ -17,7 +17,7 @@ type ProductionStore = {
   deleteEntry: (id: number) => Promise<void>;
 };
 
-export const useProductionStore = create<ProductionStore>((set, get) => ({
+export const useProductionStore = create<ProductionStore>((set) => ({
   entries: [],
   loading: false,
   saving: false,
