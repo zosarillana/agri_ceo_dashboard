@@ -35,6 +35,9 @@ interface SalesItem {
   unit: string;
   value: number;
   market: string;
+  quantityKg?: number | any;
+  aspPerKg?: number | any;
+  totalSalesUSD?: number | any;
 }
 
 interface AccountItem {
@@ -167,11 +170,14 @@ export const mockData = {
 
   sales: [
     {
-      product: "Coconut water (retail)",
-      volume: 9200,
-      unit: "units",
-      value: 1380000,
-      market: "Local",
+      product: "Product A",
+      market: "Export",
+      volume: 1000,
+      unit: "kg",
+      value: 50000,
+      aspPerKg: 50,
+      quantityKg: 1000,
+      totalSalesUSD: 50000,
     },
     {
       product: "Coconut oil (export)",
@@ -179,6 +185,9 @@ export const mockData = {
       unit: "liters",
       value: 2240000,
       market: "Export",
+      aspPerKg: 2.8, // ASP $/Kg (assuming 1 liter ≈ 0.92 kg, so 2240000/2800/0.92/56 ≈ 2.80)
+      quantityKg: 2576, // 2800 liters * 0.92 kg/liter
+      totalSalesUSD: 40000, // 2240000 PHP / 56 PHP/USD
     },
     {
       product: "Cream UHT",
@@ -186,6 +195,9 @@ export const mockData = {
       unit: "units",
       value: 820000,
       market: "Local",
+      aspPerKg: 3.57, // Approximate calculation
+      quantityKg: 4100, // Assuming 1 unit = 1 kg
+      totalSalesUSD: 14643, // 820000 PHP / 56 PHP/USD
     },
     {
       product: "Cream frozen",
@@ -193,6 +205,9 @@ export const mockData = {
       unit: "kg",
       value: 630000,
       market: "Food Service",
+      aspPerKg: 6.25, // 630000 / 1800 / 56
+      quantityKg: 1800,
+      totalSalesUSD: 11250, // 630000 PHP / 56 PHP/USD
     },
     {
       product: "Cake flour",
@@ -200,6 +215,9 @@ export const mockData = {
       unit: "kg",
       value: 532000,
       market: "B2B",
+      aspPerKg: 1.25, // 532000 / 7600 / 56
+      quantityKg: 7600,
+      totalSalesUSD: 9500, // 532000 PHP / 56 PHP/USD
     },
     {
       product: "VCO (premium)",
@@ -207,6 +225,9 @@ export const mockData = {
       unit: "liters",
       value: 504000,
       market: "Export",
+      aspPerKg: 10.87, // VCO is premium, 504000 / 420 / 0.92 / 56
+      quantityKg: 386.4, // 420 liters * 0.92 kg/liter
+      totalSalesUSD: 9000, // 504000 PHP / 56 PHP/USD
     },
   ] as SalesItem[],
 

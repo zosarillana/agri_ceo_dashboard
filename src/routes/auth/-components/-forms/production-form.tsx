@@ -27,24 +27,16 @@ import {
   CalendarIcon,
 } from "lucide-react";
 import { productionService } from "@/services/production.service";
-import { ProductionEntry } from "@/types/production.types";
+import { DailyProductionFormProps, ProductionEntry } from "@/types/production.types";
+import { Product } from "@/types/products.types";
 
-// ── types ─────────────────────────────────────────────────────────────────────
-
-interface Product {
-  id: number;
-  name: string;
-  unit?: string | null;
-  default_target?: number | null;
-}
-
-type FormRow = { actual: string; target: string };
+type FormRow = { actual: string; target: string; isReadOnly: boolean };
 type FormState = Record<number, FormRow>;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function getTodayISO() {
-  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, no tz shift
+  return new Date().toLocaleDateString("en-CA");
 }
 
 function dateToISO(d: Date) {
@@ -52,28 +44,63 @@ function dateToISO(d: Date) {
 }
 
 function isoToDate(iso: string) {
-  // Parse YYYY-MM-DD as local midnight to avoid tz shift
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
 
 function emptyForm(products: Product[]): FormState {
   return Object.fromEntries(
-    products.map((p) => [p.id, { actual: "", target: "" }])
+    products.map((p) => ({ 
+      [p.id]: { 
+        actual: "", 
+        target: p.default_target?.toString() ?? "",
+        isReadOnly: false 
+      }
+    })).map((entry) => Object.entries(entry)[0])
   );
 }
 
 function populateForm(products: Product[], entries: ProductionEntry[]): FormState {
+  // Create a map of existing entries by product_id
+  const entriesMap = new Map(
+    entries.map((entry) => [entry.product_id, entry])
+  );
+  
   return Object.fromEntries(
     products.map((p) => {
-      const entry = entries.find((e) => e.product_id === p.id);
-      return [
-        p.id,
-        {
-          actual: entry?.actual_output != null ? String(entry.actual_output) : "",
-          target: entry?.target_output != null ? String(entry.target_output) : "",
-        },
-      ];
+      const existingEntry = entriesMap.get(p.id);
+      
+      if (existingEntry && existingEntry.actual_output != null && existingEntry.actual_output > 0) {
+        // Only make read-only if there's actual data (non-zero)
+        return [
+          p.id,
+          {
+            actual: existingEntry.actual_output != null ? String(existingEntry.actual_output) : "",
+            target: existingEntry.target_output != null ? String(existingEntry.target_output) : "",
+            isReadOnly: true,
+          },
+        ];
+      } else if (existingEntry && (!existingEntry.actual_output || existingEntry.actual_output === 0)) {
+        // Has entry but no actual data - keep editable
+        return [
+          p.id,
+          {
+            actual: "",
+            target: existingEntry.target_output != null ? String(existingEntry.target_output) : p.default_target?.toString() ?? "",
+            isReadOnly: false,
+          },
+        ];
+      } else {
+        // No entry for this product -> use default_target and keep editable
+        return [
+          p.id,
+          {
+            actual: "",
+            target: p.default_target?.toString() ?? "",
+            isReadOnly: false,
+          },
+        ];
+      }
     })
   );
 }
@@ -100,21 +127,12 @@ function InputSkeleton({ count }: { count: number }) {
     </div>
   );
 }
-
-// ── props ─────────────────────────────────────────────────────────────────────
-
-interface DailyProductionFormProps {
-  products: Product[];
-  entries: ProductionEntry[];
-  onSave?: () => void;
-}
-
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function DailyProductionForm({
   products,
   entries,
-  onSave,
+  onSave, 
 }: DailyProductionFormProps) {
   const today = getTodayISO();
 
@@ -124,9 +142,9 @@ export default function DailyProductionForm({
   const [activeEntries, setActiveEntries] = useState<ProductionEntry[]>(entries);
   const [fetchingEntries, setFetchingEntries] = useState(false);
   const [form, setForm] = useState<FormState>(() =>
-    entries.length > 0 ? populateForm(products, entries) : emptyForm(products)
+    populateForm(products, entries)
   );
-  const [isReadOnly, setIsReadOnly] = useState(entries.length > 0);
+  const [isFormReadOnly, setIsFormReadOnly] = useState(false);
 
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusMsg, setStatusMsg] = useState("");
@@ -140,10 +158,14 @@ export default function DailyProductionForm({
   useEffect(() => {
     cache.current[today] = entries;
     if (dateISO === today) {
-      const hasEntries = entries.length > 0;
       setActiveEntries(entries);
-      setForm(hasEntries ? populateForm(products, entries) : emptyForm(products));
-      setIsReadOnly(hasEntries);
+      setForm(populateForm(products, entries));
+      // Check if all products have actual data
+      const allHaveActualData = products.every(p => {
+        const entry = entries.find(e => e.product_id === p.id);
+        return entry && entry.actual_output != null && entry.actual_output > 0;
+      });
+      setIsFormReadOnly(allHaveActualData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries]);
@@ -158,10 +180,14 @@ export default function DailyProductionForm({
 
     if (cache.current[newISO] !== undefined) {
       const cached = cache.current[newISO];
-      const hasEntries = cached.length > 0;
       setActiveEntries(cached);
-      setForm(hasEntries ? populateForm(products, cached) : emptyForm(products));
-      setIsReadOnly(hasEntries);
+      setForm(populateForm(products, cached));
+      // Check if all products have actual data
+      const allHaveActualData = products.every(p => {
+        const entry = cached.find(e => e.product_id === p.id);
+        return entry && entry.actual_output != null && entry.actual_output > 0;
+      });
+      setIsFormReadOnly(allHaveActualData);
       return;
     }
 
@@ -169,16 +195,20 @@ export default function DailyProductionForm({
     try {
       const data = await productionService.getByDate(newISO);
       cache.current[newISO] = data;
-      const hasEntries = data.length > 0;
       setActiveEntries(data);
-      setForm(hasEntries ? populateForm(products, data) : emptyForm(products));
-      setIsReadOnly(hasEntries);
+      setForm(populateForm(products, data));
+      // Check if all products have actual data
+      const allHaveActualData = products.every(p => {
+        const entry = data.find(e => e.product_id === p.id);
+        return entry && entry.actual_output != null && entry.actual_output > 0;
+      });
+      setIsFormReadOnly(allHaveActualData);
     } catch (err) {
       console.error("Date fetch error:", err);
       cache.current[newISO] = [];
       setActiveEntries([]);
       setForm(emptyForm(products));
-      setIsReadOnly(false);
+      setIsFormReadOnly(false);
     } finally {
       setFetchingEntries(false);
     }
@@ -187,7 +217,9 @@ export default function DailyProductionForm({
   // ── form editing ──────────────────────────────────────────────────────────
 
   function handleChange(productId: number, field: "actual" | "target", value: string) {
-    if (isReadOnly) return;
+    const productForm = form[productId];
+    if (!productForm || productForm.isReadOnly) return;
+    
     setForm((prev) => ({
       ...prev,
       [productId]: { ...prev[productId], [field]: value },
@@ -196,8 +228,7 @@ export default function DailyProductionForm({
   }
 
   function handleReset() {
-    const hasEntries = activeEntries.length > 0;
-    setForm(hasEntries ? populateForm(products, activeEntries) : emptyForm(products));
+    setForm(populateForm(products, activeEntries));
     setStatus("idle");
     setStatusMsg("");
   }
@@ -205,24 +236,33 @@ export default function DailyProductionForm({
   // ── save ──────────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
+    // Check if there are any editable products with values
     const hasAnyValue = products.some(
-      (p) => form[p.id]?.actual !== "" || form[p.id]?.target !== ""
+      (p) => !form[p.id]?.isReadOnly && (form[p.id]?.actual !== "" || form[p.id]?.target !== "")
     );
+    
     if (!hasAnyValue) {
       setStatus("error");
       setStatusMsg("Please enter at least one value before saving.");
       return;
     }
 
+    // Prepare entries to save (update existing or create new)
     const entriesToSave = products
+      .filter((p) => !form[p.id]?.isReadOnly) // Only save editable products
       .filter((p) => form[p.id]?.actual !== "" || form[p.id]?.target !== "")
-      .map((p) => ({
-        product_id: p.id,
-        production_date: dateISO,
-        actual_output: parseFloat(form[p.id]?.actual ?? "0") || 0,
-        target_output: parseFloat(form[p.id]?.target ?? "0") || 0,
-        remarks: null,
-      }));
+      .map((p) => {
+        const existingEntry = activeEntries.find(e => e.product_id === p.id);
+        
+        return {
+          id: existingEntry?.id, // Include id if updating existing entry
+          product_id: p.id,
+          production_date: dateISO,
+          actual_output: parseFloat(form[p.id]?.actual ?? "0") || 0,
+          target_output: parseFloat(form[p.id]?.target ?? "0") || 0,
+          remarks: null,
+        };
+      });
 
     if (entriesToSave.length === 0) {
       setStatus("error");
@@ -233,9 +273,22 @@ export default function DailyProductionForm({
     setIsSaving(true);
     try {
       const saved = await productionService.bulkCreate(entriesToSave);
-      cache.current[dateISO] = saved;
-      setActiveEntries(saved);
-      setIsReadOnly(true);
+      
+      // Merge saved entries with existing ones
+      const mergedEntries = [...activeEntries.filter(e => !entriesToSave.some(s => s.product_id === e.product_id)), ...saved];
+      cache.current[dateISO] = mergedEntries;
+      setActiveEntries(mergedEntries);
+      
+      // Update form with new read-only status (only if actual data exists)
+      setForm(populateForm(products, mergedEntries));
+      
+      // Check if all products now have actual data
+      const allHaveActualData = products.every(p => {
+        const entry = mergedEntries.find(e => e.product_id === p.id);
+        return entry && entry.actual_output != null && entry.actual_output > 0;
+      });
+      setIsFormReadOnly(allHaveActualData);
+      
       setStatus("success");
       setStatusMsg(`Entries saved for ${format(isoToDate(dateISO), "PPP")}.`);
       if (dateISO === today) onSave?.();
@@ -261,6 +314,9 @@ export default function DailyProductionForm({
   }
 
   const selectedDate = isoToDate(dateISO);
+  // Enable inputs if there are any products without actual data
+  const hasAnyEditableProduct = products.some(p => !form[p.id]?.isReadOnly);
+  const showActionButtons = hasAnyEditableProduct && !fetchingEntries;
 
   return (
     <div className="space-y-4">
@@ -293,16 +349,16 @@ export default function DailyProductionForm({
                   mode="single"
                   selected={selectedDate}
                   onSelect={(d) => d && handleDateChange(dateToISO(d))}
-                  disabled={(d) => d > new Date()} // no future dates
+                  disabled={(d) => d > new Date()}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
 
-            {isReadOnly && !fetchingEntries && (
+            {isFormReadOnly && !fetchingEntries && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                Entry already saved for this date
+                All entries saved for this date
               </span>
             )}
           </div>
@@ -314,63 +370,58 @@ export default function DailyProductionForm({
         <InputSkeleton count={products.length} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {products.map((p) => (
-            <Card key={p.id} className={isReadOnly ? "opacity-70" : undefined}>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-baseline justify-between mb-3">
-                  <p className="text-sm font-medium">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.unit ?? "—"}/day</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["actual", "target"] as const).map((field) => (
-                    <div key={field} className="space-y-1">
-                      <Label
-                        htmlFor={`${p.id}-${field}`}
-                        className="text-xs text-muted-foreground capitalize"
-                      >
-                        {field === "actual" ? "Actual output" : "Target"}
-                      </Label>
-                      <Input
-                        id={`${p.id}-${field}`}
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="0"
-                        readOnly={isReadOnly}
-                        disabled={isSaving}
-                        value={form[p.id]?.[field] ?? ""}
-                        onChange={(e) => handleChange(p.id, field, e.target.value)}
-                        className={
-                          isReadOnly
-                            ? "bg-muted cursor-default pointer-events-none"
-                            : undefined
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {products.map((p) => {
+            const productForm = form[p.id];
+            const isReadOnly = productForm?.isReadOnly ?? false;
+            
+            return (
+              <Card key={p.id} className={isReadOnly ? "opacity-70" : undefined}>
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-baseline justify-between mb-3">
+                    <p className="text-sm font-medium">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.unit ?? "—"}/day</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(["actual", "target"] as const).map((field) => (
+                      <div key={field} className="space-y-1">
+                        <Label
+                          htmlFor={`${p.id}-${field}`}
+                          className="text-xs text-muted-foreground capitalize"
+                        >
+                          {field === "actual" ? "Actual output" : "Target"}
+                        </Label>
+                        <Input
+                          id={`${p.id}-${field}`}
+                          type="number"
+                          min={0}
+                          step={1}
+                          placeholder={field === "target" && !isReadOnly ? "Default target" : "0"}
+                          readOnly={isReadOnly}
+                          disabled={isSaving || isReadOnly}
+                          value={productForm?.[field] ?? ""}
+                          onChange={(e) => handleChange(p.id, field, e.target.value)}
+                          className={
+                            isReadOnly
+                              ? "bg-muted cursor-default pointer-events-none"
+                              : undefined
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      {/* ── Actions — hidden when read-only ─────────── */}
-      {!isReadOnly && !fetchingEntries && (
+      {/* ── Actions ─────────── */}
+      {showActionButtons && (
         <div className="flex flex-col gap-3">
-          {status !== "idle" && (
-            <div
-              className={`flex items-center gap-2 rounded-md px-4 py-3 text-sm ${
-                status === "success"
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : "bg-rose-500/10 text-rose-600"
-              }`}
-            >
-              {status === "success" ? (
-                <CheckCircle className="h-4 w-4 shrink-0" />
-              ) : (
-                <AlertCircle className="h-4 w-4 shrink-0" />
-              )}
+          {status === "error" && (
+            <div className="flex items-center gap-2 rounded-md px-4 py-3 text-sm bg-rose-500/10 text-rose-600">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               {statusMsg}
             </div>
           )}
@@ -386,8 +437,8 @@ export default function DailyProductionForm({
         </div>
       )}
 
-      {/* Success banner visible even after flipping to read-only */}
-      {isReadOnly && status === "success" && (
+      {/* Success banner */}
+      {status === "success" && (
         <div className="flex items-center gap-2 rounded-md px-4 py-3 text-sm bg-emerald-500/10 text-emerald-600">
           <CheckCircle className="h-4 w-4 shrink-0" />
           {statusMsg}

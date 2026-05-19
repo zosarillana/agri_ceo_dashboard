@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -17,7 +18,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, CalendarIcon, Minus } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 
 import { useProductionStore } from "@/store/production.store";
 import { useProductsStore } from "@/store/products.store";
@@ -32,8 +40,13 @@ function fmt(n: number) {
 }
 
 function getTodayISO() {
-  return new Date().toISOString().split("T")[0];
+  return new Date().toLocaleDateString("en-CA");
 }
+
+function dateToISO(d: Date) {
+  return d.toLocaleDateString("en-CA");
+}
+
 
 // ── skeletons ─────────────────────────────────────────────────────────────────
 
@@ -135,6 +148,11 @@ function ProductTabSkeleton({ rows = 3 }: { rows?: number }) {
 
 export default function ProductionDash() {
   const [tab, setTab] = useState<Tab>("view");
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [calOpen, setCalOpen] = useState(false);
+  
+  const selectedISO = dateToISO(selectedDate);
+  const isToday = selectedISO === getTodayISO();
 
   const {
     products,
@@ -161,31 +179,44 @@ export default function ProductionDash() {
     }
   }, [fetchProducts]);
 
-  // LOAD TODAY ENTRIES (once products are ready)
+  // LOAD ENTRIES when selected date changes
   useEffect(() => {
     if (products.length === 0 && !productsLoading) return;
-    if (!initialized.current && products.length > 0) {
+    if (initialized.current || products.length > 0) {
       initialized.current = true;
-      fetchByDate(getTodayISO());
+      fetchByDate(selectedISO);
     }
-  }, [products, productsLoading, fetchByDate]);
+  }, [products, productsLoading, fetchByDate, selectedISO]);
+
+  // Check if any product has actual data (non-zero)
+  const hasAnyActualData = entries.some(entry => entry.actual_output > 0);
+  
+  // Check if all products have actual data (non-zero)
+  const hasAllActualData = products.length > 0 && products.every(product => {
+    const entry = entries.find(e => e.product_id === product.id);
+    return entry && entry.actual_output > 0;
+  });
 
   // VIEW DATA — merge products + entries
   const viewItems = products.map((pr) => {
     const entry = entries.find((e) => e.product_id === pr.id);
+    const hasActualData = entry && entry.actual_output > 0;
+    const hasEntry = !!entry;
     return {
       id: pr.id,
       label: pr.name,
-      actual: entry?.actual_output ?? 0,
+      actual: hasActualData ? entry.actual_output : null,
       target: entry?.target_output ?? pr.default_target ?? 0,
       unit: pr.unit ?? "—",
+      hasEntry,
+      hasActualData,
     };
   });
 
   // Refresh entries after input-tab save
   const handleProductionSave = useCallback(() => {
-    fetchByDate(getTodayISO());
-  }, [fetchByDate]);
+    fetchByDate(selectedISO);
+  }, [fetchByDate, selectedISO]);
 
   // Refresh products after product-tab save
   const handleProductSave = useCallback(() => {
@@ -193,6 +224,12 @@ export default function ProductionDash() {
       fetchProducts();
     }
   }, [fetchProducts, products.length]);
+
+  function handleDateSelect(date: Date | undefined) {
+    if (!date) return;
+    setSelectedDate(date);
+    setCalOpen(false);
+  }
 
   return (
     <div className="space-y-4">
@@ -217,6 +254,41 @@ export default function ProductionDash() {
       {/* ── VIEW TAB ─────────────────────────────────── */}
       {tab === "view" && (
         <>
+          {/* Date Picker for View Tab */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <CardTitle className="text-sm font-medium">Production Overview</CardTitle>
+                  <CardDescription>
+                    View actual vs target across all product lines
+                  </CardDescription>
+                </div>
+                <Popover open={calOpen} onOpenChange={setCalOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      disabled={loading}
+                      className="w-[200px] justify-start gap-2 text-left font-normal"
+                    >
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      {format(selectedDate, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={handleDateSelect}
+                      disabled={(d) => d > new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </CardHeader>
+          </Card>
+
           {loading ? (
             <>
               <CardSkeletons />
@@ -235,15 +307,58 @@ export default function ProductionDash() {
                 .
               </CardContent>
             </Card>
+          ) : !hasAnyActualData ? (
+            // Empty state - no actual data at all for selected date
+            <Card className="border-dashed">
+              <CardContent className="py-12 text-center space-y-4">
+                <div className="flex justify-center">
+                  <CalendarIcon className="h-12 w-12 text-muted-foreground/50" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-base">No production entries yet</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    No data recorded for {format(selectedDate, "PPP")}.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setTab("input")}
+                  variant="outline"
+                  className="mt-2"
+                >
+                  Add production entries
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <>
+              {/* Summary Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {viewItems.map((item) => {
-                  const diff = item.actual - item.target;
-                  const pct =
-                    item.target > 0
-                      ? ((diff / item.target) * 100).toFixed(1)
-                      : "—";
+                  // Only show data if there's actual data > 0
+                  if (!item.hasActualData) {
+                    return (
+                      <Card key={item.id} className="overflow-hidden opacity-70">
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs text-muted-foreground mb-2">{item.label}</p>
+                          <p className="text-2xl font-bold tracking-tight text-muted-foreground">
+                            —
+                          </p>
+                          <p className="text-xs text-muted-foreground">{item.unit}/day</p>
+                          <div className="mt-3 pt-3 border-t">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-muted-foreground">Status</p>
+                              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                                No entry
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+
+                  const diff = item.actual! - item.target;
+                  const pct = item.target > 0 ? ((diff / item.target) * 100).toFixed(1) : "—";
                   const isPositive = diff >= 0;
 
                   return (
@@ -251,7 +366,7 @@ export default function ProductionDash() {
                       <CardContent className="pt-4 pb-4">
                         <p className="text-xs text-muted-foreground mb-2">{item.label}</p>
                         <p className="text-2xl font-bold tracking-tight">
-                          {fmt(item.actual)}
+                          {fmt(item.actual!)}
                         </p>
                         <p className="text-xs text-muted-foreground">{item.unit}/day</p>
                         <div className="mt-3 pt-3 border-t flex items-center justify-between">
@@ -273,7 +388,7 @@ export default function ProductionDash() {
                                 <TrendingDown className="h-3 w-3" />
                               )}
                               {isPositive ? "+" : ""}
-                              {fmt(diff)} ({isPositive ? "+" : ""}
+                              {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
                               {pct}%)
                             </div>
                           )}
@@ -284,13 +399,16 @@ export default function ProductionDash() {
                 })}
               </div>
 
+              {/* Detailed Table */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">
                     Daily Output Summary
                   </CardTitle>
                   <CardDescription>
-                    Actual vs target across all product lines
+                    Actual vs target across all product lines for {format(selectedDate, "PPP")}
+                    {!isToday && " (historical data)"}
+                    {!hasAllActualData && " (incomplete data)"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -306,18 +424,39 @@ export default function ProductionDash() {
                     </TableHeader>
                     <TableBody>
                       {viewItems.map((item) => {
-                        const diff = item.actual - item.target;
-                        const pct =
-                          item.target > 0
-                            ? ((diff / item.target) * 100).toFixed(1)
-                            : "—";
+                        // Show "No entry" if no actual data
+                        if (!item.hasActualData) {
+                          return (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium">{item.label}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                —
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {fmt(item.target)}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground text-xs">
+                                {item.unit}/day
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Minus className="h-3 w-3" />
+                                  No entry
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+
+                        const diff = item.actual! - item.target;
+                        const pct = item.target > 0 ? ((diff / item.target) * 100).toFixed(1) : "—";
                         const isPositive = diff >= 0;
 
                         return (
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">{item.label}</TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {fmt(item.actual)}
+                              {fmt(item.actual!)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums text-muted-foreground">
                               {fmt(item.target)}
@@ -339,8 +478,9 @@ export default function ProductionDash() {
                                   ) : (
                                     <TrendingDown className="h-3 w-3" />
                                   )}
-                                  {isPositive ? "+" : ""}
-                                  {pct}%
+                                  {isPositive ? "+" : "-"}
+                                  {Math.abs(diff)} ({isPositive ? "+" : "-"}
+                                  {Math.abs(parseFloat(pct))}%)
                                 </span>
                               ) : (
                                 <span className="text-xs text-muted-foreground">
@@ -363,7 +503,6 @@ export default function ProductionDash() {
       {/* ── INPUT TAB ────────────────────────────────── */}
       {tab === "input" && (
         <>
-          {/* Show skeleton only while initial load is in flight */}
           {loading ? (
             <>
               <Card>
@@ -380,11 +519,11 @@ export default function ProductionDash() {
               <InputTabSkeleton count={products.length || 6} />
             </>
           ) : (
-            // Pass already-loaded data — no extra fetch
             <DailyProductionForm
               products={products}
               entries={entries}
               onSave={handleProductionSave}
+              initialDate={selectedISO}
             />
           )}
         </>

@@ -16,8 +16,14 @@ function fmtPHP(n: number) {
   return "₱" + n.toLocaleString();
 }
 
+function fmtUSD(n: number) {
+  return "$" + n.toLocaleString();
+}
+
 export default function SalesDash() {
   const totalValue = mockData.sales.reduce((a, b) => a + b.value, 0);
+  const totalQuantityKg = mockData.sales.reduce((a, b) => a + b.quantityKg, 0);
+  const totalSalesUSD = mockData.sales.reduce((a, b) => a + b.totalSalesUSD, 0);
 
   return (
     <div className="space-y-4">
@@ -54,8 +60,11 @@ export default function SalesDash() {
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>Market</TableHead>
-                <TableHead className="text-right">Volume</TableHead>
-                <TableHead className="text-right">Value</TableHead>
+                {/* <TableHead className="text-right">Volume</TableHead> */}
+                {/* <TableHead className="text-right">Value</TableHead> */}
+                <TableHead className="text-right">ASP $/Kg</TableHead>
+                <TableHead className="text-right">Quantity (Kg)</TableHead>
+                <TableHead className="text-right">Total Sales ($)</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -68,19 +77,34 @@ export default function SalesDash() {
                       {s.market}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  {/* <TableCell className="text-right">
                     {fmt(s.volume)} {s.unit}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {fmtPHP(s.value)}
+                  </TableCell> */}
+                  <TableCell className="text-right">
+                    {fmtUSD(s.aspPerKg)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {fmt(s.quantityKg)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {fmtUSD(s.totalSalesUSD)}
                   </TableCell>
                 </TableRow>
               ))}
 
               <TableRow>
                 <TableCell colSpan={3} className="font-semibold">Total</TableCell>
+                {/* <TableCell className="text-right font-semibold">
+                  {fmtUSD(totalValue / totalQuantityKg)}
+                </TableCell> */}
                 <TableCell className="text-right font-semibold">
-                  {fmtPHP(totalValue)}
+                  {fmt(totalQuantityKg)}
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {fmtUSD(totalSalesUSD)}
                 </TableCell>
               </TableRow>
             </TableBody>
