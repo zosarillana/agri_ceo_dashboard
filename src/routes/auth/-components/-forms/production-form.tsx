@@ -27,7 +27,10 @@ import {
   CalendarIcon,
 } from "lucide-react";
 import { productionService } from "@/services/production.service";
-import { DailyProductionFormProps, ProductionEntry } from "@/types/production.types";
+import {
+  DailyProductionFormProps,
+  ProductionEntry,
+} from "@/types/production.types";
 import { Product } from "@/types/products.types";
 
 type FormRow = { actual: string; target: string; isReadOnly: boolean };
@@ -50,43 +53,62 @@ function isoToDate(iso: string) {
 
 function emptyForm(products: Product[]): FormState {
   return Object.fromEntries(
-    products.map((p) => ({ 
-      [p.id]: { 
-        actual: "", 
-        target: p.default_target?.toString() ?? "",
-        isReadOnly: false 
-      }
-    })).map((entry) => Object.entries(entry)[0])
+    products
+      .map((p) => ({
+        [p.id]: {
+          actual: "",
+          target: p.default_target?.toString() ?? "",
+          isReadOnly: false,
+        },
+      }))
+      .map((entry) => Object.entries(entry)[0]),
   );
 }
 
-function populateForm(products: Product[], entries: ProductionEntry[]): FormState {
+function populateForm(
+  products: Product[],
+  entries: ProductionEntry[],
+): FormState {
   // Create a map of existing entries by product_id
-  const entriesMap = new Map(
-    entries.map((entry) => [entry.product_id, entry])
-  );
-  
+  const entriesMap = new Map(entries.map((entry) => [entry.product_id, entry]));
+
   return Object.fromEntries(
     products.map((p) => {
       const existingEntry = entriesMap.get(p.id);
-      
-      if (existingEntry && existingEntry.actual_output != null && existingEntry.actual_output > 0) {
+
+      if (
+        existingEntry &&
+        existingEntry.actual_output != null &&
+        existingEntry.actual_output > 0
+      ) {
         // Only make read-only if there's actual data (non-zero)
         return [
           p.id,
           {
-            actual: existingEntry.actual_output != null ? String(existingEntry.actual_output) : "",
-            target: existingEntry.target_output != null ? String(existingEntry.target_output) : "",
+            actual:
+              existingEntry.actual_output != null
+                ? String(existingEntry.actual_output)
+                : "",
+            target:
+              existingEntry.target_output != null
+                ? String(existingEntry.target_output)
+                : "",
             isReadOnly: true,
           },
         ];
-      } else if (existingEntry && (!existingEntry.actual_output || existingEntry.actual_output === 0)) {
+      } else if (
+        existingEntry &&
+        (!existingEntry.actual_output || existingEntry.actual_output === 0)
+      ) {
         // Has entry but no actual data - keep editable
         return [
           p.id,
           {
             actual: "",
-            target: existingEntry.target_output != null ? String(existingEntry.target_output) : p.default_target?.toString() ?? "",
+            target:
+              existingEntry.target_output != null
+                ? String(existingEntry.target_output)
+                : (p.default_target?.toString() ?? ""),
             isReadOnly: false,
           },
         ];
@@ -101,7 +123,7 @@ function populateForm(products: Product[], entries: ProductionEntry[]): FormStat
           },
         ];
       }
-    })
+    }),
   );
 }
 
@@ -132,17 +154,19 @@ function InputSkeleton({ count }: { count: number }) {
 export default function DailyProductionForm({
   products,
   entries,
-  onSave, 
+  onSave,
+  initialDate,
 }: DailyProductionFormProps) {
   const today = getTodayISO();
 
-  const [dateISO, setDateISO] = useState(today);
+  const [dateISO, setDateISO] = useState(initialDate ?? today); // ✅
   const [calOpen, setCalOpen] = useState(false);
 
-  const [activeEntries, setActiveEntries] = useState<ProductionEntry[]>(entries);
+  const [activeEntries, setActiveEntries] =
+    useState<ProductionEntry[]>(entries);
   const [fetchingEntries, setFetchingEntries] = useState(false);
   const [form, setForm] = useState<FormState>(() =>
-    populateForm(products, entries)
+    populateForm(products, entries),
   );
   const [isFormReadOnly, setIsFormReadOnly] = useState(false);
 
@@ -154,6 +178,14 @@ export default function DailyProductionForm({
     [today]: entries,
   });
 
+  // Sync date when parent changes selectedDate (user picked date on View tab)
+  useEffect(() => {
+    if (initialDate && initialDate !== dateISO) {
+      handleDateChange(initialDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDate]);
+
   // sync when parent refreshes today's entries
   useEffect(() => {
     cache.current[today] = entries;
@@ -161,8 +193,8 @@ export default function DailyProductionForm({
       setActiveEntries(entries);
       setForm(populateForm(products, entries));
       // Check if all products have actual data
-      const allHaveActualData = products.every(p => {
-        const entry = entries.find(e => e.product_id === p.id);
+      const allHaveActualData = products.every((p) => {
+        const entry = entries.find((e) => e.product_id === p.id);
         return entry && entry.actual_output != null && entry.actual_output > 0;
       });
       setIsFormReadOnly(allHaveActualData);
@@ -183,8 +215,8 @@ export default function DailyProductionForm({
       setActiveEntries(cached);
       setForm(populateForm(products, cached));
       // Check if all products have actual data
-      const allHaveActualData = products.every(p => {
-        const entry = cached.find(e => e.product_id === p.id);
+      const allHaveActualData = products.every((p) => {
+        const entry = cached.find((e) => e.product_id === p.id);
         return entry && entry.actual_output != null && entry.actual_output > 0;
       });
       setIsFormReadOnly(allHaveActualData);
@@ -198,8 +230,8 @@ export default function DailyProductionForm({
       setActiveEntries(data);
       setForm(populateForm(products, data));
       // Check if all products have actual data
-      const allHaveActualData = products.every(p => {
-        const entry = data.find(e => e.product_id === p.id);
+      const allHaveActualData = products.every((p) => {
+        const entry = data.find((e) => e.product_id === p.id);
         return entry && entry.actual_output != null && entry.actual_output > 0;
       });
       setIsFormReadOnly(allHaveActualData);
@@ -216,10 +248,14 @@ export default function DailyProductionForm({
 
   // ── form editing ──────────────────────────────────────────────────────────
 
-  function handleChange(productId: number, field: "actual" | "target", value: string) {
+  function handleChange(
+    productId: number,
+    field: "actual" | "target",
+    value: string,
+  ) {
     const productForm = form[productId];
     if (!productForm || productForm.isReadOnly) return;
-    
+
     setForm((prev) => ({
       ...prev,
       [productId]: { ...prev[productId], [field]: value },
@@ -238,9 +274,11 @@ export default function DailyProductionForm({
   async function handleSubmit() {
     // Check if there are any editable products with values
     const hasAnyValue = products.some(
-      (p) => !form[p.id]?.isReadOnly && (form[p.id]?.actual !== "" || form[p.id]?.target !== "")
+      (p) =>
+        !form[p.id]?.isReadOnly &&
+        (form[p.id]?.actual !== "" || form[p.id]?.target !== ""),
     );
-    
+
     if (!hasAnyValue) {
       setStatus("error");
       setStatusMsg("Please enter at least one value before saving.");
@@ -252,8 +290,8 @@ export default function DailyProductionForm({
       .filter((p) => !form[p.id]?.isReadOnly) // Only save editable products
       .filter((p) => form[p.id]?.actual !== "" || form[p.id]?.target !== "")
       .map((p) => {
-        const existingEntry = activeEntries.find(e => e.product_id === p.id);
-        
+        const existingEntry = activeEntries.find((e) => e.product_id === p.id);
+
         return {
           id: existingEntry?.id, // Include id if updating existing entry
           product_id: p.id,
@@ -273,22 +311,27 @@ export default function DailyProductionForm({
     setIsSaving(true);
     try {
       const saved = await productionService.bulkCreate(entriesToSave);
-      
+
       // Merge saved entries with existing ones
-      const mergedEntries = [...activeEntries.filter(e => !entriesToSave.some(s => s.product_id === e.product_id)), ...saved];
+      const mergedEntries = [
+        ...activeEntries.filter(
+          (e) => !entriesToSave.some((s) => s.product_id === e.product_id),
+        ),
+        ...saved,
+      ];
       cache.current[dateISO] = mergedEntries;
       setActiveEntries(mergedEntries);
-      
+
       // Update form with new read-only status (only if actual data exists)
       setForm(populateForm(products, mergedEntries));
-      
+
       // Check if all products now have actual data
-      const allHaveActualData = products.every(p => {
-        const entry = mergedEntries.find(e => e.product_id === p.id);
+      const allHaveActualData = products.every((p) => {
+        const entry = mergedEntries.find((e) => e.product_id === p.id);
         return entry && entry.actual_output != null && entry.actual_output > 0;
       });
       setIsFormReadOnly(allHaveActualData);
-      
+
       setStatus("success");
       setStatusMsg(`Entries saved for ${format(isoToDate(dateISO), "PPP")}.`);
       if (dateISO === today) onSave?.();
@@ -315,16 +358,17 @@ export default function DailyProductionForm({
 
   const selectedDate = isoToDate(dateISO);
   // Enable inputs if there are any products without actual data
-  const hasAnyEditableProduct = products.some(p => !form[p.id]?.isReadOnly);
+  const hasAnyEditableProduct = products.some((p) => !form[p.id]?.isReadOnly);
   const showActionButtons = hasAnyEditableProduct && !fetchingEntries;
 
   return (
     <div className="space-y-4">
-
       {/* ── Date picker ─────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Daily Production Entry</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            Daily Production Entry
+          </CardTitle>
           <CardDescription>
             Enter actual output and targets for each product line
           </CardDescription>
@@ -373,13 +417,18 @@ export default function DailyProductionForm({
           {products.map((p) => {
             const productForm = form[p.id];
             const isReadOnly = productForm?.isReadOnly ?? false;
-            
+
             return (
-              <Card key={p.id} className={isReadOnly ? "opacity-70" : undefined}>
+              <Card
+                key={p.id}
+                className={isReadOnly ? "opacity-70" : undefined}
+              >
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-baseline justify-between mb-3">
                     <p className="text-sm font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.unit ?? "—"}/day</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.unit ?? "—"}/day
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {(["actual", "target"] as const).map((field) => (
@@ -395,11 +444,17 @@ export default function DailyProductionForm({
                           type="number"
                           min={0}
                           step={1}
-                          placeholder={field === "target" && !isReadOnly ? "Default target" : "0"}
+                          placeholder={
+                            field === "target" && !isReadOnly
+                              ? "Default target"
+                              : "0"
+                          }
                           readOnly={isReadOnly}
                           disabled={isSaving || isReadOnly}
                           value={productForm?.[field] ?? ""}
-                          onChange={(e) => handleChange(p.id, field, e.target.value)}
+                          onChange={(e) =>
+                            handleChange(p.id, field, e.target.value)
+                          }
                           className={
                             isReadOnly
                               ? "bg-muted cursor-default pointer-events-none"
