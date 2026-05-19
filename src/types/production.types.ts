@@ -1,3 +1,5 @@
+import { Product } from "./products.types";
+
 // CHANGE THIS: Update the payload type to match Laravel backend
 export type ProductionEntryPayload = {
   product_id: number;
@@ -16,3 +18,11 @@ export type ProductionEntry = {
   remarks?: string | null;
   product?: { id: number; name: string; unit: string };
 };
+
+
+export type DailyProductionFormProps = {
+  products: Product[];
+  entries: ProductionEntry[];
+  onSave?: () => void;
+  initialDate?: string; 
+}

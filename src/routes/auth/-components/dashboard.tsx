@@ -35,7 +35,7 @@ function getTodayISO() {
 }
 
 function toISO(d: Date) {
-  return d.toLocaleDateString("en-CA");
+  return new Date(d).toLocaleDateString("en-CA");
 }
 
 /* ── formatters ─────────────────────────────────────────────────────────────── */
@@ -62,12 +62,35 @@ function relativeTime(date: Date): { label: string; fresh: boolean } {
   const diffHours = Math.floor(diffMs / 3_600_000);
   const diffDays = Math.floor(diffMs / 86_400_000);
 
-  if (diffMins < 1)   return { label: "Just now",          fresh: true  };
-  if (diffMins < 60)  return { label: `${diffMins}m ago`,   fresh: true  };
-  if (diffHours < 24) return { label: `${diffHours}h ago`,  fresh: true  };
-  if (diffDays === 1) return { label: "Yesterday",          fresh: false };
-  return                     { label: `${diffDays}d ago`,   fresh: false };
+  if (diffMins < 1) return { label: "Just now", fresh: true };
+  if (diffMins < 60) return { label: `${diffMins}m ago`, fresh: true };
+  if (diffHours < 24) return { label: `${diffHours}h ago`, fresh: true };
+  if (diffDays === 1) return { label: "Yesterday", fresh: false };
+  return { label: `${diffDays}d ago`, fresh: false };
 }
+
+/* ── color map ───────────────────────────────────────────────────────────────── */
+
+type SegmentColor =
+  | "teal"
+  | "amber"
+  | "green"
+  | "purple"
+  | "blue"
+  | "coral"
+  | "pink"
+  | "red";
+
+const colorMap: Record<SegmentColor, { bg: string; icon: string }> = {
+  teal:   { bg: "bg-teal-500/10",   icon: "text-teal-700   dark:text-teal-400"   },
+  amber:  { bg: "bg-amber-500/10",  icon: "text-amber-700  dark:text-amber-400"  },
+  green:  { bg: "bg-green-500/10",  icon: "text-green-700  dark:text-green-400"  },
+  purple: { bg: "bg-purple-500/10", icon: "text-purple-700 dark:text-purple-400" },
+  blue:   { bg: "bg-blue-500/10",   icon: "text-blue-700   dark:text-blue-400"   },
+  coral:  { bg: "bg-orange-500/10", icon: "text-orange-700 dark:text-orange-400" },
+  pink:   { bg: "bg-pink-500/10",   icon: "text-pink-700   dark:text-pink-400"   },
+  red:    { bg: "bg-red-500/10",    icon: "text-red-700    dark:text-red-400"    },
+};
 
 /* ── group builder ───────────────────────────────────────────────────────────── */
 
@@ -77,82 +100,92 @@ function buildGroups(
   selectedISO: string,
 ) {
   const isToday = selectedISO === getTodayISO();
+
   const now = new Date();
-  const minsAgo  = (m: number) => new Date(now.getTime() - m * 60_000);
-  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
-  const daysAgo  = (d: number) => new Date(now.getTime() - d * 86_400_000);
+  const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
+
+  const production = stats?.production;
 
   const productionStat = loadingStats
     ? "—"
-    : stats?.today_production_output
-      ? fmt(stats.today_production_output)
-      : stats?.yesterday_production_output && isToday
-        ? `${fmt(stats.yesterday_production_output)} (yesterday)`
+    : production?.today_production_output
+      ? fmt(production.today_production_output)
+      : production?.yesterday_production_output && isToday
+        ? `${fmt(production.yesterday_production_output)} (yesterday)`
         : "No data";
 
   const productionUnit = isToday
     ? "units today"
     : `units on ${format(new Date(selectedISO + "T00:00:00"), "MMM d")}`;
 
-  // The selected date as a Date object for display — used as dateLabel override
   const selectedDate = new Date(selectedISO + "T00:00:00");
 
   return [
     {
       id: "production",
+      color: "teal" as SegmentColor,
       label: "Production Output",
       icon: Factory,
       summary: "6 product lines running",
       stat: productionStat,
       unit: productionUnit,
-      updatedAt: stats?.last_updated_at
-        ? new Date(stats.last_updated_at)
+      updatedAt: production?.last_updated_at
+        ? new Date(production.last_updated_at)
         : daysAgo(1),
-      // Override the date badge to show the selected date, not the entry timestamp
       dateOverride: selectedDate,
     },
+
     {
       id: "procurement",
+      color: "amber" as SegmentColor,
       label: "Procurement",
       icon: ShoppingCart,
       summary: "Supply chain status",
       stat: `${mockData.procurement.length * 47}`,
       unit: "orders this month",
-      updatedAt: minsAgo(18),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "sales",
+      color: "green" as SegmentColor,
       label: "Sales",
       icon: TrendingUp,
       summary: `${mockData.sales.length} product lines`,
       stat: fmtPHP(mockData.sales.reduce((a, b) => a + b.value, 0) * 12),
       unit: "revenue this month",
-      updatedAt: hoursAgo(1),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "accounts",
+      color: "purple" as SegmentColor,
       label: "Accounts",
       icon: Wallet,
       summary: "Net position",
       stat: fmtPHP(5_618_000 * 8),
       unit: "total cashflow",
-      updatedAt: hoursAgo(4),
+      updatedAt: daysAgo(1),
       dateOverride: null,
     },
+
     {
       id: "trading",
+      color: "blue" as SegmentColor,
       label: "Trading",
       icon: ArrowLeftRight,
       summary: "Active trades",
       stat: fmt(mockData.trading.length * 340),
       unit: "units traded today",
-      updatedAt: minsAgo(7),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "qc",
+      color: "coral" as SegmentColor,
       label: "Quality Control",
       icon: FlaskConical,
       summary: "QC status",
@@ -161,28 +194,36 @@ function buildGroups(
       updatedAt: daysAgo(1),
       dateOverride: null,
     },
+
     {
       id: "workforce",
+      color: "pink" as SegmentColor,
       label: "Workforce",
       icon: Users,
       summary: "Attendance tracking",
       stat: `${mockData.workforce.presentToday * 3}`,
       unit: "employees across all sites",
-      updatedAt: hoursAgo(2),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "maintenance",
+      color: "red" as SegmentColor,
       label: "Maintenance",
       icon: Wrench,
-      summary: "Equipment status",
-      stat: `${mockData.maintenance.length * 14}`,
-      unit: "units monitored",
-      updatedAt: daysAgo(3),
+      summary: `${stats?.maintenance?.completion ?? 0}% completion today`,
+      stat: stats?.maintenance
+        ? `${stats.maintenance.checked_today}/${stats.maintenance.total_units}`
+        : "—",
+      unit: "units checked today",
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "energy",
+      color: "amber" as SegmentColor,
       label: "Energy",
       icon: Zap,
       summary: "Accounts 2 & 3",
@@ -216,7 +257,9 @@ export default function CEODashboard() {
   const location = useLocation();
 
   const [time, setTime] = React.useState(() => new Date());
-  const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = React.useState<Date>(
+    () => new Date(),
+  );
   const selectedISO = toISO(selectedDate);
 
   const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
@@ -227,7 +270,7 @@ export default function CEODashboard() {
   );
 
   React.useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1_000);
+    const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -247,10 +290,10 @@ export default function CEODashboard() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto py-0 space-y-5">
-
-        {/* Header — clock + date picker */}
+        {/* HEADER */}
         <div className="flex items-center justify-end gap-3">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+
           <span className="text-xs text-muted-foreground flex items-center gap-2">
             Live dashboard —
             <span className="font-medium text-foreground">
@@ -265,14 +308,11 @@ export default function CEODashboard() {
             </span>
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                >
+                <Button variant="ghost" size="icon" className="h-6 w-6">
                   <CalendarIcon className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
+
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
@@ -291,9 +331,11 @@ export default function CEODashboard() {
           {groupData.map((g, i) => {
             const Icon = g.icon;
             const active = isActive(g.id);
-            const { label: timeLabel, fresh } = relativeTime(g.updatedAt);
-            // Production shows the selected date; all others show their updatedAt
+
             const dateLabel = fmtDate(g.dateOverride ?? g.updatedAt);
+            const { label: timeLabel } = relativeTime(g.updatedAt);
+
+            const { bg, icon: iconColor } = colorMap[g.color];
 
             return (
               <motion.div
@@ -308,60 +350,44 @@ export default function CEODashboard() {
                   className="block"
                 >
                   <Card
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/60 ${
-                      active ? "border-primary shadow-sm" : ""
+                    className={`cursor-pointer transition-all hover:shadow-md ${
+                      active ? "border-primary" : ""
                     }`}
                   >
                     <CardContent className="px-5 py-4">
-                      <div className="flex items-start justify-between gap-4">
-
-                        {/* Left — icon + label */}
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex justify-between">
+                        <div className="flex gap-3">
+                          {/* Colored icon wrap */}
+                          <div
+                            className={`shrink-0 h-9 w-9 rounded-lg ${bg} flex items-center justify-center`}
+                          >
+                            <Icon className={`h-4 w-4 ${iconColor}`} />
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-lg leading-tight">
-                              {g.label}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+
+                          <div>
+                            <p className="font-semibold text-lg">{g.label}</p>
+                            <p className="text-xs text-muted-foreground">
                               {g.summary}
                             </p>
                           </div>
                         </div>
 
-                        {/* Right — stat + timestamp */}
-                        <div className="text-right shrink-0">
-                          <p className="text-2xl font-bold tracking-tight leading-tight">
-                            {g.stat}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                        <div className="text-right">
+                          <p className="text-2xl font-bold">{g.stat}</p>
+                          <p className="text-xs text-muted-foreground">
                             {g.unit}
                           </p>
 
-                          <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                            <span
-                              className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                                fresh
-                                  ? "bg-emerald-500/10 text-emerald-600"
-                                  : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              <span
-                                className={`h-1 w-1 rounded-full inline-block ${
-                                  fresh
-                                    ? "bg-emerald-500"
-                                    : "bg-muted-foreground/50"
-                                }`}
-                              />
+                          <div className="flex gap-1 mt-1 justify-end">
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-muted">
                               {timeLabel}
                             </span>
-                            <span className="text-[10px] text-muted-foreground/70">
+
+                            <span className="text-[10px] text-muted-foreground">
                               {dateLabel}
                             </span>
                           </div>
                         </div>
-
                       </div>
                     </CardContent>
                   </Card>
@@ -370,7 +396,6 @@ export default function CEODashboard() {
             );
           })}
         </div>
-
       </div>
     </div>
   );

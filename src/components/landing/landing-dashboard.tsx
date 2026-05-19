@@ -40,7 +40,7 @@ function getTodayISO() {
 }
 
 function dateToISO(d: Date) {
-  return d.toLocaleDateString("en-CA"); // YYYY-MM-DD, no tz shift
+  return new Date(d).toLocaleDateString("en-CA");
 }
 
 /* ── formatters ──────────────────────────────────────────────────────────────── */
@@ -82,25 +82,27 @@ function buildGroups(
   selectedISO: string,
 ) {
   const isToday = selectedISO === getTodayISO();
+
   const now = new Date();
-  const minsAgo = (m: number) => new Date(now.getTime() - m * 60_000);
-  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
   const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
+
+  const production = stats?.production;
+  const maintenance = stats?.maintenance;
 
   const productionStat = loadingStats
     ? "—"
-    : stats?.today_production_output
-      ? fmt(stats.today_production_output)
-      : stats?.yesterday_production_output && isToday
-        ? `${fmt(stats.yesterday_production_output)} (yesterday)`
+    : production?.today_production_output
+      ? fmt(production.today_production_output)
+      : production?.yesterday_production_output && isToday
+        ? `${fmt(production.yesterday_production_output)} (yesterday)`
         : "No data";
 
   const productionUnit = isToday
     ? "units today"
     : `units on ${format(new Date(selectedISO + "T00:00:00"), "MMM d")}`;
 
-  // The selected date as a Date object for display — used as dateLabel override
   const selectedDate = new Date(selectedISO + "T00:00:00");
+
   return [
     {
       id: "production",
@@ -109,12 +111,12 @@ function buildGroups(
       summary: "6 product lines running",
       stat: productionStat,
       unit: productionUnit,
-      updatedAt: stats?.last_updated_at
-        ? new Date(stats.last_updated_at)
+      updatedAt: production?.last_updated_at
+        ? new Date(production.last_updated_at)
         : daysAgo(1),
-      // Override the date badge to show the selected date, not the entry timestamp
       dateOverride: selectedDate,
     },
+
     {
       id: "procurement",
       label: "Procurement",
@@ -122,9 +124,10 @@ function buildGroups(
       summary: "Supply chain status",
       stat: `${mockData.procurement.length * 47}`,
       unit: "orders this month",
-      updatedAt: minsAgo(18),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "sales",
       label: "Sales",
@@ -132,9 +135,10 @@ function buildGroups(
       summary: `${mockData.sales.length} product lines`,
       stat: fmtPHP(mockData.sales.reduce((a, b) => a + b.value, 0) * 12),
       unit: "revenue this month",
-      updatedAt: hoursAgo(1),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "accounts",
       label: "Accounts",
@@ -142,9 +146,10 @@ function buildGroups(
       summary: "Net position",
       stat: fmtPHP(5_618_000 * 8),
       unit: "total cashflow",
-      updatedAt: hoursAgo(4),
+      updatedAt: daysAgo(1),
       dateOverride: null,
     },
+
     {
       id: "trading",
       label: "Trading",
@@ -152,9 +157,10 @@ function buildGroups(
       summary: "Active trades",
       stat: fmt(mockData.trading.length * 340),
       unit: "units traded today",
-      updatedAt: minsAgo(7),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "qc",
       label: "Quality Control",
@@ -165,6 +171,7 @@ function buildGroups(
       updatedAt: daysAgo(1),
       dateOverride: null,
     },
+
     {
       id: "workforce",
       label: "Workforce",
@@ -172,19 +179,27 @@ function buildGroups(
       summary: "Attendance tracking",
       stat: `${mockData.workforce.presentToday * 3}`,
       unit: "employees across all sites",
-      updatedAt: hoursAgo(2),
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "maintenance",
       label: "Maintenance",
       icon: Wrench,
-      summary: "Equipment status",
-      stat: `${mockData.maintenance.length * 14}`,
-      unit: "units monitored",
-      updatedAt: daysAgo(3),
+      summary: maintenance
+        ? `${maintenance.completion}% completion today`
+        : "Loading maintenance...",
+
+      stat: maintenance
+        ? `${maintenance.checked_today}/${maintenance.total_units}`
+        : "—",
+
+      unit: "units checked today",
+      updatedAt: daysAgo(0),
       dateOverride: null,
     },
+
     {
       id: "energy",
       label: "Energy",
@@ -217,12 +232,12 @@ export function LandingDashboard() {
   const [selectedDate, setSelectedDate] = React.useState<Date>(
     () => new Date(),
   );
+
   const selectedISO = dateToISO(selectedDate);
 
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [loadingStats, setLoadingStats] = React.useState(true);
 
-  // Simple in-component cache — no Zustand needed for public page
   const cache = React.useRef<Record<string, DashboardStats>>({});
 
   const groupData = React.useMemo(
@@ -230,13 +245,11 @@ export function LandingDashboard() {
     [stats, loadingStats, selectedISO],
   );
 
-  // Live clock — isolated
   React.useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1_000);
+    const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Fetch for a given date — uses cache to avoid duplicate requests
   async function fetchForDate(iso: string) {
     if (cache.current[iso]) {
       setStats(cache.current[iso]);
@@ -245,6 +258,7 @@ export function LandingDashboard() {
     }
 
     setLoadingStats(true);
+
     try {
       const data = await dashboardService.getStats(iso);
       cache.current[iso] = data;
@@ -256,13 +270,10 @@ export function LandingDashboard() {
     }
   }
 
-  // Fetch today on mount
   React.useEffect(() => {
     fetchForDate(getTodayISO());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch when date picker changes
   function handleDateSelect(d: Date | undefined) {
     if (!d) return;
     setSelectedDate(d);
@@ -272,7 +283,7 @@ export function LandingDashboard() {
   return (
     <div className="w-full">
       <div className="space-y-5">
-        {/* Header */}
+        {/* HEADER */}
         <div className="flex items-center justify-end gap-3">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs text-muted-foreground flex items-center gap-2">
@@ -289,14 +300,11 @@ export function LandingDashboard() {
             </span>
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                >
+                <Button variant="ghost" size="icon" className="h-6 w-6">
                   <CalendarIcon className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
+
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
@@ -310,11 +318,11 @@ export function LandingDashboard() {
           </span>
         </div>
 
-        {/* MODULE GRID */}
+        {/* GRID */}
         <div className="grid md:grid-cols-2 gap-3">
           {groupData.map((g, i) => {
             const Icon = g.icon;
-            const { label: timeLabel, fresh } = relativeTime(g.updatedAt);
+            const { label: timeLabel } = relativeTime(g.updatedAt);
             const dateLabel = fmtDate(g.dateOverride ?? g.updatedAt);
 
             return (
@@ -326,54 +334,35 @@ export function LandingDashboard() {
                 whileHover={{ y: -3, scale: 1.005 }}
               >
                 <Card
-                  className="cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/60"
+                  className="cursor-pointer hover:shadow-md"
                   onClick={() => handleCardClick(g.label)}
                 >
                   <CardContent className="px-5 py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Left — icon + label */}
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="shrink-0 rounded-lg bg-muted p-2 mt-0.5">
+                    <div className="flex justify-between">
+                      <div className="flex gap-3">
+                        <div className="shrink-0 h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
                           <Icon className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-lg leading-tight">
-                            {g.label}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+
+                        <div>
+                          <p className="font-semibold text-lg">{g.label}</p>
+                          <p className="text-xs text-muted-foreground">
                             {g.summary}
                           </p>
                         </div>
                       </div>
 
-                      {/* Right — stat + timestamp */}
-                      <div className="text-right shrink-0">
-                        <p className="text-2xl font-bold tracking-tight leading-tight">
-                          {g.stat}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                      <div className="text-right">
+                        <p className="text-2xl font-bold">{g.stat}</p>
+                        <p className="text-xs text-muted-foreground">
                           {g.unit}
                         </p>
 
-                        {/* Relative badge + absolute date */}
-                        <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                          <span
-                            className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                              fresh
-                                ? "bg-emerald-500/10 text-emerald-600"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            <span
-                              className={`h-1 w-1 rounded-full inline-block ${
-                                fresh
-                                  ? "bg-emerald-500"
-                                  : "bg-muted-foreground/50"
-                              }`}
-                            />
+                        <div className="flex gap-1 mt-1 justify-end">
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-muted">
                             {timeLabel}
                           </span>
-                          <span className="text-[10px] text-muted-foreground/70">
+                          <span className="text-[10px] text-muted-foreground">
                             {dateLabel}
                           </span>
                         </div>
