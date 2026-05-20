@@ -82,14 +82,20 @@ type SegmentColor =
   | "red";
 
 const colorMap: Record<SegmentColor, { bg: string; icon: string }> = {
-  teal:   { bg: "bg-teal-500/10",   icon: "text-teal-700   dark:text-teal-400"   },
-  amber:  { bg: "bg-amber-500/10",  icon: "text-amber-700  dark:text-amber-400"  },
-  green:  { bg: "bg-green-500/10",  icon: "text-green-700  dark:text-green-400"  },
-  purple: { bg: "bg-purple-500/10", icon: "text-purple-700 dark:text-purple-400" },
-  blue:   { bg: "bg-blue-500/10",   icon: "text-blue-700   dark:text-blue-400"   },
-  coral:  { bg: "bg-orange-500/10", icon: "text-orange-700 dark:text-orange-400" },
-  pink:   { bg: "bg-pink-500/10",   icon: "text-pink-700   dark:text-pink-400"   },
-  red:    { bg: "bg-red-500/10",    icon: "text-red-700    dark:text-red-400"    },
+  teal: { bg: "bg-teal-500/10", icon: "text-teal-700   dark:text-teal-400" },
+  amber: { bg: "bg-amber-500/10", icon: "text-amber-700  dark:text-amber-400" },
+  green: { bg: "bg-green-500/10", icon: "text-green-700  dark:text-green-400" },
+  purple: {
+    bg: "bg-purple-500/10",
+    icon: "text-purple-700 dark:text-purple-400",
+  },
+  blue: { bg: "bg-blue-500/10", icon: "text-blue-700   dark:text-blue-400" },
+  coral: {
+    bg: "bg-orange-500/10",
+    icon: "text-orange-700 dark:text-orange-400",
+  },
+  pink: { bg: "bg-pink-500/10", icon: "text-pink-700   dark:text-pink-400" },
+  red: { bg: "bg-red-500/10", icon: "text-red-700    dark:text-red-400" },
 };
 
 /* ── group builder ───────────────────────────────────────────────────────────── */
@@ -136,78 +142,6 @@ function buildGroups(
     },
 
     {
-      id: "procurement",
-      color: "amber" as SegmentColor,
-      label: "Procurement",
-      icon: ShoppingCart,
-      summary: "Supply chain status",
-      stat: `${mockData.procurement.length * 47}`,
-      unit: "orders this month",
-      updatedAt: daysAgo(0),
-      dateOverride: null,
-    },
-
-    {
-      id: "sales",
-      color: "green" as SegmentColor,
-      label: "Sales",
-      icon: TrendingUp,
-      summary: `${mockData.sales.length} product lines`,
-      stat: fmtPHP(mockData.sales.reduce((a, b) => a + b.value, 0) * 12),
-      unit: "revenue this month",
-      updatedAt: daysAgo(0),
-      dateOverride: null,
-    },
-
-    {
-      id: "accounts",
-      color: "purple" as SegmentColor,
-      label: "Accounts",
-      icon: Wallet,
-      summary: "Net position",
-      stat: fmtPHP(5_618_000 * 8),
-      unit: "total cashflow",
-      updatedAt: daysAgo(1),
-      dateOverride: null,
-    },
-
-    {
-      id: "trading",
-      color: "blue" as SegmentColor,
-      label: "Trading",
-      icon: ArrowLeftRight,
-      summary: "Active trades",
-      stat: fmt(mockData.trading.length * 340),
-      unit: "units traded today",
-      updatedAt: daysAgo(0),
-      dateOverride: null,
-    },
-
-    {
-      id: "qc",
-      color: "coral" as SegmentColor,
-      label: "Quality Control",
-      icon: FlaskConical,
-      summary: "QC status",
-      stat: `${mockData.qc.passRate}%`,
-      unit: `${fmt(mockData.qc.samplesTested * 24)} samples tested`,
-      updatedAt: daysAgo(1),
-      dateOverride: null,
-    },
-
-    {
-      id: "workforce",
-      color: "pink" as SegmentColor,
-      label: "Workforce",
-      icon: Users,
-      summary: "Attendance tracking",
-      stat: `${mockData.workforce.presentToday * 3}`,
-      unit: "employees across all sites",
-      updatedAt: daysAgo(0),
-      dateOverride: null,
-    },
-
-    {
       id: "maintenance",
       color: "red" as SegmentColor,
       label: "Maintenance",
@@ -222,6 +156,17 @@ function buildGroups(
     },
 
     {
+      id: "sales",
+      color: "green" as SegmentColor,
+      label: "Sales",
+      icon: TrendingUp,
+      summary: `${mockData.sales.length} product lines`,
+      stat: fmtPHP(mockData.sales.reduce((a, b) => a + b.value, 0) * 12),
+      unit: "sales this month",
+      updatedAt: daysAgo(0),
+      dateOverride: null,
+    },
+    {
       id: "energy",
       color: "amber" as SegmentColor,
       label: "Energy",
@@ -235,13 +180,88 @@ function buildGroups(
       updatedAt: daysAgo(1),
       dateOverride: null,
     },
+    {
+      id: "procurement",
+      color: "amber" as SegmentColor,
+      label: "Procurement",
+      icon: ShoppingCart,
+      summary: "Supply chain status",
+      // stat: `${mockData.procurement.length * 47}`,
+      // unit: "orders this month",
+      // updatedAt: daysAgo(0),
+      // dateOverride: null,
+      stat: `—`,
+      unit: "—",
+      updatedAt: null,
+      dateOverride: null,
+    },
+    {
+      id: "accounts",
+      color: "purple" as SegmentColor,
+      label: "Accounts",
+      icon: Wallet,
+      summary: "Net position",
+      // stat: fmtPHP(5_618_000 * 8),
+      // unit: "total cashflow",
+      // updatedAt: daysAgo(1),
+      // dateOverride: null,
+      stat: `—`,
+      unit: "—",
+      updatedAt: null,
+      dateOverride: null,
+    },
+    {
+      id: "trading",
+      color: "blue" as SegmentColor,
+      label: "Trading",
+      icon: ArrowLeftRight,
+      summary: "Active trades",
+      // stat: fmt(mockData.trading.length * 340),
+      // unit: "units traded today",
+      // updatedAt: daysAgo(0),
+      // dateOverride: null,
+      stat: `—`,
+      unit: "—",
+      updatedAt: null,
+      dateOverride: null,
+    },
+    {
+      id: "qc",
+      color: "coral" as SegmentColor,
+      label: "Quality Control",
+      icon: FlaskConical,
+      summary: "QC status",
+      // stat: `${mockData.qc.passRate}%`,
+      // unit: `${fmt(mockData.qc.samplesTested * 24)} samples tested`,
+      // updatedAt: daysAgo(1),
+      // dateOverride: null,
+      stat: `—`,
+      unit: "—",
+      updatedAt: null,
+      dateOverride: null,
+    },
+    {
+      id: "workforce",
+      color: "pink" as SegmentColor,
+      label: "Workforce",
+      icon: Users,
+      summary: "Attendance tracking",
+      // stat: `${mockData.workforce.presentToday * 3}`,
+      // unit: "employees across all sites",
+      // updatedAt: daysAgo(0),
+      // dateOverride: null,
+      stat: `—`,
+      unit: "—",
+      updatedAt: null,
+      dateOverride: null,
+    },
   ];
 }
 
 type DashboardSegment =
   | "production"
-  | "procurement"
   | "sales"
+  | "procurement"
   | "accounts"
   | "trading"
   | "qc"
@@ -332,8 +352,15 @@ export default function CEODashboard() {
             const Icon = g.icon;
             const active = isActive(g.id);
 
-            const dateLabel = fmtDate(g.dateOverride ?? g.updatedAt);
-            const { label: timeLabel } = relativeTime(g.updatedAt);
+            const dateLabel = g.dateOverride
+              ? fmtDate(g.dateOverride)
+              : g.updatedAt
+                ? fmtDate(g.updatedAt)
+                : "not available";
+
+            const timeLabel = g.updatedAt
+              ? relativeTime(g.updatedAt).label
+              : "not available";
 
             const { bg, icon: iconColor } = colorMap[g.color];
 
