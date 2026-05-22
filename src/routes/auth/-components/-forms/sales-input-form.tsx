@@ -20,6 +20,8 @@ import {
   CalendarIcon,
   Lock,
   Loader2,
+  Pencil,
+  X,
 } from "lucide-react";
 import { Market, Sale } from "@/types/sales.types";
 import { salesService } from "@/services/sales.service";
@@ -165,6 +167,9 @@ export default function SalesInputForm({
   const [isSaving, setIsSaving]       = useState(false);
   const [isAllReadOnly, setIsAllReadOnly] = useState(false);
 
+  // Track which product IDs have been manually unlocked for editing
+  const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set());
+
   // ── Status banners ────────────────────────────────────────────────────────
   const [status, setStatus]       = useState<"idle" | "success" | "error">("idle");
   const [statusMsg, setStatusMsg] = useState("");
@@ -197,6 +202,7 @@ export default function SalesInputForm({
       cache.current[iso] = [];
       setRows(emptyRows(products));
       setIsAllReadOnly(false);
+      setUnlockedIds(new Set());
     } finally {
       setFetchingRows(false);
     }
@@ -207,6 +213,8 @@ export default function SalesInputForm({
     setRows(populated);
     const allReadOnly = prods.every((p) => populated[p.id]?.isReadOnly);
     setIsAllReadOnly(allReadOnly);
+    // Reset unlocked IDs when loading new data
+    setUnlockedIds(new Set());
   }
 
   async function handleDateChange(newISO: string) {
@@ -220,12 +228,15 @@ export default function SalesInputForm({
   // ── Row helpers ───────────────────────────────────────────────────────────
 
   function setMarket(id: number, market: Market) {
+    // Only allow market change if row is editable (unlocked or not read-only)
+    if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
     setRows((r) => ({ ...r, [id]: { ...r[id], market } }));
     setStatus("idle");
   }
 
   function setNumeric(id: number, field: "aspPerKg" | "quantityKg", raw: string) {
-    if (rows[id]?.isReadOnly) return;
+    // Only allow numeric changes if row is editable (unlocked or not read-only)
+    if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
     const val = parseFloat(raw) || 0;
     setRows((r) => {
       const updated = { ...r[id], [field]: val };
@@ -235,47 +246,112 @@ export default function SalesInputForm({
     setStatus("idle");
   }
 
+  // ── Unlock / Relock functions (UPDATE TRIGGER) ───────────────────────────
+  
+  function unlockProduct(productId: number) {
+    setUnlockedIds((prev) => new Set(prev).add(productId));
+    // Make the row editable in UI
+    setRows((prev) => ({
+      ...prev,
+      [productId]: { ...prev[productId], isReadOnly: false },
+    }));
+    setStatus("idle");
+    setStatusMsg("");
+  }
+
+  function relockProduct(productId: number) {
+    setUnlockedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(productId);
+      return next;
+    });
+    
+    // Restore original values from cache and re-lock
+    const cachedSales = cache.current[dateISO];
+    if (cachedSales) {
+      const originalSale = cachedSales.find((s) => s.product_id === productId);
+      if (originalSale) {
+        setRows((prev) => ({
+          ...prev,
+          [productId]: {
+            ...prev[productId],
+            market: originalSale.market,
+            aspPerKg: Number(originalSale.asp_per_kg),
+            quantityKg: Number(originalSale.quantity_kg),
+            totalSalesUSD: Number(originalSale.total_sales_usd),
+            isReadOnly: true,
+          },
+        }));
+      } else {
+        // If no original sale, reset to empty state
+        setRows((prev) => ({
+          ...prev,
+          [productId]: {
+            ...prev[productId],
+            aspPerKg: 0,
+            quantityKg: 0,
+            totalSalesUSD: 0,
+            isReadOnly: false,
+          },
+        }));
+      }
+    }
+    setStatus("idle");
+    setStatusMsg("");
+  }
+
   function handleReset() {
     if (cache.current[dateISO]) {
       applyRows(products, cache.current[dateISO]);
     } else {
       setRows(emptyRows(products));
     }
+    setUnlockedIds(new Set());
     setStatus("idle");
     setStatusMsg("");
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // ── Save (supports both create and update) ─────────────────────────────────
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
 
-    const payload = Object.values(rows)
-      .filter((r) => !r.isReadOnly && r.aspPerKg > 0 && r.quantityKg > 0)
-      .map((r) => ({
-        product_id:  r.product_id,
-        market:      r.market,
-        asp_per_kg:  r.aspPerKg,
-        quantity_kg: r.quantityKg,
-      }));
+    // Determine which rows to save:
+    // 1. Any unlocked row (even if values are zero)
+    // 2. Any editable row that has values > 0
+    const rowsToSave = Object.values(rows).filter((r) => {
+      if (unlockedIds.has(r.product_id)) return true;
+      if (!r.isReadOnly && r.aspPerKg > 0 && r.quantityKg > 0) return true;
+      return false;
+    });
 
-    if (payload.length === 0) {
+    if (rowsToSave.length === 0) {
       setStatus("error");
-      setStatusMsg("Please enter ASP and quantity for at least one product.");
+      setStatusMsg("Please enter ASP and quantity for at least one product, or unlock a saved entry to update it.");
       return;
     }
 
+    const payload = rowsToSave.map((r) => ({
+      product_id:  r.product_id,
+      market:      r.market,
+      asp_per_kg:  r.aspPerKg,
+      quantity_kg: r.quantityKg,
+    }));
+
     setIsSaving(true);
     try {
-      // Pass the selected date to the service
+      // Pass the selected date to the service - this will UPSERT (update or insert)
       await salesService.storeBulk(payload, dateISO);
 
       // Invalidate cache for this date and re-fetch so read-only state is accurate
       delete cache.current[dateISO];
       await fetchForDate(dateISO);
 
+      // Clear unlocked IDs since everything is now saved
+      setUnlockedIds(new Set());
+
       setStatus("success");
-      setStatusMsg(`Sales saved for ${format(isoToDate(dateISO), "PPP")}.`);
+      setStatusMsg(`Sales ${rowsToSave.some(r => rows[r.product_id]?.isReadOnly) ? 'updated' : 'saved'} for ${format(isoToDate(dateISO), "PPP")}.`);
       onSaved(); // notify parent to re-fetch view tab
     } catch (err: any) {
       setStatus("error");
@@ -299,7 +375,8 @@ export default function SalesInputForm({
 
   const selectedDate        = isoToDate(dateISO);
   const hasEditableRows     = Object.values(rows).some((r) => !r.isReadOnly);
-  const showActionButtons   = hasEditableRows && !fetchingRows;
+  const hasUnlockedRows     = unlockedIds.size > 0;
+  const showActionButtons   = (hasEditableRows || hasUnlockedRows) && !fetchingRows;
 
   return (
     <div className="space-y-4">
@@ -336,10 +413,17 @@ export default function SalesInputForm({
               </PopoverContent>
             </Popover>
 
-            {isAllReadOnly && !fetchingRows && (
+            {isAllReadOnly && !fetchingRows && unlockedIds.size === 0 && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All sales saved for this date
+                All sales saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update
+              </span>
+            )}
+            
+            {unlockedIds.size > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-amber-600">
+                <Pencil className="h-3 w-3 shrink-0" />
+                {unlockedIds.size} product{unlockedIds.size === 1 ? '' : 's'} unlocked for editing
               </span>
             )}
           </div>
@@ -359,15 +443,59 @@ export default function SalesInputForm({
             {products.map((p) => {
               const row        = rows[p.id];
               const isReadOnly = row?.isReadOnly ?? false;
+              const isUnlocked = unlockedIds.has(p.id);
+              const isEditable = !isReadOnly || isUnlocked;
 
               return (
-                <Card key={p.id} className={isReadOnly ? "opacity-70" : undefined}>
+                <Card 
+                  key={p.id} 
+                  className={
+                    isReadOnly && !isUnlocked
+                      ? "opacity-70" 
+                      : isUnlocked
+                        ? "border-amber-500/50 dark:border-amber-500/30"
+                        : undefined
+                  }
+                >
                   <CardContent className="pt-4 pb-4 space-y-3">
 
                     {/* Header */}
                     <div className="flex items-baseline justify-between">
-                      <p className="text-sm font-medium">{p.name}</p>
-                      <span className="text-xs text-muted-foreground">{p.unit ?? "—"}</span>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{p.name}</p>
+                        {isUnlocked && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
+                            editing
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{p.unit ?? "—"}</span>
+                        {/* Unlock / relock button — only for saved entries */}
+                        {(isReadOnly || isUnlocked) && (
+                          isUnlocked ? (
+                            <button
+                              type="button"
+                              onClick={() => relockProduct(p.id)}
+                              disabled={isSaving}
+                              className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                              aria-label="Cancel edit"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => unlockProduct(p.id)}
+                              disabled={isSaving}
+                              className="p-0.5 rounded text-muted-foreground hover:text-amber-600 transition-colors disabled:opacity-50"
+                              aria-label="Edit sales entry"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )
+                        )}
+                      </div>
                     </div>
 
                     {/* Market toggle */}
@@ -376,9 +504,9 @@ export default function SalesInputForm({
                         <button
                           key={m}
                           type="button"
-                          onClick={() => !isReadOnly && setMarket(p.id, m)}
+                          onClick={() => isEditable && setMarket(p.id, m)}
                           className="focus:outline-none"
-                          disabled={isReadOnly || isSaving}
+                          disabled={!isEditable || isSaving}
                         >
                           <Badge
                             variant={
@@ -387,7 +515,7 @@ export default function SalesInputForm({
                                 : "outline"
                             }
                             className={`px-3 py-0.5 text-xs select-none transition-all ${
-                              isReadOnly ? "cursor-default" : "cursor-pointer"
+                              isEditable ? "cursor-pointer" : "cursor-default"
                             }`}
                           >
                             {m}
@@ -409,10 +537,10 @@ export default function SalesInputForm({
                             min={0}
                             step="0.01"
                             placeholder="0.00"
-                            className={`pl-5 h-9 text-sm ${isReadOnly ? "bg-muted cursor-default pointer-events-none" : ""}`}
+                            className={`pl-5 h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                             value={row?.aspPerKg || ""}
-                            readOnly={isReadOnly}
-                            disabled={isSaving || isReadOnly}
+                            readOnly={!isEditable}
+                            disabled={isSaving || !isEditable}
                             onChange={(e) => setNumeric(p.id, "aspPerKg", e.target.value)}
                           />
                         </div>
@@ -425,10 +553,10 @@ export default function SalesInputForm({
                           min={0}
                           step="0.01"
                           placeholder="0"
-                          className={`h-9 text-sm ${isReadOnly ? "bg-muted cursor-default pointer-events-none" : ""}`}
+                          className={`h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                           value={row?.quantityKg || ""}
-                          readOnly={isReadOnly}
-                          disabled={isSaving || isReadOnly}
+                          readOnly={!isEditable}
+                          disabled={isSaving || !isEditable}
                           onChange={(e) => setNumeric(p.id, "quantityKg", e.target.value)}
                         />
                       </div>
@@ -456,7 +584,9 @@ export default function SalesInputForm({
               <Button type="submit" disabled={isSaving} className="flex-1">
                 {isSaving
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
-                  : "Save Sales"
+                  : hasUnlockedRows
+                    ? `Update ${unlockedIds.size} sale${unlockedIds.size === 1 ? '' : 's'}`
+                    : "Save Sales"
                 }
               </Button>
               <Button type="button" variant="outline" onClick={handleReset} disabled={isSaving}>

@@ -20,10 +20,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  CheckCircle,
-  AlertCircle,
+  CheckCircle2,
+  XCircle,
   Loader2,
   Lock,
+  Pencil,
+  X,
   CalendarIcon,
 } from "lucide-react";
 import { productionService } from "@/services/production.service";
@@ -53,15 +55,14 @@ function isoToDate(iso: string) {
 
 function emptyForm(products: Product[]): FormState {
   return Object.fromEntries(
-    products
-      .map((p) => ({
-        [p.id]: {
-          actual: "",
-          target: p.default_target?.toString() ?? "",
-          isReadOnly: false,
-        },
-      }))
-      .map((entry) => Object.entries(entry)[0]),
+    products.map((p) => [
+      p.id,
+      {
+        actual:     "",
+        target:     p.default_target?.toString() ?? "",
+        isReadOnly: false,
+      },
+    ]),
   );
 }
 
@@ -69,60 +70,24 @@ function populateForm(
   products: Product[],
   entries: ProductionEntry[],
 ): FormState {
-  // Create a map of existing entries by product_id
-  const entriesMap = new Map(entries.map((entry) => [entry.product_id, entry]));
+  const entriesMap = new Map(entries.map((e) => [e.product_id, e]));
 
   return Object.fromEntries(
     products.map((p) => {
-      const existingEntry = entriesMap.get(p.id);
+      const entry = entriesMap.get(p.id);
+      const hasActual =
+        entry && entry.actual_output != null && entry.actual_output > 0;
 
-      if (
-        existingEntry &&
-        existingEntry.actual_output != null &&
-        existingEntry.actual_output > 0
-      ) {
-        // Only make read-only if there's actual data (non-zero)
-        return [
-          p.id,
-          {
-            actual:
-              existingEntry.actual_output != null
-                ? String(existingEntry.actual_output)
-                : "",
-            target:
-              existingEntry.target_output != null
-                ? String(existingEntry.target_output)
-                : "",
-            isReadOnly: true,
-          },
-        ];
-      } else if (
-        existingEntry &&
-        (!existingEntry.actual_output || existingEntry.actual_output === 0)
-      ) {
-        // Has entry but no actual data - keep editable
-        return [
-          p.id,
-          {
-            actual: "",
-            target:
-              existingEntry.target_output != null
-                ? String(existingEntry.target_output)
-                : (p.default_target?.toString() ?? ""),
-            isReadOnly: false,
-          },
-        ];
-      } else {
-        // No entry for this product -> use default_target and keep editable
-        return [
-          p.id,
-          {
-            actual: "",
-            target: p.default_target?.toString() ?? "",
-            isReadOnly: false,
-          },
-        ];
-      }
+      return [
+        p.id,
+        {
+          actual:     hasActual ? String(entry.actual_output) : "",
+          target:     entry?.target_output != null
+            ? String(entry.target_output)
+            : (p.default_target?.toString() ?? ""),
+          isReadOnly: !!hasActual,
+        },
+      ];
     }),
   );
 }
@@ -149,6 +114,27 @@ function InputSkeleton({ count }: { count: number }) {
     </div>
   );
 }
+
+// ── banners ───────────────────────────────────────────────────────────────────
+
+function SuccessBanner({ message }: { message: string }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">
+      <CheckCircle2 className="h-4 w-4 shrink-0" />
+      <p>{message}</p>
+    </div>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
+      <XCircle className="h-4 w-4 shrink-0" />
+      <p>{message}</p>
+    </div>
+  );
+}
+
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function DailyProductionForm({
@@ -159,26 +145,21 @@ export default function DailyProductionForm({
 }: DailyProductionFormProps) {
   const today = getTodayISO();
 
-  const [dateISO, setDateISO] = useState(initialDate ?? today); // ✅
-  const [calOpen, setCalOpen] = useState(false);
-
-  const [activeEntries, setActiveEntries] =
-    useState<ProductionEntry[]>(entries);
+  const [dateISO, setDateISO]               = useState(initialDate ?? today);
+  const [calOpen, setCalOpen]               = useState(false);
+  const [activeEntries, setActiveEntries]   = useState<ProductionEntry[]>(entries);
   const [fetchingEntries, setFetchingEntries] = useState(false);
-  const [form, setForm] = useState<FormState>(() =>
-    populateForm(products, entries),
-  );
+  const [form, setForm]                     = useState<FormState>(() => populateForm(products, entries));
   const [isFormReadOnly, setIsFormReadOnly] = useState(false);
+  const [unlockedIds, setUnlockedIds]       = useState<Set<number>>(new Set());
+  const [status, setStatus]                 = useState<"idle" | "success" | "error">("idle");
+  const [statusMsg, setStatusMsg]           = useState("");
+  const [isSaving, setIsSaving]             = useState(false);
 
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [statusMsg, setStatusMsg] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const cache = useRef<Record<string, ProductionEntry[]>>({ [today]: entries });
 
-  const cache = useRef<Record<string, ProductionEntry[]>>({
-    [today]: entries,
-  });
+  // ── sync when parent entries change ──────────────────────────────────────
 
-  // Sync date when parent changes selectedDate (user picked date on View tab)
   useEffect(() => {
     if (initialDate && initialDate !== dateISO) {
       handleDateChange(initialDate);
@@ -186,21 +167,61 @@ export default function DailyProductionForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDate]);
 
-  // sync when parent refreshes today's entries
   useEffect(() => {
     cache.current[today] = entries;
     if (dateISO === today) {
       setActiveEntries(entries);
       setForm(populateForm(products, entries));
-      // Check if all products have actual data
-      const allHaveActualData = products.every((p) => {
-        const entry = entries.find((e) => e.product_id === p.id);
-        return entry && entry.actual_output != null && entry.actual_output > 0;
-      });
-      setIsFormReadOnly(allHaveActualData);
+      setUnlockedIds(new Set());
+      setIsFormReadOnly(allSaved(products, entries));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries]);
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+
+  function allSaved(prods: Product[], ents: ProductionEntry[]) {
+    return prods.every((p) => {
+      const e = ents.find((en) => en.product_id === p.id);
+      return e && e.actual_output != null && e.actual_output > 0;
+    });
+  }
+
+  // ── unlock / relock ───────────────────────────────────────────────────────
+
+  function unlockProduct(productId: number) {
+    setUnlockedIds((prev) => new Set(prev).add(productId));
+    setForm((prev) => ({
+      ...prev,
+      [productId]: { ...prev[productId], isReadOnly: false },
+    }));
+    setStatus("idle");
+    setStatusMsg("");
+  }
+
+  function relockProduct(productId: number) {
+    setUnlockedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(productId);
+      return next;
+    });
+
+    const entry   = activeEntries.find((e) => e.product_id === productId);
+    const product = products.find((p) => p.id === productId);
+
+    setForm((prev) => ({
+      ...prev,
+      [productId]: {
+        actual: entry?.actual_output != null ? String(entry.actual_output) : "",
+        target: entry?.target_output != null
+          ? String(entry.target_output)
+          : (product?.default_target?.toString() ?? ""),
+        isReadOnly: true,
+      },
+    }));
+    setStatus("idle");
+    setStatusMsg("");
+  }
 
   // ── date change ───────────────────────────────────────────────────────────
 
@@ -209,17 +230,13 @@ export default function DailyProductionForm({
     setCalOpen(false);
     setStatus("idle");
     setStatusMsg("");
+    setUnlockedIds(new Set());
 
     if (cache.current[newISO] !== undefined) {
       const cached = cache.current[newISO];
       setActiveEntries(cached);
       setForm(populateForm(products, cached));
-      // Check if all products have actual data
-      const allHaveActualData = products.every((p) => {
-        const entry = cached.find((e) => e.product_id === p.id);
-        return entry && entry.actual_output != null && entry.actual_output > 0;
-      });
-      setIsFormReadOnly(allHaveActualData);
+      setIsFormReadOnly(allSaved(products, cached));
       return;
     }
 
@@ -229,12 +246,7 @@ export default function DailyProductionForm({
       cache.current[newISO] = data;
       setActiveEntries(data);
       setForm(populateForm(products, data));
-      // Check if all products have actual data
-      const allHaveActualData = products.every((p) => {
-        const entry = data.find((e) => e.product_id === p.id);
-        return entry && entry.actual_output != null && entry.actual_output > 0;
-      });
-      setIsFormReadOnly(allHaveActualData);
+      setIsFormReadOnly(allSaved(products, data));
     } catch (err) {
       console.error("Date fetch error:", err);
       cache.current[newISO] = [];
@@ -253,9 +265,7 @@ export default function DailyProductionForm({
     field: "actual" | "target",
     value: string,
   ) {
-    const productForm = form[productId];
-    if (!productForm || productForm.isReadOnly) return;
-
+    if (form[productId]?.isReadOnly) return;
     setForm((prev) => ({
       ...prev,
       [productId]: { ...prev[productId], [field]: value },
@@ -265,6 +275,7 @@ export default function DailyProductionForm({
 
   function handleReset() {
     setForm(populateForm(products, activeEntries));
+    setUnlockedIds(new Set());
     setStatus("idle");
     setStatusMsg("");
   }
@@ -272,39 +283,23 @@ export default function DailyProductionForm({
   // ── save ──────────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
-    // Check if there are any editable products with values
-    const hasAnyValue = products.some(
-      (p) =>
-        !form[p.id]?.isReadOnly &&
-        (form[p.id]?.actual !== "" || form[p.id]?.target !== ""),
-    );
-
-    if (!hasAnyValue) {
-      setStatus("error");
-      setStatusMsg("Please enter at least one value before saving.");
-      return;
-    }
-
-    // Prepare entries to save (update existing or create new)
     const entriesToSave = products
-      .filter((p) => !form[p.id]?.isReadOnly) // Only save editable products
+      .filter((p) => !form[p.id]?.isReadOnly)
       .filter((p) => form[p.id]?.actual !== "" || form[p.id]?.target !== "")
-      .map((p) => {
-        const existingEntry = activeEntries.find((e) => e.product_id === p.id);
-
-        return {
-          id: existingEntry?.id, // Include id if updating existing entry
-          product_id: p.id,
-          production_date: dateISO,
-          actual_output: parseFloat(form[p.id]?.actual ?? "0") || 0,
-          target_output: parseFloat(form[p.id]?.target ?? "0") || 0,
-          remarks: null,
-        };
-      });
+      .map((p) => ({
+        id:              activeEntries.find((e) => e.product_id === p.id)?.id,
+        product_id:      p.id,
+        production_date: dateISO,
+        actual_output:   parseFloat(form[p.id]?.actual ?? "0") || 0,
+        target_output:   parseFloat(form[p.id]?.target ?? "0") || 0,
+        remarks:         null,
+      }));
 
     if (entriesToSave.length === 0) {
       setStatus("error");
-      setStatusMsg("No entries to save.");
+      setStatusMsg(
+        "Please enter at least one value, or unlock a saved entry to update it.",
+      );
       return;
     }
 
@@ -312,28 +307,25 @@ export default function DailyProductionForm({
     try {
       const saved = await productionService.bulkCreate(entriesToSave);
 
-      // Merge saved entries with existing ones
-      const mergedEntries = [
+      const merged = [
         ...activeEntries.filter(
           (e) => !entriesToSave.some((s) => s.product_id === e.product_id),
         ),
         ...saved,
       ];
-      cache.current[dateISO] = mergedEntries;
-      setActiveEntries(mergedEntries);
 
-      // Update form with new read-only status (only if actual data exists)
-      setForm(populateForm(products, mergedEntries));
+      cache.current[dateISO] = merged;
+      setActiveEntries(merged);
+      setForm(populateForm(products, merged));
+      setUnlockedIds(new Set());
+      setIsFormReadOnly(allSaved(products, merged));
 
-      // Check if all products now have actual data
-      const allHaveActualData = products.every((p) => {
-        const entry = mergedEntries.find((e) => e.product_id === p.id);
-        return entry && entry.actual_output != null && entry.actual_output > 0;
-      });
-      setIsFormReadOnly(allHaveActualData);
-
+      const isUpdate = entriesToSave.some((e) => e.id != null);
       setStatus("success");
-      setStatusMsg(`Entries saved for ${format(isoToDate(dateISO), "PPP")}.`);
+      setStatusMsg(
+        `Entries ${isUpdate ? "updated" : "saved"} for ${format(isoToDate(dateISO), "PPP")}.`,
+      );
+
       if (dateISO === today) onSave?.();
     } catch (err) {
       console.error("Save error:", err);
@@ -356,14 +348,15 @@ export default function DailyProductionForm({
     );
   }
 
-  const selectedDate = isoToDate(dateISO);
-  // Enable inputs if there are any products without actual data
-  const hasAnyEditableProduct = products.some((p) => !form[p.id]?.isReadOnly);
-  const showActionButtons = hasAnyEditableProduct && !fetchingEntries;
+  const selectedDate        = isoToDate(dateISO);
+  const hasAnyEditableRow   = products.some((p) => !form[p.id]?.isReadOnly);
+  const hasUnlockedRows     = unlockedIds.size > 0;
+  const showActionButtons   = hasAnyEditableRow && !fetchingEntries;
 
   return (
     <div className="space-y-4">
-      {/* ── Date picker ─────────────────────────────── */}
+
+      {/* ── Date picker ───────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">
@@ -399,37 +392,93 @@ export default function DailyProductionForm({
               </PopoverContent>
             </Popover>
 
-            {isFormReadOnly && !fetchingEntries && (
+            {/* All saved hint */}
+            {isFormReadOnly && !fetchingEntries && unlockedIds.size === 0 && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All entries saved for this date
+                All entries saved — click{" "}
+                <Pencil className="h-3 w-3 inline mx-0.5" /> to edit a product
+              </span>
+            )}
+
+            {/* Unlocked hint */}
+            {hasUnlockedRows && (
+              <span className="flex items-center gap-1.5 text-xs text-amber-600">
+                <Pencil className="h-3 w-3 shrink-0" />
+                {unlockedIds.size} product{unlockedIds.size === 1 ? "" : "s"} unlocked for editing
               </span>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Product tiles ───────────────────────────── */}
+      {/* ── Status banners (above the grid) ──────── */}
+      {status === "success" && <SuccessBanner message={statusMsg} />}
+      {status === "error"   && <ErrorBanner   message={statusMsg} />}
+
+      {/* ── Product tiles ─────────────────────────── */}
       {fetchingEntries ? (
         <InputSkeleton count={products.length} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {products.map((p) => {
-            const productForm = form[p.id];
-            const isReadOnly = productForm?.isReadOnly ?? false;
+            const row        = form[p.id];
+            const isReadOnly = row?.isReadOnly ?? false;
+            const isUnlocked = unlockedIds.has(p.id);
+            const isEditable = !isReadOnly || isUnlocked;
 
             return (
               <Card
                 key={p.id}
-                className={isReadOnly ? "opacity-70" : undefined}
+                className={
+                  isReadOnly && !isUnlocked
+                    ? "opacity-70"
+                    : isUnlocked
+                      ? "border-amber-500/50 dark:border-amber-500/30"
+                      : undefined
+                }
               >
                 <CardContent className="pt-4 pb-4">
+                  {/* Header */}
                   <div className="flex items-baseline justify-between mb-3">
-                    <p className="text-sm font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.unit ?? "—"}/day
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{p.name}</p>
+                      {isUnlocked && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
+                          editing
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs text-muted-foreground">
+                        {p.unit ?? "—"}/day
+                      </p>
+                      {/* Unlock / relock button — only for saved entries */}
+                      {(isReadOnly || isUnlocked) && (
+                        isUnlocked ? (
+                          <button
+                            onClick={() => relockProduct(p.id)}
+                            disabled={isSaving}
+                            className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                            aria-label="Cancel edit"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => unlockProduct(p.id)}
+                            disabled={isSaving}
+                            className="p-0.5 rounded text-muted-foreground hover:text-amber-600 transition-colors disabled:opacity-50"
+                            aria-label="Edit entry"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )
+                      )}
+                    </div>
                   </div>
+
+                  {/* Inputs */}
                   <div className="grid grid-cols-2 gap-3">
                     {(["actual", "target"] as const).map((field) => (
                       <div key={field} className="space-y-1">
@@ -445,18 +494,16 @@ export default function DailyProductionForm({
                           min={0}
                           step={1}
                           placeholder={
-                            field === "target" && !isReadOnly
+                            field === "target" && !isEditable
                               ? "Default target"
                               : "0"
                           }
-                          readOnly={isReadOnly}
-                          disabled={isSaving || isReadOnly}
-                          value={productForm?.[field] ?? ""}
-                          onChange={(e) =>
-                            handleChange(p.id, field, e.target.value)
-                          }
+                          readOnly={!isEditable}
+                          disabled={isSaving || !isEditable}
+                          value={row?.[field] ?? ""}
+                          onChange={(e) => handleChange(p.id, field, e.target.value)}
                           className={
-                            isReadOnly
+                            !isEditable
                               ? "bg-muted cursor-default pointer-events-none"
                               : undefined
                           }
@@ -471,32 +518,24 @@ export default function DailyProductionForm({
         </div>
       )}
 
-      {/* ── Actions ─────────── */}
+      {/* ── Actions ───────────────────────────────── */}
       {showActionButtons && (
-        <div className="flex flex-col gap-3">
-          {status === "error" && (
-            <div className="flex items-center gap-2 rounded-md px-4 py-3 text-sm bg-rose-500/10 text-rose-600">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {statusMsg}
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handleReset} disabled={isSaving}>
-              Reset
-            </Button>
-            <Button onClick={handleSubmit} disabled={isSaving}>
-              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isSaving ? "Saving…" : "Save entry"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Success banner */}
-      {status === "success" && (
-        <div className="flex items-center gap-2 rounded-md px-4 py-3 text-sm bg-emerald-500/10 text-emerald-600">
-          <CheckCircle className="h-4 w-4 shrink-0" />
-          {statusMsg}
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={handleReset}
+            disabled={isSaving}
+          >
+            Reset
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSaving}>
+            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isSaving
+              ? "Saving…"
+              : hasUnlockedRows
+                ? `Update ${unlockedIds.size} entr${unlockedIds.size === 1 ? "y" : "ies"}`
+                : "Save entry"}
+          </Button>
         </div>
       )}
     </div>
