@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Clock } from "lucide-react";
+import { BarChart, Calendar as CalendarIcon, Clipboard, Clock } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,8 +57,10 @@ type ViewMode = "view" | "logs";
 
 function statusBadge(status: MaintenanceStatus) {
   const variants = {
-    operational: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20",
-    maintenance: "bg-amber-500/15 text-amber-600 border-amber-500/20 hover:bg-amber-500/20",
+    operational:
+      "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20",
+    maintenance:
+      "bg-amber-500/15 text-amber-600 border-amber-500/20 hover:bg-amber-500/20",
     down: "bg-rose-500/15 text-rose-600 border-rose-500/20 hover:bg-rose-500/20",
     standby: "border",
   };
@@ -103,10 +105,10 @@ function DateTimePicker({
   onChange: (date: string) => void;
 }) {
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
-    value ? new Date(value) : undefined
+    value ? new Date(value) : undefined,
   );
   const [selectedTime, setSelectedTime] = React.useState<string>(
-    value ? format(new Date(value), "HH:mm") : "09:00"
+    value ? format(new Date(value), "HH:mm") : "09:00",
   );
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -140,7 +142,7 @@ function DateTimePicker({
               variant="outline"
               className={cn(
                 "w-full justify-start text-left font-normal",
-                !selectedDate && "text-muted-foreground"
+                !selectedDate && "text-muted-foreground",
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -230,7 +232,7 @@ function LogInput({
       setNotes("");
       setNextScheduled("");
       setSuccess(true);
-      
+
       setTimeout(() => {
         setIsExpanded(false);
         setTimeout(() => setSuccess(false), 1000);
@@ -252,7 +254,7 @@ function LogInput({
         <ChevronDown
           className={cn(
             "h-3 w-3 transition-transform duration-200",
-            isExpanded && "rotate-180"
+            isExpanded && "rotate-180",
           )}
         />
       </button>
@@ -284,8 +286,8 @@ function LogInput({
                     <Label htmlFor="status" className="text-sm font-medium">
                       Status
                     </Label>
-                    <Select 
-                      value={status} 
+                    <Select
+                      value={status}
                       onValueChange={(v) => setStatus(v as MaintenanceStatus)}
                     >
                       <SelectTrigger id="status" className="w-full">
@@ -314,7 +316,7 @@ function LogInput({
                     />
                   </div>
 
-                  <DateTimePicker 
+                  <DateTimePicker
                     value={nextScheduled}
                     onChange={setNextScheduled}
                   />
@@ -325,7 +327,9 @@ function LogInput({
                     className="w-full mt-2"
                     size="sm"
                   >
-                    {loading && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                    {loading && (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    )}
                     {loading ? "Saving..." : "Submit Check"}
                   </Button>
                 </>
@@ -395,7 +399,7 @@ function UnitCard({
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200 text-muted-foreground",
-                isExpanded && "rotate-180"
+                isExpanded && "rotate-180",
               )}
             />
           </div>
@@ -412,18 +416,20 @@ function UnitCard({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 space-y-3 border-t pt-3">
-              <LogInput 
-                unitId={unit.id} 
+              <LogInput
+                unitId={unit.id}
                 unitName={unit.name}
                 onSubmit={(log) => {
                   onLogSubmit(log);
                   onRefresh();
-                }} 
+                }}
               />
 
               {(unit.subunits ?? []).length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Sub-units</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Sub-units
+                  </p>
                   <AnimatePresence>
                     {(unit.subunits ?? []).map((su) => (
                       <SubUnitRow key={su.id} subunit={su} />
@@ -443,26 +449,34 @@ function UnitCard({
 // LOG ITEM COMPONENT
 // ─────────────────────────────────────────────────────────────
 
-const LogItem = React.memo(({ log, isNew }: { log: MaintenanceLog; isNew?: boolean }) => (
-  <motion.div
-    initial={isNew ? { opacity: 0, scale: 0.95, backgroundColor: "#f0fdf4" } : { opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0, backgroundColor: "#ffffff" }}
-    transition={{ duration: 0.3 }}
-    className="flex justify-between items-center border rounded-md px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
-  >
-    <div>
-      <p className="font-medium">{log.unit_name || "Unknown Unit"}</p>
-      <p className="text-muted-foreground">{log.checked_by?.name || "Unknown User"}</p>
-    </div>
+const LogItem = React.memo(
+  ({ log, isNew }: { log: MaintenanceLog; isNew?: boolean }) => (
+    <motion.div
+      initial={
+        isNew
+          ? { opacity: 0, scale: 0.95, backgroundColor: "#f0fdf4" }
+          : { opacity: 0, x: -20 }
+      }
+      animate={{ opacity: 1, x: 0, backgroundColor: "#ffffff" }}
+      transition={{ duration: 0.3 }}
+      className="flex justify-between items-center border rounded-md px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
+    >
+      <div>
+        <p className="font-medium">{log.unit_name || "Unknown Unit"}</p>
+        <p className="text-muted-foreground">
+          {log.checked_by?.name || "Unknown User"}
+        </p>
+      </div>
 
-    <div className="text-right space-y-1">
-      {statusBadge(log.status)}
-      <p className="text-muted-foreground text-xs">
-        {formatDate(log.checked_at)}
-      </p>
-    </div>
-  </motion.div>
-));
+      <div className="text-right space-y-1">
+        {statusBadge(log.status)}
+        <p className="text-muted-foreground text-xs">
+          {formatDate(log.checked_at)}
+        </p>
+      </div>
+    </motion.div>
+  ),
+);
 
 LogItem.displayName = "LogItem";
 
@@ -480,7 +494,6 @@ function ViewSkeleton() {
   );
 }
 
-
 // ─────────────────────────────────────────────────────────────
 // MAIN DASHBOARD
 // ─────────────────────────────────────────────────────────────
@@ -490,9 +503,7 @@ export default function MaintenanceDash() {
   const { plants, loading, error, fetchPlants } = usePlantStore();
 
   const [openPlants, setOpenPlants] = React.useState<Set<number>>(new Set());
-  const [selectedDate,] = React.useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate] = React.useState(new Date().toISOString().split("T")[0]);
   const [, setLogs] = React.useState<MaintenanceLogByPlant[]>([]);
   const [, setLoadingLogs] = React.useState(false);
   const [, setNewLogIds] = React.useState<Set<number>>(new Set());
@@ -514,45 +525,52 @@ export default function MaintenanceDash() {
     }
   }
 
-  const handleNewLog = React.useCallback((newLog: MaintenanceLog) => {
-    if (!newLog || !newLog.id) return;
-    
-    setNewLogIds(prev => new Set(prev).add(newLog.id));
-    
-    setTimeout(() => {
-      setNewLogIds(prev => {
-        const next = new Set(prev);
-        next.delete(newLog.id);
-        return next;
-      });
-    }, 3000);
+  const handleNewLog = React.useCallback(
+    (newLog: MaintenanceLog) => {
+      if (!newLog || !newLog.id) return;
 
-    setLogs(prevLogs => {
-      const logDate = newLog.checked_at ? new Date(newLog.checked_at).toISOString().split('T')[0] : "";
-      const currentDate = selectedDate;
-      
-      if (logDate !== currentDate) return prevLogs;
-      
-      let plantName = "Unknown Plant";
-      if (newLog.unit_name) {
-        const parts = newLog.unit_name.split(' - ');
-        plantName = parts[0] || "Unknown Plant";
-      }
-      
-      const existingPlantIndex = prevLogs.findIndex(p => p.plant === plantName);
-      
-      if (existingPlantIndex >= 0) {
-        const updated = [...prevLogs];
-        updated[existingPlantIndex] = {
-          ...updated[existingPlantIndex],
-          checks: [newLog, ...updated[existingPlantIndex].checks],
-        };
-        return updated;
-      } else {
-        return [...prevLogs, { plant: plantName, checks: [newLog] }];
-      }
-    });
-  }, [selectedDate]);
+      setNewLogIds((prev) => new Set(prev).add(newLog.id));
+
+      setTimeout(() => {
+        setNewLogIds((prev) => {
+          const next = new Set(prev);
+          next.delete(newLog.id);
+          return next;
+        });
+      }, 3000);
+
+      setLogs((prevLogs) => {
+        const logDate = newLog.checked_at
+          ? new Date(newLog.checked_at).toISOString().split("T")[0]
+          : "";
+        const currentDate = selectedDate;
+
+        if (logDate !== currentDate) return prevLogs;
+
+        let plantName = "Unknown Plant";
+        if (newLog.unit_name) {
+          const parts = newLog.unit_name.split(" - ");
+          plantName = parts[0] || "Unknown Plant";
+        }
+
+        const existingPlantIndex = prevLogs.findIndex(
+          (p) => p.plant === plantName,
+        );
+
+        if (existingPlantIndex >= 0) {
+          const updated = [...prevLogs];
+          updated[existingPlantIndex] = {
+            ...updated[existingPlantIndex],
+            checks: [newLog, ...updated[existingPlantIndex].checks],
+          };
+          return updated;
+        } else {
+          return [...prevLogs, { plant: plantName, checks: [newLog] }];
+        }
+      });
+    },
+    [selectedDate],
+  );
 
   React.useEffect(() => {
     fetchPlants();
@@ -565,7 +583,12 @@ export default function MaintenanceDash() {
   }, [selectedDate, viewMode]);
 
   React.useEffect(() => {
-    if (plants && plants.length > 0 && openPlants.size === 0 && viewMode === "view") {
+    if (
+      plants &&
+      plants.length > 0 &&
+      openPlants.size === 0 &&
+      viewMode === "view"
+    ) {
       setOpenPlants(new Set([plants[0].id]));
     }
   }, [plants, viewMode]);
@@ -608,26 +631,28 @@ export default function MaintenanceDash() {
       transition={{ duration: 0.3 }}
       className="space-y-4"
     >
-      {/* Simple Tab Toggle */}
-      <div className="flex items-center gap-1 border-b">
+      {/* Segmented Tab Toggle */}
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
         <button
           onClick={() => setViewMode("view")}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
             viewMode === "view"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
+          <BarChart className="h-3.5 w-3.5" />
           View
         </button>
         <button
           onClick={() => setViewMode("logs")}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
             viewMode === "logs"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
+          <Clipboard className="h-3.5 w-3.5" />
           Maintenance Logs
         </button>
       </div>
@@ -636,61 +661,63 @@ export default function MaintenanceDash() {
       {viewMode === "view" && (
         <div className="space-y-3">
           <AnimatePresence>
-            {plants && plants.map((plant: Plant, index: number) => {
-              const isOpen = openPlants.has(plant.id);
+            {plants &&
+              plants.map((plant: Plant, index: number) => {
+                const isOpen = openPlants.has(plant.id);
 
-              return (
-                <motion.div
-                  key={plant.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card>
-                    <button
-                      className="w-full flex justify-between items-center p-4 hover:bg-muted/50 transition-colors"
-                      onClick={() => togglePlant(plant.id)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Factory className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{plant.name}</span>
-                      </div>
+                return (
+                  <motion.div
+                    key={plant.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Card>
+                      <button
+                        className="w-full flex justify-between items-center p-4 hover:bg-muted/50 transition-colors"
+                        onClick={() => togglePlant(plant.id)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Factory className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{plant.name}</span>
+                        </div>
 
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 transition-transform duration-200 text-muted-foreground",
-                          isOpen && "rotate-180"
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 transition-transform duration-200 text-muted-foreground",
+                            isOpen && "rotate-180",
+                          )}
+                        />
+                      </button>
+
+                      <AnimatePresence>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="p-4 pt-0 space-y-2">
+                              {plant.units &&
+                                plant.units.map((unit) => (
+                                  <UnitCard
+                                    key={unit.id}
+                                    unit={unit}
+                                    onRefresh={refresh}
+                                    onLogSubmit={handleNewLog}
+                                  />
+                                ))}
+                            </div>
+                          </motion.div>
                         )}
-                      />
-                    </button>
-
-                    <AnimatePresence>
-                      {isOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="p-4 pt-0 space-y-2">
-                            {plant.units && plant.units.map((unit) => (
-                              <UnitCard
-                                key={unit.id}
-                                unit={unit}
-                                onRefresh={refresh}
-                                onLogSubmit={handleNewLog}
-                              />
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Card>
-                </motion.div>
-              );
-            })}
+                      </AnimatePresence>
+                    </Card>
+                  </motion.div>
+                );
+              })}
           </AnimatePresence>
         </div>
       )}

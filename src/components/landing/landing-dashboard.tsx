@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
   Lock,
   Zap,
   Calendar as CalendarIcon,
+  ChevronDown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -74,13 +75,32 @@ function relativeTime(date: Date): { label: string; fresh: boolean } {
   return { label: `${diffDays}d ago`, fresh: false };
 }
 
+/* ── expand animation ────────────────────────────────────────────────────────── */
+
+const expandVariants = {
+  collapsed: { height: 0, opacity: 0 },
+  expanded: { height: "auto", opacity: 1 },
+};
+
 /* ── group builder ───────────────────────────────────────────────────────────── */
+
+type GroupItem = {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  summary: string;
+  stat: string;
+  unit: string;
+  updatedAt: Date;
+  dateOverride: Date | null;
+  expandedRows: { label: string; value: string }[];
+};
 
 function buildGroups(
   stats: DashboardStats | null,
   loadingStats: boolean,
   selectedISO: string,
-) {
+): GroupItem[] {
   const isToday = selectedISO === getTodayISO();
 
   const now = new Date();
@@ -103,6 +123,11 @@ function buildGroups(
 
   const selectedDate = new Date(selectedISO + "T00:00:00");
 
+  const procTotal = mockData.procurement.length * 47;
+  const salesTotal = mockData.sales.reduce((a, b) => a + b.value, 0) * 12;
+  const account2Total = mockData.energy.account2.reduce((s, r) => s + r.billedAmount, 0);
+  const account3Total = mockData.energy.account3.reduce((s, r) => s + r.billedAmount, 0);
+
   return [
     {
       id: "production",
@@ -115,6 +140,21 @@ function buildGroups(
         ? new Date(production.last_updated_at)
         : daysAgo(1),
       dateOverride: selectedDate,
+      expandedRows: [
+        {
+          label: "Today",
+          value: production?.today_production_output
+            ? fmt(production.today_production_output)
+            : "—",
+        },
+        {
+          label: "Yesterday",
+          value: production?.yesterday_production_output
+            ? fmt(production.yesterday_production_output)
+            : "—",
+        },
+        { label: "Active lines", value: "6" },
+      ],
     },
 
     {
@@ -122,10 +162,15 @@ function buildGroups(
       label: "Procurement",
       icon: ShoppingCart,
       summary: "Supply chain status",
-      stat: `${mockData.procurement.length * 47}`,
+      stat: `${procTotal}`,
       unit: "orders this month",
       updatedAt: daysAgo(0),
       dateOverride: null,
+      expandedRows: [
+        { label: "Orders this month", value: fmt(procTotal) },
+        { label: "Suppliers active", value: fmt(mockData.procurement.length) },
+        { label: "Avg. order size", value: "47 units" },
+      ],
     },
 
     {
@@ -133,10 +178,18 @@ function buildGroups(
       label: "Sales",
       icon: TrendingUp,
       summary: `${mockData.sales.length} product lines`,
-      stat: fmtPHP(mockData.sales.reduce((a, b) => a + b.value, 0) * 12),
+      stat: fmtPHP(salesTotal),
       unit: "revenue this month",
       updatedAt: daysAgo(0),
       dateOverride: null,
+      expandedRows: [
+        { label: "Revenue this month", value: fmtPHP(salesTotal) },
+        { label: "Product lines", value: fmt(mockData.sales.length) },
+        {
+          label: "Avg. per line",
+          value: fmtPHP(Math.round(salesTotal / mockData.sales.length)),
+        },
+      ],
     },
 
     {
@@ -148,6 +201,11 @@ function buildGroups(
       unit: "total cashflow",
       updatedAt: daysAgo(1),
       dateOverride: null,
+      expandedRows: [
+        { label: "Total cashflow", value: fmtPHP(5_618_000 * 8) },
+        { label: "Base amount", value: fmtPHP(5_618_000) },
+        { label: "Multiplier", value: "×8" },
+      ],
     },
 
     {
@@ -159,6 +217,11 @@ function buildGroups(
       unit: "units traded today",
       updatedAt: daysAgo(0),
       dateOverride: null,
+      expandedRows: [
+        { label: "Units traded today", value: fmt(mockData.trading.length * 340) },
+        { label: "Active trades", value: fmt(mockData.trading.length) },
+        { label: "Avg. trade size", value: "340 units" },
+      ],
     },
 
     {
@@ -170,6 +233,11 @@ function buildGroups(
       unit: `${fmt(mockData.qc.samplesTested * 24)} samples tested`,
       updatedAt: daysAgo(1),
       dateOverride: null,
+      expandedRows: [
+        { label: "Pass rate", value: `${mockData.qc.passRate}%` },
+        { label: "Samples tested", value: fmt(mockData.qc.samplesTested * 24) },
+        { label: "Base samples", value: fmt(mockData.qc.samplesTested) },
+      ],
     },
 
     {
@@ -181,6 +249,11 @@ function buildGroups(
       unit: "employees across all sites",
       updatedAt: daysAgo(0),
       dateOverride: null,
+      expandedRows: [
+        { label: "Total employees", value: fmt(mockData.workforce.presentToday * 3) },
+        { label: "Present today", value: fmt(mockData.workforce.presentToday) },
+        { label: "Sites", value: "3" },
+      ],
     },
 
     {
@@ -190,14 +263,26 @@ function buildGroups(
       summary: maintenance
         ? `${maintenance.completion}% completion today`
         : "Loading maintenance...",
-
       stat: maintenance
         ? `${maintenance.checked_today}/${maintenance.total_units}`
         : "—",
-
       unit: "units checked today",
       updatedAt: daysAgo(0),
       dateOverride: null,
+      expandedRows: [
+        {
+          label: "Checked today",
+          value: maintenance ? fmt(maintenance.checked_today) : "—",
+        },
+        {
+          label: "Total units",
+          value: maintenance ? fmt(maintenance.total_units) : "—",
+        },
+        {
+          label: "Completion",
+          value: maintenance ? `${maintenance.completion}%` : "—",
+        },
+      ],
     },
 
     {
@@ -205,24 +290,134 @@ function buildGroups(
       label: "Energy",
       icon: Zap,
       summary: "Accounts 2 & 3",
-      stat: fmtPHP(
-        mockData.energy.account2.reduce((s, r) => s + r.billedAmount, 0) +
-          mockData.energy.account3.reduce((s, r) => s + r.billedAmount, 0),
-      ),
+      stat: fmtPHP(account2Total + account3Total),
       unit: "total billing YTD",
       updatedAt: daysAgo(1),
       dateOverride: null,
+      expandedRows: [
+        { label: "Account 2", value: fmtPHP(account2Total) },
+        { label: "Account 3", value: fmtPHP(account3Total) },
+        { label: "YTD Total", value: fmtPHP(account2Total + account3Total) },
+      ],
     },
   ];
 }
 
-/* ── click handler ───────────────────────────────────────────────────────────── */
+/* ── expandable card ─────────────────────────────────────────────────────────── */
 
-function handleCardClick(label: string) {
-  toast(`${label} — Sign in required`, {
-    description: "Sign in to view detailed reports and insights.",
-    icon: <Lock className="h-4 w-4" />,
-  });
+function LandingCard({
+  group,
+  index,
+}: {
+  group: GroupItem;
+  index: number;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  const Icon = group.icon;
+  const { label: timeLabel } = relativeTime(group.updatedAt);
+  const dateLabel = fmtDate(group.dateOverride ?? group.updatedAt);
+
+  function handleSignInToast(e: React.MouseEvent) {
+    e.stopPropagation();
+    toast(`${group.label} — Sign in required`, {
+      description: "Sign in to view detailed reports and insights.",
+      icon: <Lock className="h-4 w-4" />,
+    });
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.03 }}
+      whileHover={{ y: -2, scale: 1.003 }}
+    >
+      <Card className="hover:shadow-md transition-all">
+        <CardContent className="px-5 py-4">
+          {/* Main row — click to expand */}
+          <div
+            className="flex justify-between cursor-pointer"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            <div className="flex gap-3">
+              <div className="shrink-0 h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                <Icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold text-lg">{group.label}</p>
+                <p className="text-xs text-muted-foreground">{group.summary}</p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <p className="text-2xl font-bold">{group.stat}</p>
+              <p className="text-xs text-muted-foreground">{group.unit}</p>
+              <div className="flex gap-1 mt-1 justify-end">
+                <span className="text-[10px] px-2 py-0.5 rounded bg-muted">
+                  {timeLabel}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {dateLabel}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Expanded detail */}
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <motion.div
+                key="expanded"
+                variants={expandVariants}
+                initial="collapsed"
+                animate="expanded"
+                exit="collapsed"
+                transition={{ duration: 0.22, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3 mt-2 border-t border-border/50 grid grid-cols-3 gap-3">
+                  {group.expandedRows.map((row) => (
+                    <div key={row.label} className="space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {row.label}
+                      </p>
+                      <p className="text-sm font-semibold">{row.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Expand / sign-in row */}
+          <div className="flex items-center justify-between pt-2 border-t border-border/40 mt-2">
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <motion.span
+                animate={{ rotate: expanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="inline-flex"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </motion.span>
+              {expanded ? "Collapse" : "Expand"}
+            </button>
+
+            <button
+              onClick={handleSignInToast}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Lock className="h-3 w-3" />
+              Sign in to view
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
 }
 
 /* ── component ───────────────────────────────────────────────────────────────── */
@@ -320,59 +515,9 @@ export function LandingDashboard() {
 
         {/* GRID */}
         <div className="grid md:grid-cols-2 gap-3">
-          {groupData.map((g, i) => {
-            const Icon = g.icon;
-            const { label: timeLabel } = relativeTime(g.updatedAt);
-            const dateLabel = fmtDate(g.dateOverride ?? g.updatedAt);
-
-            return (
-              <motion.div
-                key={g.id}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-                whileHover={{ y: -3, scale: 1.005 }}
-              >
-                <Card
-                  className="cursor-pointer hover:shadow-md"
-                  onClick={() => handleCardClick(g.label)}
-                >
-                  <CardContent className="px-5 py-4">
-                    <div className="flex justify-between">
-                      <div className="flex gap-3">
-                        <div className="shrink-0 h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                        </div>
-
-                        <div>
-                          <p className="font-semibold text-lg">{g.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {g.summary}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-2xl font-bold">{g.stat}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {g.unit}
-                        </p>
-
-                        <div className="flex gap-1 mt-1 justify-end">
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-muted">
-                            {timeLabel}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {dateLabel}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+          {groupData.map((g, i) => (
+            <LandingCard key={g.id} group={g} index={i} />
+          ))}
         </div>
       </div>
     </div>

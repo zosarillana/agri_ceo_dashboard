@@ -12,5 +12,79 @@ export type DashboardStats = {
     checked_today: number;
     unchecked_today: number;
     completion: number;
+    status_breakdown: {
+      operational: number;
+      maintenance: number;
+      standby: number;
+      down: number;
+    };
+    last_updated_at: string | null;
+  };
+
+  sales: {
+    this_month: {
+      total_usd: number;
+      total_kg: number;
+      entry_count: number;
+      export_count: number;
+      local_count: number;
+    };
+    last_month: {
+      total_usd: number;
+      total_kg: number;
+      entry_count: number;
+    };
+    mom_change_pct: number | null;
+    monthly_breakdown: {
+      month: string;
+      total_usd: number;
+      total_kg: number;
+      entry_count: number;
+    }[];
+    last_updated_at: string | null;
+  };
+
+  energy: {
+    current_month: {
+      month: string;
+      total_billed: number;
+      total_kw: number;
+      total_demand: number;
+      account2_billed: number;
+      account3_billed: number;
+      account2_kw: number;
+      account3_kw: number;
+      has_data: boolean;
+    };
+    previous_month: {
+      month: string;
+      total_billed: number;
+      total_kw: number;
+      total_demand: number;
+      account2_billed: number;
+      account3_billed: number;
+      has_data: boolean;
+    };
+    mom_change_pct: number | null;
+    records: {
+      account2: Array<any>;
+      account3: Array<any>;
+    };
+    ytd_summary: {
+      total_billed_amount: number;
+      total_kw: number;
+      total_demand: number;
+      account2_total: number;
+      account3_total: number;
+    };
+    monthly_trends: Array<{
+      month: string;
+      total_billed: number;
+      total_kw: number;
+      total_demand: number;
+    }>;
+    total_accounts: number;
+    total_months: number;
+    last_updated_at: string | null;
   };
 };
