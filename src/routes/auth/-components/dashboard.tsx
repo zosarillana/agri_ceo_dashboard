@@ -464,7 +464,9 @@ function EnergyCard({
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground">Account 2</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Account 2
+                      </p>
                       <p className="text-sm font-semibold">
                         {currentMonth.has_data
                           ? fmtPHP(currentMonth.account2_billed)
@@ -477,7 +479,9 @@ function EnergyCard({
                       )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground">Account 3</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Account 3
+                      </p>
                       <p className="text-sm font-semibold">
                         {currentMonth.has_data
                           ? fmtPHP(currentMonth.account3_billed)
@@ -724,26 +728,42 @@ function SalesCard({
                 <div className="pt-3 border-t border-border/50 space-y-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total (USD)</p>
-                      <p className="text-sm font-semibold">{fmtUSD(totalUsd)}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Total (USD)
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {fmtUSD(totalUsd)}
+                      </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Volume</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Volume
+                      </p>
                       <p className="text-sm font-semibold">{fmt(totalKg)} kg</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entries</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Entries
+                      </p>
                       <p className="text-sm font-semibold">{entryCount}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border/30">
                     <div className="space-y-1">
-                      <p className="text-[10px] text-green-600 dark:text-green-400 uppercase tracking-wide font-medium">Export</p>
-                      <p className="text-sm font-semibold">{exportCount} entries</p>
+                      <p className="text-[10px] text-green-600 dark:text-green-400 uppercase tracking-wide font-medium">
+                        Export
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {exportCount} entries
+                      </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium">Local</p>
-                      <p className="text-sm font-semibold">{localCount} entries</p>
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium">
+                        Local
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {localCount} entries
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -874,7 +894,9 @@ export default function CEODashboard() {
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Today</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+            Today
+          </p>
           <p className="text-sm font-semibold">
             {production?.today_production_output
               ? fmt(production.today_production_output)
@@ -882,7 +904,9 @@ export default function CEODashboard() {
           </p>
         </div>
         <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Yesterday</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+            Yesterday
+          </p>
           <p className="text-sm font-semibold">
             {production?.yesterday_production_output
               ? fmt(production.yesterday_production_output)
@@ -890,7 +914,9 @@ export default function CEODashboard() {
           </p>
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground">6 product lines running</p>
+      <p className="text-[10px] text-muted-foreground">
+        6 product lines running
+      </p>
     </div>
   );
 
@@ -937,6 +963,25 @@ export default function CEODashboard() {
         <div className="flex flex-col md:flex-row gap-3 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-3 flex-1 min-w-0">
+            <DashCard
+              id="production"
+              color="teal"
+              icon={Factory}
+              label="Production Output"
+              summary="6 product lines running"
+              stat={productionStat}
+              unit={productionUnit}
+              timeLabel={
+                production?.last_updated_at
+                  ? relativeTime(new Date(production.last_updated_at))
+                  : "—"
+              }
+              dateLabel={fmtDate(new Date(selectedISO + "T00:00:00"))}
+              active={isActive("production")}
+              index={0}
+              expandedContent={productionExpanded}
+            />
+
             <SalesCard
               active={isActive("sales")}
               index={2}
@@ -958,41 +1003,26 @@ export default function CEODashboard() {
               }
             />
 
-            <DashCard
-              id="production"
-              color="teal"
-              icon={Factory}
-              label="Production Output"
-              summary="6 product lines running"
-              stat={productionStat}
-              unit={productionUnit}
-              timeLabel={
-                production?.last_updated_at
-                  ? relativeTime(new Date(production.last_updated_at))
-                  : "—"
-              }
-              dateLabel={fmtDate(new Date(selectedISO + "T00:00:00"))}
-              active={isActive("production")}
-              index={0}
-              expandedContent={productionExpanded}
-            />
-
             <EnergyCard
               active={isActive("energy")}
               index={1}
-              currentMonth={energy?.current_month ?? {
-                month: format(new Date(), "yyyy-MM"),
-                total_billed: 0,
-                total_kw: 0,
-                account2_billed: 0,
-                account3_billed: 0,
-                has_data: false,
-              }}
-              previousMonth={energy?.previous_month ?? {
-                month: format(new Date(), "yyyy-MM"),
-                total_billed: 0,
-                has_data: false,
-              }}
+              currentMonth={
+                energy?.current_month ?? {
+                  month: format(new Date(), "yyyy-MM"),
+                  total_billed: 0,
+                  total_kw: 0,
+                  account2_billed: 0,
+                  account3_billed: 0,
+                  has_data: false,
+                }
+              }
+              previousMonth={
+                energy?.previous_month ?? {
+                  month: format(new Date(), "yyyy-MM"),
+                  total_billed: 0,
+                  has_data: false,
+                }
+              }
               momChangePct={energy?.mom_change_pct ?? null}
               ytdTotal={energy?.ytd_summary?.total_billed_amount ?? 0}
               timeLabel={
