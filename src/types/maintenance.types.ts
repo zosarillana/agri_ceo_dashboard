@@ -2,7 +2,11 @@
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export type MaintenanceStatus = "operational" | "maintenance" | "down" | "standby";
+export type MaintenanceStatus =
+  | "operational"
+  | "maintenance"
+  | "down"
+  | "standby";
 
 // ─── Plants ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +23,12 @@ export type SubUnit = {
   id: number;
   name: string;
   status: MaintenanceStatus;
+
+  notes: string | null;
+
+  last_checked_at: string | null;
+
+  next_scheduled_at: string | null;
 };
 
 export type MaintenanceUnit = {
@@ -26,7 +36,7 @@ export type MaintenanceUnit = {
   name: string;
   status: MaintenanceStatus;
   notes: string | null;
-  last_checked_at: string | null;   // ISO string
+  last_checked_at: string | null; // ISO string
   next_scheduled_at: string | null; // ISO string
   subunits?: SubUnit[];
 };
@@ -56,7 +66,7 @@ export type MaintenanceLog = {
   unit_name: string;
   status: MaintenanceStatus;
   notes: string | null;
-  checked_at: string;               // ISO string
+  checked_at: string; // ISO string
   next_scheduled_at: string | null; // ISO string
   duration_minutes: number | null;
   checked_by: {

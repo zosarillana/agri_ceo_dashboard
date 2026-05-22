@@ -1003,40 +1003,6 @@ export default function CEODashboard() {
               }
             />
 
-            <EnergyCard
-              active={isActive("energy")}
-              index={1}
-              currentMonth={
-                energy?.current_month ?? {
-                  month: format(new Date(), "yyyy-MM"),
-                  total_billed: 0,
-                  total_kw: 0,
-                  account2_billed: 0,
-                  account3_billed: 0,
-                  has_data: false,
-                }
-              }
-              previousMonth={
-                energy?.previous_month ?? {
-                  month: format(new Date(), "yyyy-MM"),
-                  total_billed: 0,
-                  has_data: false,
-                }
-              }
-              momChangePct={energy?.mom_change_pct ?? null}
-              ytdTotal={energy?.ytd_summary?.total_billed_amount ?? 0}
-              timeLabel={
-                energy?.last_updated_at
-                  ? relativeTime(new Date(energy.last_updated_at))
-                  : "—"
-              }
-              dateLabel={
-                energy?.last_updated_at
-                  ? fmtDate(new Date(energy.last_updated_at))
-                  : "not available"
-              }
-            />
-
             {LEFT_STUBS.map((g, i) => (
               <DashCard
                 key={g.id}
@@ -1072,6 +1038,40 @@ export default function CEODashboard() {
               dateLabel={
                 maintenance?.last_updated_at
                   ? fmtDate(new Date(maintenance.last_updated_at))
+                  : "not available"
+              }
+            />
+
+            <EnergyCard
+              active={isActive("energy")}
+              index={1}
+              currentMonth={
+                energy?.current_month ?? {
+                  month: format(new Date(), "yyyy-MM"),
+                  total_billed: 0,
+                  total_kw: 0,
+                  account2_billed: 0,
+                  account3_billed: 0,
+                  has_data: false,
+                }
+              }
+              previousMonth={
+                energy?.previous_month ?? {
+                  month: format(new Date(), "yyyy-MM"),
+                  total_billed: 0,
+                  has_data: false,
+                }
+              }
+              momChangePct={energy?.mom_change_pct ?? null}
+              ytdTotal={energy?.ytd_summary?.total_billed_amount ?? 0}
+              timeLabel={
+                energy?.last_updated_at
+                  ? relativeTime(new Date(energy.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                energy?.last_updated_at
+                  ? fmtDate(new Date(energy.last_updated_at))
                   : "not available"
               }
             />

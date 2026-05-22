@@ -73,7 +73,15 @@ function statusBadge(status: MaintenanceStatus) {
   };
 
   return (
-    <Badge className={cn("transition-colors", variants[status])}>
+    <Badge className={cn("transition-colors border", variants[status])}>
+      <span
+        className={cn("mr-1.5 h-1.5 w-1.5 rounded-full inline-block", {
+          "bg-emerald-500 animate-pulse": status === "operational",
+          "bg-amber-500":                 status === "maintenance",
+          "bg-rose-500":                  status === "down",
+          "bg-muted-foreground":          status === "standby",
+        })}
+      />
       {labels[status]}
     </Badge>
   );
@@ -94,7 +102,7 @@ function formatDateTime(date: Date | undefined) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// DATE TIME PICKER COMPONENT
+// DATE TIME PICKER
 // ─────────────────────────────────────────────────────────────
 
 function DateTimePicker({
@@ -141,7 +149,7 @@ function DateTimePicker({
             <Button
               variant="outline"
               className={cn(
-                "w-full justify-start text-left font-normal",
+                "w-1/2 justify-start text-left font-normal",
                 !selectedDate && "text-muted-foreground",
               )}
             >
@@ -160,13 +168,13 @@ function DateTimePicker({
           </PopoverContent>
         </Popover>
 
-        <div className="relative">
-          <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative w-full">
+          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="time"
             value={selectedTime}
             onChange={handleTimeChange}
-            className="w-[130px] pl-9"
+            className="w-fulle pl-9"
           />
         </div>
       </div>
@@ -175,29 +183,7 @@ function DateTimePicker({
 }
 
 // ─────────────────────────────────────────────────────────────
-// SUB UNIT
-// ─────────────────────────────────────────────────────────────
-
-const SubUnitRow = React.memo(({ subunit }: { subunit: SubUnit }) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    transition={{ duration: 0.2 }}
-    className="flex items-center justify-between border rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
-  >
-    <div className="flex items-center gap-2 text-sm">
-      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-      <span>{subunit.name}</span>
-    </div>
-    {statusBadge(subunit.status)}
-  </motion.div>
-));
-
-SubUnitRow.displayName = "SubUnitRow";
-
-// ─────────────────────────────────────────────────────────────
-// LOG INPUT COMPONENT
+// LOG INPUT — shared by both UnitCard and SubUnitCard
 // ─────────────────────────────────────────────────────────────
 
 function LogInput({
@@ -228,7 +214,6 @@ function LogInput({
       });
 
       onSubmit(newLog);
-
       setNotes("");
       setNextScheduled("");
       setSuccess(true);
@@ -277,20 +262,20 @@ function LogInput({
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span className="text-sm font-medium">
-                    Check submitted successfully for {unitName}!
+                    Check submitted for {unitName}!
                   </span>
                 </motion.div>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="status" className="text-sm font-medium">
+                    <Label htmlFor={`status-${unitId}`} className="text-sm font-medium">
                       Status
                     </Label>
                     <Select
                       value={status}
                       onValueChange={(v) => setStatus(v as MaintenanceStatus)}
                     >
-                      <SelectTrigger id="status" className="w-full">
+                      <SelectTrigger id={`status-${unitId}`} className="w-full">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -303,11 +288,11 @@ function LogInput({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="notes" className="text-sm font-medium">
+                    <Label htmlFor={`notes-${unitId}`} className="text-sm font-medium">
                       Notes
                     </Label>
                     <Textarea
-                      id="notes"
+                      id={`notes-${unitId}`}
                       placeholder="Add any maintenance notes..."
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
@@ -327,9 +312,7 @@ function LogInput({
                     className="w-full mt-2"
                     size="sm"
                   >
-                    {loading && (
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    )}
+                    {loading && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
                     {loading ? "Saving..." : "Submit Check"}
                   </Button>
                 </>
@@ -339,6 +322,91 @@ function LogInput({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUB UNIT CARD — expandable, supports LogInput
+// ─────────────────────────────────────────────────────────────
+
+function SubUnitCard({
+  subunit,
+  onRefresh,
+  onLogSubmit,
+}: {
+  subunit: SubUnit;
+  onRefresh: () => void;
+  onLogSubmit: (log: MaintenanceLog) => void;
+}) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      transition={{ duration: 0.2 }}
+      className="border rounded-md bg-background"
+    >
+      {/* Sub-unit header row */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted/50 transition-colors text-sm"
+      >
+        <div className="flex items-center gap-2">
+          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+          <span className="font-medium">{subunit.name}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {statusBadge(subunit.status)}
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
+              isExpanded && "rotate-180",
+            )}
+          />
+        </div>
+      </button>
+
+      {/* Expandable log input */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 pt-2 border-t space-y-2">
+              {/* Last checked / next scheduled */}
+              {"last_checked_at" in subunit && (
+                <div className="grid grid-cols-2 gap-3 text-xs mb-2">
+                  <div>
+                    <p className="text-muted-foreground">Last Checked</p>
+                    <p>{formatDate((subunit as any).last_checked_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Next</p>
+                    <p>{formatDate((subunit as any).next_scheduled_at)}</p>
+                  </div>
+                </div>
+              )}
+
+              <LogInput
+                unitId={subunit.id}
+                unitName={subunit.name}
+                onSubmit={(log) => {
+                  onLogSubmit(log);
+                  onRefresh();
+                }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -356,6 +424,8 @@ function UnitCard({
   onLogSubmit: (log: MaintenanceLog) => void;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const hasSubUnits = (unit.subunits ?? []).length > 0;
 
   return (
     <motion.div
@@ -375,6 +445,12 @@ function UnitCard({
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-muted-foreground" />
               <p className="font-medium">{unit.name}</p>
+              {/* Sub-unit count pill */}
+              {hasSubUnits && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">
+                  {unit.subunits!.length} sub-units
+                </span>
+              )}
             </div>
 
             <p className="text-xs text-muted-foreground line-clamp-1">
@@ -386,7 +462,6 @@ function UnitCard({
                 <p className="text-muted-foreground">Last Checked</p>
                 <p>{formatDate(unit.last_checked_at)}</p>
               </div>
-
               <div>
                 <p className="text-muted-foreground">Next</p>
                 <p>{formatDate(unit.next_scheduled_at)}</p>
@@ -394,7 +469,7 @@ function UnitCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 ml-3 shrink-0">
             {statusBadge(unit.status)}
             <ChevronDown
               className={cn(
@@ -416,6 +491,7 @@ function UnitCard({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 space-y-3 border-t pt-3">
+              {/* Log input for the top-level unit itself */}
               <LogInput
                 unitId={unit.id}
                 unitName={unit.name}
@@ -425,14 +501,20 @@ function UnitCard({
                 }}
               />
 
-              {(unit.subunits ?? []).length > 0 && (
+              {/* Sub-units — each is now a full interactive SubUnitCard */}
+              {hasSubUnits && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Sub-units
                   </p>
                   <AnimatePresence>
-                    {(unit.subunits ?? []).map((su) => (
-                      <SubUnitRow key={su.id} subunit={su} />
+                    {unit.subunits!.map((su) => (
+                      <SubUnitCard
+                        key={su.id}
+                        subunit={su}
+                        onRefresh={onRefresh}
+                        onLogSubmit={onLogSubmit}
+                      />
                     ))}
                   </AnimatePresence>
                 </div>
@@ -446,7 +528,7 @@ function UnitCard({
 }
 
 // ─────────────────────────────────────────────────────────────
-// LOG ITEM COMPONENT
+// LOG ITEM
 // ─────────────────────────────────────────────────────────────
 
 const LogItem = React.memo(
@@ -467,7 +549,6 @@ const LogItem = React.memo(
           {log.checked_by?.name || "Unknown User"}
         </p>
       </div>
-
       <div className="text-right space-y-1">
         {statusBadge(log.status)}
         <p className="text-muted-foreground text-xs">
@@ -481,7 +562,7 @@ const LogItem = React.memo(
 LogItem.displayName = "LogItem";
 
 // ─────────────────────────────────────────────────────────────
-// SKELETONS
+// SKELETON
 // ─────────────────────────────────────────────────────────────
 
 function ViewSkeleton() {
@@ -530,7 +611,6 @@ export default function MaintenanceDash() {
       if (!newLog || !newLog.id) return;
 
       setNewLogIds((prev) => new Set(prev).add(newLog.id));
-
       setTimeout(() => {
         setNewLogIds((prev) => {
           const next = new Set(prev);
@@ -543,9 +623,7 @@ export default function MaintenanceDash() {
         const logDate = newLog.checked_at
           ? new Date(newLog.checked_at).toISOString().split("T")[0]
           : "";
-        const currentDate = selectedDate;
-
-        if (logDate !== currentDate) return prevLogs;
+        if (logDate !== selectedDate) return prevLogs;
 
         let plantName = "Unknown Plant";
         if (newLog.unit_name) {
@@ -564,9 +642,8 @@ export default function MaintenanceDash() {
             checks: [newLog, ...updated[existingPlantIndex].checks],
           };
           return updated;
-        } else {
-          return [...prevLogs, { plant: plantName, checks: [newLog] }];
         }
+        return [...prevLogs, { plant: plantName, checks: [newLog] }];
       });
     },
     [selectedDate],
@@ -577,18 +654,11 @@ export default function MaintenanceDash() {
   }, []);
 
   React.useEffect(() => {
-    if (viewMode === "logs") {
-      refreshLogs();
-    }
+    if (viewMode === "logs") refreshLogs();
   }, [selectedDate, viewMode]);
 
   React.useEffect(() => {
-    if (
-      plants &&
-      plants.length > 0 &&
-      openPlants.size === 0 &&
-      viewMode === "view"
-    ) {
+    if (plants && plants.length > 0 && openPlants.size === 0 && viewMode === "view") {
       setOpenPlants(new Set([plants[0].id]));
     }
   }, [plants, viewMode]);
@@ -596,21 +666,13 @@ export default function MaintenanceDash() {
   function togglePlant(id: number) {
     setOpenPlants((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   }
 
-  // Loading state for view mode
-  if (loading && viewMode === "view") {
-    return <ViewSkeleton />;
-  }
+  if (loading && viewMode === "view") return <ViewSkeleton />;
 
-  // Error state for view mode
   if (error && viewMode === "view") {
     return (
       <motion.div
@@ -631,7 +693,7 @@ export default function MaintenanceDash() {
       transition={{ duration: 0.3 }}
       className="space-y-4"
     >
-      {/* Segmented Tab Toggle */}
+      {/* Tab Toggle */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
         <button
           onClick={() => setViewMode("view")}
@@ -657,7 +719,7 @@ export default function MaintenanceDash() {
         </button>
       </div>
 
-      {/* ── VIEW MODE (Units) ─────────────────────────────────── */}
+      {/* ── VIEW MODE ──────────────────────────────────────────── */}
       {viewMode === "view" && (
         <div className="space-y-3">
           <AnimatePresence>
@@ -682,7 +744,6 @@ export default function MaintenanceDash() {
                           <Factory className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{plant.name}</span>
                         </div>
-
                         <ChevronDown
                           className={cn(
                             "h-4 w-4 transition-transform duration-200 text-muted-foreground",
@@ -722,7 +783,7 @@ export default function MaintenanceDash() {
         </div>
       )}
 
-      {/* ── LOGS MODE ─────────────────────────────────── */}
+      {/* ── LOGS MODE ─────────────────────────────────────────── */}
       {viewMode === "logs" && <MaintenanceLogForm />}
     </motion.div>
   );
