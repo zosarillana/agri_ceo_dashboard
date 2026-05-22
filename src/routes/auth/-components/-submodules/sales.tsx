@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { BarChart2, CalendarIcon, PlusCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,10 +121,10 @@ export default function SalesDash() {
 
   // ── Date range filter state ─────────────────────────────────────────────────
   const [from, setFrom] = useState<Date | undefined>(
-    dateRange.from ? new Date(dateRange.from) : undefined
+    dateRange.from ? new Date(dateRange.from) : undefined,
   );
   const [to, setTo] = useState<Date | undefined>(
-    dateRange.to ? new Date(dateRange.to) : undefined
+    dateRange.to ? new Date(dateRange.to) : undefined,
   );
 
   // Sync local state with store dateRange
@@ -180,17 +180,19 @@ export default function SalesDash() {
   return (
     <div className="space-y-4">
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b">
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
         {(["view", "input"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
               tab === t
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
+            {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
+            {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
             {t}
           </button>
         ))}
@@ -209,7 +211,7 @@ export default function SalesDash() {
                     variant="outline"
                     className={cn(
                       "w-[240px] justify-start text-left font-normal h-9",
-                      !from && "text-muted-foreground"
+                      !from && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -235,7 +237,7 @@ export default function SalesDash() {
                     variant="outline"
                     className={cn(
                       "w-[240px] justify-start text-left font-normal h-9",
-                      !to && "text-muted-foreground"
+                      !to && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -257,7 +259,7 @@ export default function SalesDash() {
             <Button size="sm" onClick={handleFilter} className="h-9">
               Filter
             </Button>
-            
+
             {(dateRange.from || dateRange.to) && (
               <Button
                 size="sm"

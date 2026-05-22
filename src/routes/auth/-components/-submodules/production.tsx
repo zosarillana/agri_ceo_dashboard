@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, CalendarIcon, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, CalendarIcon, Minus, BarChart2, Package, PlusCircle } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -46,7 +46,6 @@ function getTodayISO() {
 function dateToISO(d: Date) {
   return d.toLocaleDateString("en-CA");
 }
-
 
 // ── skeletons ─────────────────────────────────────────────────────────────────
 
@@ -150,7 +149,7 @@ export default function ProductionDash() {
   const [tab, setTab] = useState<Tab>("view");
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [calOpen, setCalOpen] = useState(false);
-  
+
   const selectedISO = dateToISO(selectedDate);
   const isToday = selectedISO === getTodayISO();
 
@@ -189,13 +188,15 @@ export default function ProductionDash() {
   }, [products, productsLoading, fetchByDate, selectedISO]);
 
   // Check if any product has actual data (non-zero)
-  const hasAnyActualData = entries.some(entry => entry.actual_output > 0);
-  
+  const hasAnyActualData = entries.some((entry) => entry.actual_output > 0);
+
   // Check if all products have actual data (non-zero)
-  const hasAllActualData = products.length > 0 && products.every(product => {
-    const entry = entries.find(e => e.product_id === product.id);
-    return entry && entry.actual_output > 0;
-  });
+  const hasAllActualData =
+    products.length > 0 &&
+    products.every((product) => {
+      const entry = entries.find((e) => e.product_id === product.id);
+      return entry && entry.actual_output > 0;
+    });
 
   // VIEW DATA — merge products + entries
   const viewItems = products.map((pr) => {
@@ -233,19 +234,21 @@ export default function ProductionDash() {
 
   return (
     <div className="space-y-4">
-
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b">
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
         {(["view", "input", "products"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
               tab === t
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
+            {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
+            {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
+            {t === "products" && <Package className="h-3.5 w-3.5" />}
             {t}
           </button>
         ))}
@@ -259,7 +262,9 @@ export default function ProductionDash() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
-                  <CardTitle className="text-sm font-medium">Production Overview</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Production Overview
+                  </CardTitle>
                   <CardDescription>
                     View actual vs target across all product lines
                   </CardDescription>
@@ -315,7 +320,9 @@ export default function ProductionDash() {
                   <CalendarIcon className="h-12 w-12 text-muted-foreground/50" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-base">No production entries yet</h3>
+                  <h3 className="font-medium text-base">
+                    No production entries yet
+                  </h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     No data recorded for {format(selectedDate, "PPP")}.
                   </p>
@@ -337,16 +344,25 @@ export default function ProductionDash() {
                   // Only show data if there's actual data > 0
                   if (!item.hasActualData) {
                     return (
-                      <Card key={item.id} className="overflow-hidden opacity-70">
+                      <Card
+                        key={item.id}
+                        className="overflow-hidden opacity-70"
+                      >
                         <CardContent className="pt-4 pb-4">
-                          <p className="text-xs text-muted-foreground mb-2">{item.label}</p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {item.label}
+                          </p>
                           <p className="text-2xl font-bold tracking-tight text-muted-foreground">
                             —
                           </p>
-                          <p className="text-xs text-muted-foreground">{item.unit}/day</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.unit}/day
+                          </p>
                           <div className="mt-3 pt-3 border-t">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs text-muted-foreground">Status</p>
+                              <p className="text-xs text-muted-foreground">
+                                Status
+                              </p>
                               <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
                                 No entry
                               </span>
@@ -358,21 +374,32 @@ export default function ProductionDash() {
                   }
 
                   const diff = item.actual! - item.target;
-                  const pct = item.target > 0 ? ((diff / item.target) * 100).toFixed(1) : "—";
+                  const pct =
+                    item.target > 0
+                      ? ((diff / item.target) * 100).toFixed(1)
+                      : "—";
                   const isPositive = diff >= 0;
 
                   return (
                     <Card key={item.id} className="overflow-hidden">
                       <CardContent className="pt-4 pb-4">
-                        <p className="text-xs text-muted-foreground mb-2">{item.label}</p>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {item.label}
+                        </p>
                         <p className="text-2xl font-bold tracking-tight">
                           {fmt(item.actual!)}
                         </p>
-                        <p className="text-xs text-muted-foreground">{item.unit}/day</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.unit}/day
+                        </p>
                         <div className="mt-3 pt-3 border-t flex items-center justify-between">
                           <div>
-                            <p className="text-xs text-muted-foreground">Target</p>
-                            <p className="text-xs font-medium">{fmt(item.target)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Target
+                            </p>
+                            <p className="text-xs font-medium">
+                              {fmt(item.target)}
+                            </p>
                           </div>
                           {item.target > 0 && (
                             <div
@@ -406,7 +433,8 @@ export default function ProductionDash() {
                     Daily Output Summary
                   </CardTitle>
                   <CardDescription>
-                    Actual vs target across all product lines for {format(selectedDate, "PPP")}
+                    Actual vs target across all product lines for{" "}
+                    {format(selectedDate, "PPP")}
                     {!isToday && " (historical data)"}
                     {!hasAllActualData && " (incomplete data)"}
                   </CardDescription>
@@ -416,10 +444,18 @@ export default function ProductionDash() {
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="font-semibold">Product</TableHead>
-                        <TableHead className="text-right font-semibold">Actual</TableHead>
-                        <TableHead className="text-right font-semibold">Target</TableHead>
-                        <TableHead className="text-right font-semibold">Unit</TableHead>
-                        <TableHead className="text-right font-semibold">vs Target</TableHead>
+                        <TableHead className="text-right font-semibold">
+                          Actual
+                        </TableHead>
+                        <TableHead className="text-right font-semibold">
+                          Target
+                        </TableHead>
+                        <TableHead className="text-right font-semibold">
+                          Unit
+                        </TableHead>
+                        <TableHead className="text-right font-semibold">
+                          vs Target
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -428,7 +464,9 @@ export default function ProductionDash() {
                         if (!item.hasActualData) {
                           return (
                             <TableRow key={item.id}>
-                              <TableCell className="font-medium">{item.label}</TableCell>
+                              <TableCell className="font-medium">
+                                {item.label}
+                              </TableCell>
                               <TableCell className="text-right text-muted-foreground">
                                 —
                               </TableCell>
@@ -449,12 +487,17 @@ export default function ProductionDash() {
                         }
 
                         const diff = item.actual! - item.target;
-                        const pct = item.target > 0 ? ((diff / item.target) * 100).toFixed(1) : "—";
+                        const pct =
+                          item.target > 0
+                            ? ((diff / item.target) * 100).toFixed(1)
+                            : "—";
                         const isPositive = diff >= 0;
 
                         return (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.label}</TableCell>
+                            <TableCell className="font-medium">
+                              {item.label}
+                            </TableCell>
                             <TableCell className="text-right tabular-nums">
                               {fmt(item.actual!)}
                             </TableCell>
@@ -507,7 +550,9 @@ export default function ProductionDash() {
             <>
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Daily Production Entry</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Daily Production Entry
+                  </CardTitle>
                   <CardDescription>
                     Enter actual output and targets for each product line
                   </CardDescription>
@@ -534,7 +579,9 @@ export default function ProductionDash() {
         <>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Product Definitions</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Product Definitions
+              </CardTitle>
               <CardDescription>
                 Add product lines used across production tracking
               </CardDescription>
@@ -546,7 +593,9 @@ export default function ProductionDash() {
           ) : products.length > 0 ? (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Existing Products</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Existing Products
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -563,7 +612,9 @@ export default function ProductionDash() {
                     {products.map((pr) => (
                       <TableRow key={pr.id}>
                         <TableCell className="font-medium">{pr.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{pr.unit}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {pr.unit}
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {fmt(pr.default_target ?? 0)}
                         </TableCell>
