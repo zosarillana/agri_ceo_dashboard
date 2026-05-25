@@ -39,16 +39,22 @@ export const getUser = async () => {
   try {
     const res = await api.get("/api/user");
 
-    console.log("✅ /api/user success:", res.data);
-    console.log("🍪 cookies:", document.cookie);
-
     return res.data;
   } catch (err: any) {
-    console.log("❌ /api/user failed");
-    console.log("Status:", err?.response?.status);
-    console.log("Data:", err?.response?.data);
-    console.log("🍪 cookies:", document.cookie);
-
+    console.error("❌ /api/user failed", err);
     throw err;
   }
+};
+
+/**
+ * REGISTER USER
+ */
+export const registerUser = async (payload: {
+  name: string;
+  email: string;
+  password: string;
+  department?: string;
+}) => {
+  const res = await api.post("/api/register", payload);
+  return res.data;
 };

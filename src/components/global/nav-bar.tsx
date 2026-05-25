@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Moon, Sun, type LucideProps } from "lucide-react";
+import { Moon, Sun, UserCog, type LucideProps } from "lucide-react";
 import { useTheme } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,15 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  LayoutDashboard,
-  Settings,
-  LogOut,
-  User,
-  ChevronDown,
-  Menu,
-  X,
-} from "lucide-react";
+import { Settings, LogOut, User, ChevronDown, Menu, X } from "lucide-react";
 import Logo from "@/assets/suminter-logo-nbg.svg?react";
 import { useAuthStore } from "@/store/auth.store";
 import { Link } from "@tanstack/react-router";
@@ -105,7 +97,7 @@ export function GlobalNavbar() {
       .slice(0, 2);
   };
 
-  const isDashboardPage = location.pathname.startsWith("/dashboard");
+  const isDashboardPage = location.pathname.startsWith("/auth");
 
   const handleScrollToSection = (sectionId: string, offset: number = 180) => {
     const section = document.getElementById(sectionId);
@@ -125,13 +117,24 @@ export function GlobalNavbar() {
     // { label: "Features", sectionId: "features" },
   ];
 
-  const dashboardNavItems: DashboardNavItem[] = [
-    {
-      label: "Dashboard",
-      path: "/auth/admin/dashboard",
-      icon: LayoutDashboard,
-    },
-  ];
+  // const dashboardNavItems: DashboardNavItem[] =
+  //   user?.role === "user"
+  //     ? [
+  //         {
+  //           label: "Dashboard",
+  //           path: "/auth/user/dashboard",
+  //           icon: LayoutDashboard,
+  //         },
+  //       ]
+  //     : [
+  //         {
+  //           label: "Dashboard",
+  //           path: "/auth/admin/dashboard",
+  //           icon: LayoutDashboard,
+  //         },
+  //       ];
+
+  const dashboardNavItems: DashboardNavItem[] = [];
 
   const navItems: NavItem[] = isDashboardPage
     ? dashboardNavItems
@@ -145,6 +148,16 @@ export function GlobalNavbar() {
   const isLandingNavItem = (item: NavItem): item is LandingNavItem => {
     return "sectionId" in item;
   };
+
+  const profilePath =
+    user?.role === "user" ? "/auth/user/profile/" : "/auth/admin/profile/";
+
+  const usersPath = "/auth/admin/profile/users/";
+
+  const settingsPath =
+    user?.role === "user"
+      ? "/auth/user/profile/settings/"
+      : "/auth/admin/profile/settings/";
 
   return (
     <>
@@ -243,19 +256,25 @@ export function GlobalNavbar() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => handleNavigate("/auth/admin/profile/")}
+                      onClick={() => handleNavigate(profilePath)}
                     >
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() =>
-                        handleNavigate("/auth/admin/profile/settings/")
-                      }
+                      onClick={() => handleNavigate(settingsPath)}
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Settings</span>
                     </DropdownMenuItem>
+                    {user?.role === "admin" && (
+                      <DropdownMenuItem
+                        onClick={() => handleNavigate(usersPath)}
+                      >
+                        <UserCog className="mr-2 h-4 w-4" />
+                        <span>Users</span>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleSignOut}
@@ -272,7 +291,7 @@ export function GlobalNavbar() {
               <div className="md:hidden">
                 <Avatar
                   className="h-8 w-8 cursor-pointer"
-                  onClick={() => handleNavigate("/auth/admin/profile")}
+                  onClick={() => handleNavigate(profilePath)}
                 >
                   <AvatarImage src={undefined} alt={userName} />
                   <AvatarFallback className="bg-[#1a9e6e] text-white text-xs">
@@ -295,7 +314,10 @@ export function GlobalNavbar() {
             variant="ghost"
             size="icon"
             className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            onClick={() => {
+              handleNavigate(profilePath);
+              setIsMobileMenuOpen(false);
+            }}
           >
             {isMobileMenuOpen ? (
               <X className="h-5 w-5" />
@@ -356,7 +378,7 @@ export function GlobalNavbar() {
                   <div
                     className="cursor-pointer py-2"
                     onClick={() => {
-                      handleNavigate("/auth/admin/profile/settings");
+                      handleNavigate(settingsPath);
                       setIsMobileMenuOpen(false);
                     }}
                   >

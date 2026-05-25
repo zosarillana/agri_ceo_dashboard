@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Profile } from "@/routes/auth/admin/_layout/profile/-components/profile";
+import { Profile } from "@/routes/auth/-components/-profile/profile";
 
 export const Route = createFileRoute('/auth/admin/_layout/profile/')({
   component: Profile,
