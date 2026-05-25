@@ -13,28 +13,22 @@ export const getDashboardRouteByRole = (role: string) => {
   switch (role) {
     case "superadmin":
     case "admin":
-      return "/auth/admin/dashboard";
+      return "/auth/admin/dashboard" as const;
+    case "user":
+      return "/auth/user" as const;
     default:
-      return "/";
+      return "/auth/user" as const;
   }
 };
 
 const requireAuth = async () => {
-  console.log("🔐 requireAuth called");
-
   await waitForAuthInit();
 
   const state = useAuthStore.getState();
 
-  console.log("📦 auth state:", state);
-
   if (!state.isAuthenticated) {
-    console.log("❌ redirecting unauthenticated user");
-
     throw redirect({ to: "/" });
   }
-
-  console.log("✅ auth passed");
 };
 
 export const requireAdmin = async () => {
@@ -48,24 +42,23 @@ export const requireAdmin = async () => {
 };
 
 export const requireGuest = async () => {
-  console.log("🟡 requireGuest called");
-
   await waitForAuthInit();
 
   const { isAuthenticated, user } = useAuthStore.getState();
 
-  console.log("📦 requireGuest state:", {
-    isAuthenticated,
-    user,
-  });
-
   if (isAuthenticated && user) {
-    console.log("➡️ redirecting authenticated user");
-
     throw redirect({
       to: getDashboardRouteByRole(user.role),
     });
   }
+};
 
-  console.log("✅ guest allowed");
+export const requireUser = async () => {
+  await requireAuth();
+
+  const { user } = useAuthStore.getState();
+
+  if (!user || user.role !== "user") {
+    throw redirect({ to: "/" });
+  }
 };
