@@ -59,45 +59,22 @@ type DashboardRoute = `/auth/admin/dashboard/${DashboardSegment}`;
 ───────────────────────────────────────────────────────────────────────────── */
 
 const COLOR_MAP: Record<SegmentColor, { bg: string; icon: string }> = {
-  teal: { bg: "bg-teal-500/10", icon: "text-teal-700   dark:text-teal-400" },
-  amber: { bg: "bg-amber-500/10", icon: "text-amber-700  dark:text-amber-400" },
-  green: { bg: "bg-green-500/10", icon: "text-green-700  dark:text-green-400" },
-  purple: {
-    bg: "bg-purple-500/10",
-    icon: "text-purple-700 dark:text-purple-400",
-  },
-  blue: { bg: "bg-blue-500/10", icon: "text-blue-700   dark:text-blue-400" },
-  coral: {
-    bg: "bg-orange-500/10",
-    icon: "text-orange-700 dark:text-orange-400",
-  },
-  pink: { bg: "bg-pink-500/10", icon: "text-pink-700   dark:text-pink-400" },
-  red: { bg: "bg-red-500/10", icon: "text-red-700    dark:text-red-400" },
+  teal:   { bg: "bg-teal-500/10",   icon: "text-teal-700   dark:text-teal-400"   },
+  amber:  { bg: "bg-amber-500/10",  icon: "text-amber-700  dark:text-amber-400"  },
+  green:  { bg: "bg-green-500/10",  icon: "text-green-700  dark:text-green-400"  },
+  purple: { bg: "bg-purple-500/10", icon: "text-purple-700 dark:text-purple-400" },
+  blue:   { bg: "bg-blue-500/10",   icon: "text-blue-700   dark:text-blue-400"   },
+  coral:  { bg: "bg-orange-500/10", icon: "text-orange-700 dark:text-orange-400" },
+  pink:   { bg: "bg-pink-500/10",   icon: "text-pink-700   dark:text-pink-400"   },
+  red:    { bg: "bg-red-500/10",    icon: "text-red-700    dark:text-red-400"    },
 };
 
-const STATUS_STYLES: Record<string, { dot: string; bg: string; text: string }> =
-  {
-    operational: {
-      dot: "bg-emerald-500",
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-700 dark:text-emerald-400",
-    },
-    maintenance: {
-      dot: "bg-amber-500",
-      bg: "bg-amber-500/10",
-      text: "text-amber-700  dark:text-amber-400",
-    },
-    standby: {
-      dot: "bg-blue-500",
-      bg: "bg-blue-500/10",
-      text: "text-blue-700   dark:text-blue-400",
-    },
-    down: {
-      dot: "bg-red-500",
-      bg: "bg-red-500/10",
-      text: "text-red-700    dark:text-red-400",
-    },
-  };
+const STATUS_STYLES: Record<string, { dot: string; bg: string; text: string }> = {
+  operational: { dot: "bg-emerald-500", bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-400" },
+  maintenance:  { dot: "bg-amber-500",   bg: "bg-amber-500/10",   text: "text-amber-700  dark:text-amber-400"   },
+  standby:      { dot: "bg-blue-500",    bg: "bg-blue-500/10",    text: "text-blue-700   dark:text-blue-400"    },
+  down:         { dot: "bg-red-500",     bg: "bg-red-500/10",     text: "text-red-700    dark:text-red-400"     },
+};
 
 const STATUS_ORDER = ["operational", "maintenance", "standby", "down"] as const;
 
@@ -105,36 +82,35 @@ const STATUS_ORDER = ["operational", "maintenance", "standby", "down"] as const;
    HELPERS
 ───────────────────────────────────────────────────────────────────────────── */
 
-const getTodayISO = () => new Date().toLocaleDateString("en-CA");
-const toISO = (d: Date) => new Date(d).toLocaleDateString("en-CA");
+const getTodayISO  = () => new Date().toLocaleDateString("en-CA");
+const toISO        = (d: Date) => new Date(d).toLocaleDateString("en-CA");
+// "2025-03-15" → "2025-03"
+const toMonthKey   = (isoDate: string) => isoDate.slice(0, 7);
+const currentMonthKey = () => toMonthKey(getTodayISO());
 
-const fmt = (n: number) => n.toLocaleString();
+const fmt    = (n: number) => n.toLocaleString();
 const fmtUSD = (n: number) =>
-  "$" +
-  n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPHP = (n: number) =>
-  "₱" +
-  n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  "₱" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d: Date) =>
-  d.toLocaleDateString("en-PH", {
+  d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+const fmtMonthLabel = (ym: string) => {
+  // "2025-03" → "Mar 2025"
+  const [y, m] = ym.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-PH", {
     month: "short",
-    day: "numeric",
     year: "numeric",
   });
+};
 
 function relativeTime(date: Date) {
-  const ms = Date.now() - date.getTime();
-  const mins = Math.floor(ms / 60_000);
+  const ms    = Date.now() - date.getTime();
+  const mins  = Math.floor(ms / 60_000);
   const hours = Math.floor(ms / 3_600_000);
-  const days = Math.floor(ms / 86_400_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
+  const days  = Math.floor(ms / 86_400_000);
+  if (mins < 1)   return "Just now";
+  if (mins < 60)  return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days === 1) return "Yesterday";
   return `${days}d ago`;
@@ -146,7 +122,7 @@ function relativeTime(date: Date) {
 
 const expandVariants = {
   collapsed: { height: 0, opacity: 0 },
-  expanded: { height: "auto", opacity: 1 },
+  expanded:  { height: "auto", opacity: 1 },
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -158,28 +134,28 @@ function StatusPill({ status, count }: { status: string; count: number }) {
   return (
     <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${s.bg}`}>
       <span className={`h-2 w-2 rounded-full ${s.dot}`} />
-      <span className={`text-xs font-medium capitalize ${s.text}`}>
-        {status}
-      </span>
+      <span className={`text-xs font-medium capitalize ${s.text}`}>{status}</span>
       <span className={`text-xs font-bold ${s.text}`}>{count}</span>
     </div>
   );
 }
 
-function CardTimestamp({
-  timeLabel,
-  dateLabel,
-}: {
-  timeLabel: string;
-  dateLabel: string;
-}) {
+function CardTimestamp({ timeLabel, dateLabel }: { timeLabel: string; dateLabel: string }) {
   return (
     <div className="flex gap-1 mt-1 justify-end">
-      <span className="text-[10px] px-2 py-0.5 rounded bg-muted">
-        {timeLabel}
-      </span>
+      <span className="text-[10px] px-2 py-0.5 rounded bg-muted">{timeLabel}</span>
       <span className="text-[10px] text-muted-foreground">{dateLabel}</span>
     </div>
+  );
+}
+
+/** Pill shown on Sales/Energy tiles when browsing a historical month */
+function HistoricalBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400">
+      <CalendarIcon className="h-2.5 w-2.5" />
+      {label}
+    </span>
   );
 }
 
@@ -197,9 +173,7 @@ function CardHeader({
   const { bg, icon: iconColor } = COLOR_MAP[color];
   return (
     <div className="flex gap-3">
-      <div
-        className={`shrink-0 h-9 w-9 rounded-lg ${bg} flex items-center justify-center`}
-      >
+      <div className={`shrink-0 h-9 w-9 rounded-lg ${bg} flex items-center justify-center`}>
         <Icon className={`h-4 w-4 ${iconColor}`} />
       </div>
       <div>
@@ -211,7 +185,7 @@ function CardHeader({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   EXPAND TOGGLE — shared row used in each card's collapsed header
+   EXPAND TOGGLE
 ───────────────────────────────────────────────────────────────────────────── */
 
 function ExpandRow({
@@ -254,13 +228,7 @@ function ExpandRow({
    ANIMATED WRAPPER
 ───────────────────────────────────────────────────────────────────────────── */
 
-function AnimatedCard({
-  index,
-  children,
-}: {
-  index: number;
-  children: React.ReactNode;
-}) {
+function AnimatedCard({ index, children }: { index: number; children: React.ReactNode }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -274,22 +242,12 @@ function AnimatedCard({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   PLAIN DASH CARD  (production, stubs)
+   PLAIN DASH CARD
 ───────────────────────────────────────────────────────────────────────────── */
 
 function DashCard({
-  id,
-  color,
-  label,
-  icon,
-  summary,
-  stat,
-  unit,
-  timeLabel,
-  dateLabel,
-  active,
-  index,
-  expandedContent,
+  id, color, label, icon, summary, stat, unit,
+  timeLabel, dateLabel, active, index, expandedContent,
 }: {
   id: string;
   color: SegmentColor;
@@ -308,20 +266,10 @@ function DashCard({
 
   return (
     <AnimatedCard index={index}>
-      <Card
-        className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}
-      >
+      <Card className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}>
         <CardContent className="px-5 py-4">
-          <div
-            className="flex justify-between cursor-pointer"
-            onClick={() => setExpanded((v) => !v)}
-          >
-            <CardHeader
-              color={color}
-              icon={icon}
-              label={label}
-              summary={summary}
-            />
+          <div className="flex justify-between cursor-pointer" onClick={() => setExpanded((v) => !v)}>
+            <CardHeader color={color} icon={icon} label={label} summary={summary} />
             <div className="text-right">
               <p className="text-2xl font-bold">{stat}</p>
               <p className="text-xs text-muted-foreground">{unit}</p>
@@ -329,7 +277,6 @@ function DashCard({
             </div>
           </div>
 
-          {/* Expand section */}
           <AnimatePresence initial={false}>
             {expanded && expandedContent && (
               <motion.div
@@ -341,18 +288,12 @@ function DashCard({
                 transition={{ duration: 0.22, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <div className="pt-3 mt-2 border-t border-border/50">
-                  {expandedContent}
-                </div>
+                <div className="pt-3 mt-2 border-t border-border/50">{expandedContent}</div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <ExpandRow
-            id={id}
-            expanded={expanded}
-            onToggle={() => setExpanded((v) => !v)}
-          />
+          <ExpandRow id={id} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         </CardContent>
       </Card>
     </AnimatedCard>
@@ -372,6 +313,9 @@ function EnergyCard({
   ytdTotal,
   timeLabel,
   dateLabel,
+  // Date-filter props
+  selectedMonthKey,
+  monthlyTrends,
 }: {
   active: boolean;
   index: number;
@@ -392,43 +336,77 @@ function EnergyCard({
   ytdTotal: number;
   timeLabel: string;
   dateLabel: string;
+  selectedMonthKey: string;
+  monthlyTrends: Array<{
+    month: string;
+    total_billed: number;
+    total_kw: number;
+    total_demand: number;
+  }>;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
-  const momLabel =
-    momChangePct != null
-      ? `${momChangePct >= 0 ? "+" : ""}${momChangePct}% vs last month`
-      : "No prior month data";
+  // Resolve which month's data to display
+  const isCurrentMonth  = selectedMonthKey === currentMonth.month;
+  const isPreviousMonth = selectedMonthKey === previousMonth.month;
+
+  // Try to find the selected month in monthly_trends
+  const trendEntry = React.useMemo(
+    () => monthlyTrends.find((t) => t.month === selectedMonthKey),
+    [monthlyTrends, selectedMonthKey],
+  );
+
+  // Resolved display values
+  const displayMonth   = selectedMonthKey;
+  const displayLabel   = fmtMonthLabel(displayMonth);
+  const isHistorical   = !isCurrentMonth;
+
+  const displayBilled  = isCurrentMonth
+    ? (currentMonth.has_data ? currentMonth.total_billed : null)
+    : isPreviousMonth
+      ? (previousMonth.has_data ? previousMonth.total_billed : null)
+      : trendEntry
+        ? trendEntry.total_billed
+        : null;
+
+  const displayKw      = isCurrentMonth
+    ? (currentMonth.has_data ? currentMonth.total_kw : null)
+    : trendEntry
+      ? trendEntry.total_kw
+      : null;
+
+  const displayAcc2    = isCurrentMonth && currentMonth.has_data
+    ? currentMonth.account2_billed : null;
+  const displayAcc3    = isCurrentMonth && currentMonth.has_data
+    ? currentMonth.account3_billed : null;
+
+  const momLabel = momChangePct != null
+    ? `${momChangePct >= 0 ? "+" : ""}${momChangePct}% vs last month`
+    : "No prior month data";
 
   return (
     <AnimatedCard index={index}>
-      <Card
-        className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}
-      >
+      <Card className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}>
         <CardContent className="px-5 py-4 space-y-3">
-          {/* Collapsed header — always visible */}
-          <div
-            className="flex justify-between cursor-pointer"
-            onClick={() => setExpanded((v) => !v)}
-          >
+          {/* Collapsed header */}
+          <div className="flex justify-between cursor-pointer" onClick={() => setExpanded((v) => !v)}>
             <CardHeader
               color="amber"
               icon={Zap}
               label="Energy"
-              summary={`${currentMonth.has_data ? currentMonth.month : "No data"} · YTD ${fmtPHP(ytdTotal)}`}
+              summary={`${displayLabel} · YTD ${fmtPHP(ytdTotal)}`}
             />
             <div className="text-right">
               <p className="text-2xl font-bold">
-                {currentMonth.has_data
-                  ? fmtPHP(currentMonth.total_billed)
-                  : "—"}
+                {displayBilled != null ? fmtPHP(displayBilled) : "—"}
               </p>
-              <p className="text-xs text-muted-foreground">
-                total billed this month
-              </p>
-              <div className="flex items-center gap-2 justify-end">
-                <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
-              </div>
+              <p className="text-xs text-muted-foreground">total billed</p>
+              {isHistorical && (
+                <div className="flex justify-end mt-1">
+                  <HistoricalBadge label={displayLabel} />
+                </div>
+              )}
+              <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
             </div>
           </div>
 
@@ -447,69 +425,84 @@ function EnergyCard({
                 <div className="pt-3 border-t border-border/50 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-                      Current Month ({currentMonth.month})
+                      {displayLabel}
                     </span>
-                    <span
-                      className={`text-[10px] font-medium ${
-                        momChangePct == null
-                          ? "text-muted-foreground"
-                          : momChangePct >= 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-red-600 dark:text-red-400"
-                      }`}
-                    >
-                      {momLabel}
-                    </span>
+                    {isCurrentMonth && (
+                      <span
+                        className={`text-[10px] font-medium ${
+                          momChangePct == null
+                            ? "text-muted-foreground"
+                            : momChangePct >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-red-600 dark:text-red-400"
+                        }`}
+                      >
+                        {momLabel}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground">
-                        Account 2
-                      </p>
-                      <p className="text-sm font-semibold">
-                        {currentMonth.has_data
-                          ? fmtPHP(currentMonth.account2_billed)
-                          : "—"}
-                      </p>
-                      {currentMonth.has_data && (
-                        <p className="text-[10px] text-muted-foreground">
-                          {fmt(currentMonth.total_kw)} kWh
+                  {isCurrentMonth ? (
+                    // Full breakdown only available for current month
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground">Account 2</p>
+                        <p className="text-sm font-semibold">
+                          {displayAcc2 != null ? fmtPHP(displayAcc2) : "—"}
                         </p>
-                      )}
+                        {displayKw != null && (
+                          <p className="text-[10px] text-muted-foreground">{fmt(displayKw)} kWh</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground">Account 3</p>
+                        <p className="text-sm font-semibold">
+                          {displayAcc3 != null ? fmtPHP(displayAcc3) : "—"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground">
-                        Account 3
-                      </p>
-                      <p className="text-sm font-semibold">
-                        {currentMonth.has_data
-                          ? fmtPHP(currentMonth.account3_billed)
-                          : "—"}
-                      </p>
+                  ) : (
+                    // Historical: show what's available from monthly_trends
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground">Total Billed</p>
+                        <p className="text-sm font-semibold">
+                          {displayBilled != null ? fmtPHP(displayBilled) : "—"}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground">kWh</p>
+                        <p className="text-sm font-semibold">
+                          {displayKw != null ? fmt(displayKw) : "—"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {previousMonth.has_data && (
+                  {/* Previous month row — only when viewing current month */}
+                  {isCurrentMonth && previousMonth.has_data && (
                     <div className="flex justify-between items-center pt-1 border-t border-border/30">
                       <span className="text-[10px] text-muted-foreground">
-                        Previous Month ({previousMonth.month})
+                        Previous Month ({fmtMonthLabel(previousMonth.month)})
                       </span>
                       <span className="text-xs font-medium">
                         {fmtPHP(previousMonth.total_billed)}
                       </span>
                     </div>
                   )}
+
+                  {/* No data fallback */}
+                  {displayBilled == null && (
+                    <p className="text-[10px] text-muted-foreground italic">
+                      No energy data for {displayLabel}.
+                    </p>
+                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <ExpandRow
-            id="energy"
-            expanded={expanded}
-            onToggle={() => setExpanded((v) => !v)}
-          />
+          <ExpandRow id="energy" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         </CardContent>
       </Card>
     </AnimatedCard>
@@ -521,14 +514,8 @@ function EnergyCard({
 ───────────────────────────────────────────────────────────────────────────── */
 
 function MaintenanceCard({
-  active,
-  index,
-  checkedToday,
-  totalUnits,
-  completion,
-  statusBreakdown,
-  timeLabel,
-  dateLabel,
+  active, index, checkedToday, totalUnits, completion,
+  statusBreakdown, timeLabel, dateLabel,
 }: {
   active: boolean;
   index: number;
@@ -543,15 +530,9 @@ function MaintenanceCard({
 
   return (
     <AnimatedCard index={index}>
-      <Card
-        className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}
-      >
+      <Card className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}>
         <CardContent className="px-5 py-4 space-y-3">
-          {/* Collapsed header */}
-          <div
-            className="flex justify-between cursor-pointer"
-            onClick={() => setExpanded((v) => !v)}
-          >
+          <div className="flex justify-between cursor-pointer" onClick={() => setExpanded((v) => !v)}>
             <CardHeader
               color="red"
               icon={Wrench}
@@ -559,17 +540,12 @@ function MaintenanceCard({
               summary={`${completion}% completion today`}
             />
             <div className="text-right pb-5">
-              <p className="text-2xl font-bold">
-                {checkedToday}/{totalUnits}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                units checked today
-              </p>
+              <p className="text-2xl font-bold">{checkedToday}/{totalUnits}</p>
+              <p className="text-xs text-muted-foreground">units checked today</p>
               <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
             </div>
           </div>
 
-          {/* Expanded detail */}
           <AnimatePresence initial={false}>
             {expanded && (
               <motion.div
@@ -585,7 +561,6 @@ function MaintenanceCard({
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                     Unit status
                   </p>
-                  {/* Completion bar */}
                   <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
                     <motion.div
                       className="h-full bg-emerald-500 rounded-full"
@@ -596,11 +571,7 @@ function MaintenanceCard({
                   </div>
                   <div className="pt-1 grid grid-cols-2 gap-2">
                     {STATUS_ORDER.map((s) => (
-                      <StatusPill
-                        key={s}
-                        status={s}
-                        count={statusBreakdown?.[s] ?? 0}
-                      />
+                      <StatusPill key={s} status={s} count={statusBreakdown?.[s] ?? 0} />
                     ))}
                   </div>
                 </div>
@@ -608,11 +579,7 @@ function MaintenanceCard({
             )}
           </AnimatePresence>
 
-          <ExpandRow
-            id="maintenance"
-            expanded={expanded}
-            onToggle={() => setExpanded((v) => !v)}
-          />
+          <ExpandRow id="maintenance" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         </CardContent>
       </Card>
     </AnimatedCard>
@@ -626,90 +593,116 @@ function MaintenanceCard({
 function SalesCard({
   active,
   index,
-  totalUsd,
-  totalKg,
-  entryCount,
-  exportCount,
-  localCount,
+  // Live this-month data (always passed from store)
+  thisMonth,
+  lastMonth,
   momChangePct,
+  monthlyBreakdown,
   timeLabel,
   dateLabel,
+  // Date-filter
+  selectedMonthKey,
 }: {
   active: boolean;
   index: number;
-  totalUsd: number;
-  totalKg: number;
-  entryCount: number;
-  exportCount: number;
-  localCount: number;
+  thisMonth: {
+    total_usd: number;
+    total_kg: number;
+    entry_count: number;
+    export_count: number;
+    local_count: number;
+  };
+  lastMonth: {
+    total_usd: number;
+    total_kg: number;
+    entry_count: number;
+  };
   momChangePct: number | null;
+  monthlyBreakdown: Array<{
+    month: string;
+    total_usd: number;
+    total_kg: number;
+    entry_count: number;
+  }>;
   timeLabel: string;
   dateLabel: string;
+  selectedMonthKey: string;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
-  const momLabel =
-    momChangePct != null
-      ? `${momChangePct >= 0 ? "+" : ""}${momChangePct}% vs last month`
-      : "No prior month data";
+  const isCurrentMonth = selectedMonthKey === currentMonthKey();
+  const isHistorical   = !isCurrentMonth;
+
+  // Resolve display data from monthly_breakdown when not current month
+  const histEntry = React.useMemo(
+    () => monthlyBreakdown.find((m) => m.month === selectedMonthKey),
+    [monthlyBreakdown, selectedMonthKey],
+  );
+
+  const displayUsd        = isCurrentMonth ? thisMonth.total_usd  : (histEntry?.total_usd  ?? null);
+  const displayKg         = isCurrentMonth ? thisMonth.total_kg   : (histEntry?.total_kg   ?? null);
+  const displayEntries    = isCurrentMonth ? thisMonth.entry_count : (histEntry?.entry_count ?? null);
+  const displayExport     = isCurrentMonth ? thisMonth.export_count : null; // breakdown only in this_month
+  const displayLocal      = isCurrentMonth ? thisMonth.local_count  : null;
+  const displayMonthLabel = fmtMonthLabel(selectedMonthKey);
+
+  const momLabel = momChangePct != null
+    ? `${momChangePct >= 0 ? "+" : ""}${momChangePct}% vs last month`
+    : "No prior month data";
 
   return (
     <AnimatedCard index={index}>
-      <Card
-        className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}
-      >
+      <Card className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}>
         <CardContent className="px-5 py-4 space-y-3">
           {/* Collapsed header */}
-          <div
-            className="flex justify-between cursor-pointer"
-            onClick={() => setExpanded((v) => !v)}
-          >
+          <div className="flex justify-between cursor-pointer" onClick={() => setExpanded((v) => !v)}>
             <div className="flex grid grid-col-1">
               <CardHeader
                 color="green"
                 icon={TrendingUp}
                 label="Sales"
-                summary={`${entryCount} entries this month`}
+                summary={`${displayEntries ?? "—"} entries · ${displayMonthLabel}`}
               />
-              <div className="flex items-center gap-2 mt-2">
-                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/10">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                  <span className="text-[10px] font-medium text-green-700 dark:text-green-400">
-                    Export
-                  </span>
-                  <span className="text-[10px] font-bold text-green-700 dark:text-green-400">
-                    {exportCount}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10">
-                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                  <span className="text-[10px] font-medium text-blue-700 dark:text-blue-400">
-                    Local
-                  </span>
-                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400">
-                    {localCount}
-                  </span>
-                </div>
-                <span
-                  className={`text-[10px] font-medium ${momChangePct == null ? "text-muted-foreground" : momChangePct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
-                >
-                  {momLabel}
-                </span>
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {isCurrentMonth && (
+                  <>
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/10">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                      <span className="text-[10px] font-medium text-green-700 dark:text-green-400">Export</span>
+                      <span className="text-[10px] font-bold text-green-700 dark:text-green-400">{displayExport}</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                      <span className="text-[10px] font-medium text-blue-700 dark:text-blue-400">Local</span>
+                      <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400">{displayLocal}</span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-medium ${
+                        momChangePct == null
+                          ? "text-muted-foreground"
+                          : momChangePct >= 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-600 dark:text-red-400"
+                      }`}
+                    >
+                      {momLabel}
+                    </span>
+                  </>
+                )}
+                {isHistorical && <HistoricalBadge label={displayMonthLabel} />}
+                {displayKg != null && (
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    · {fmt(totalKg)} kg
+                    · {fmt(displayKg)} kg
                   </span>
-                </div>
+                )}
               </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold">{fmtUSD(totalUsd)}</p>
-              <p className="text-xs text-muted-foreground">
-                total sales this month
+              <p className="text-2xl font-bold">
+                {displayUsd != null ? fmtUSD(displayUsd) : "—"}
               </p>
-              <div className="flex items-center gap-2 justify-end">
-                <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
-              </div>
+              <p className="text-xs text-muted-foreground">total sales</p>
+              <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
             </div>
           </div>
 
@@ -728,54 +721,65 @@ function SalesCard({
                 <div className="pt-3 border-t border-border/50 space-y-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                        Total (USD)
-                      </p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total (USD)</p>
                       <p className="text-sm font-semibold">
-                        {fmtUSD(totalUsd)}
+                        {displayUsd != null ? fmtUSD(displayUsd) : "—"}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                        Volume
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Volume</p>
+                      <p className="text-sm font-semibold">
+                        {displayKg != null ? `${fmt(displayKg)} kg` : "—"}
                       </p>
-                      <p className="text-sm font-semibold">{fmt(totalKg)} kg</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                        Entries
-                      </p>
-                      <p className="text-sm font-semibold">{entryCount}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entries</p>
+                      <p className="text-sm font-semibold">{displayEntries ?? "—"}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border/30">
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-green-600 dark:text-green-400 uppercase tracking-wide font-medium">
-                        Export
-                      </p>
-                      <p className="text-sm font-semibold">
-                        {exportCount} entries
-                      </p>
+
+                  {isCurrentMonth && (
+                    <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border/30">
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-green-600 dark:text-green-400 uppercase tracking-wide font-medium">Export</p>
+                        <p className="text-sm font-semibold">{displayExport} entries</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium">Local</p>
+                        <p className="text-sm font-semibold">{displayLocal} entries</p>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium">
-                        Local
-                      </p>
-                      <p className="text-sm font-semibold">
-                        {localCount} entries
-                      </p>
+                  )}
+
+                  {isHistorical && !histEntry && (
+                    <p className="text-[10px] text-muted-foreground italic">
+                      No sales data for {displayMonthLabel}.
+                    </p>
+                  )}
+
+                  {/* Last month comparison row — current month only */}
+                  {isCurrentMonth && (
+                    <div className="flex justify-between items-center pt-1 border-t border-border/30">
+                      <span className="text-[10px] text-muted-foreground">
+                        Last Month ({fmtMonthLabel(
+                          // derive last month key from current
+                          (() => {
+                            const d = new Date();
+                            d.setDate(1);
+                            d.setMonth(d.getMonth() - 1);
+                            return toMonthKey(d.toLocaleDateString("en-CA"));
+                          })()
+                        )})
+                      </span>
+                      <span className="text-xs font-medium">{fmtUSD(lastMonth.total_usd)}</span>
                     </div>
-                  </div>
+                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <ExpandRow
-            id="sales"
-            expanded={expanded}
-            onToggle={() => setExpanded((v) => !v)}
-          />
+          <ExpandRow id="sales" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         </CardContent>
       </Card>
     </AnimatedCard>
@@ -787,54 +791,14 @@ function SalesCard({
 ───────────────────────────────────────────────────────────────────────────── */
 
 const LEFT_STUBS = [
-  {
-    id: "accounts",
-    color: "purple" as SegmentColor,
-    label: "Accounts",
-    icon: Wallet,
-    summary: "Net position",
-    stat: "—",
-    unit: "—",
-  },
-  {
-    id: "qc",
-    color: "coral" as SegmentColor,
-    label: "Quality Control",
-    icon: FlaskConical,
-    summary: "QC status",
-    stat: "—",
-    unit: "—",
-  },
+  { id: "accounts",  color: "purple" as SegmentColor, label: "Accounts",        icon: Wallet,       summary: "Net position"       },
+  { id: "qc",        color: "coral"  as SegmentColor, label: "Quality Control", icon: FlaskConical, summary: "QC status"           },
 ] as const;
 
 const RIGHT_STUBS = [
-  {
-    id: "procurement",
-    color: "amber" as SegmentColor,
-    label: "Procurement",
-    icon: ShoppingCart,
-    summary: "Supply chain status",
-    stat: "—",
-    unit: "—",
-  },
-  {
-    id: "trading",
-    color: "blue" as SegmentColor,
-    label: "Trading",
-    icon: ArrowLeftRight,
-    summary: "Active trades",
-    stat: "—",
-    unit: "—",
-  },
-  {
-    id: "workforce",
-    color: "pink" as SegmentColor,
-    label: "Workforce",
-    icon: Users,
-    summary: "Attendance tracking",
-    stat: "—",
-    unit: "—",
-  },
+  { id: "procurement", color: "amber" as SegmentColor, label: "Procurement", icon: ShoppingCart,  summary: "Supply chain status" },
+  { id: "trading",     color: "blue"  as SegmentColor, label: "Trading",     icon: ArrowLeftRight, summary: "Active trades"       },
+  { id: "workforce",   color: "pink"  as SegmentColor, label: "Workforce",   icon: Users,          summary: "Attendance tracking" },
 ] as const;
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -843,39 +807,35 @@ const RIGHT_STUBS = [
 
 export default function CEODashboard() {
   const location = useLocation();
-  const isActive = (id: string) =>
-    location.pathname === `/auth/admin/dashboard/${id}`;
+  const isActive = (id: string) => location.pathname === `/auth/admin/dashboard/${id}`;
 
-  const [time, setTime] = React.useState(() => new Date());
-  const [selectedDate, setSelectedDate] = React.useState<Date>(
-    () => new Date(),
-  );
+  const [time, setTime]               = React.useState(() => new Date());
+  const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
 
-  const selectedISO = toISO(selectedDate);
-  const isToday = selectedISO === getTodayISO();
+  const selectedISO      = toISO(selectedDate);
+  const selectedMthKey   = toMonthKey(selectedISO);   // "YYYY-MM"
+  const isToday          = selectedISO === getTodayISO();
 
   const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
-  const production = stats?.production;
+  const production  = stats?.production;
   const maintenance = stats?.maintenance;
-  const sales = stats?.sales;
-  const energy = stats?.energy;
+  const sales       = stats?.sales;
+  const energy      = stats?.energy;
 
   React.useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  React.useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  React.useEffect(() => { fetchStats(); }, [fetchStats]);
 
   function handleDateSelect(d: Date | undefined) {
     if (!d) return;
     setSelectedDate(d);
-    fetchStats(toISO(d));
+    fetchStats(toISO(d));   // production & maintenance re-fetch; sales/energy filter client-side
   }
 
-  // ── Derived values ──────────────────────────────────────────────────────────
+  // ── Derived production values ───────────────────────────────────────────────
 
   const productionStat = loadingStats
     ? "—"
@@ -889,34 +849,23 @@ export default function CEODashboard() {
     ? "units today"
     : `units on ${format(new Date(selectedISO + "T00:00:00"), "MMM d")}`;
 
-  // Production expanded content
   const productionExpanded = (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            Today
-          </p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Today</p>
           <p className="text-sm font-semibold">
-            {production?.today_production_output
-              ? fmt(production.today_production_output)
-              : "—"}
+            {production?.today_production_output ? fmt(production.today_production_output) : "—"}
           </p>
         </div>
         <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            Yesterday
-          </p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Yesterday</p>
           <p className="text-sm font-semibold">
-            {production?.yesterday_production_output
-              ? fmt(production.yesterday_production_output)
-              : "—"}
+            {production?.yesterday_production_output ? fmt(production.yesterday_production_output) : "—"}
           </p>
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        6 product lines running
-      </p>
+      <p className="text-[10px] text-muted-foreground">6 product lines running</p>
     </div>
   );
 
@@ -925,21 +874,16 @@ export default function CEODashboard() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto py-0 space-y-5">
+
         {/* ── HEADER ── */}
         <div className="flex items-center justify-end gap-3">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs text-muted-foreground flex items-center gap-2">
             Live dashboard —
             <span className="font-medium text-foreground">
-              {time.toLocaleTimeString("en-PH", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
+              {time.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             </span>
-            <span className="text-muted-foreground">
-              {format(selectedDate, "PPP")}
-            </span>
+            <span className="text-muted-foreground">{format(selectedDate, "PPP")}</span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -961,6 +905,7 @@ export default function CEODashboard() {
 
         {/* ── TWO-COLUMN LAYOUT ── */}
         <div className="flex flex-col md:flex-row gap-3 items-start">
+
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-3 flex-1 min-w-0">
             <DashCard
@@ -971,11 +916,7 @@ export default function CEODashboard() {
               summary="6 product lines running"
               stat={productionStat}
               unit={productionUnit}
-              timeLabel={
-                production?.last_updated_at
-                  ? relativeTime(new Date(production.last_updated_at))
-                  : "—"
-              }
+              timeLabel={production?.last_updated_at ? relativeTime(new Date(production.last_updated_at)) : "—"}
               dateLabel={fmtDate(new Date(selectedISO + "T00:00:00"))}
               active={isActive("production")}
               index={0}
@@ -985,22 +926,13 @@ export default function CEODashboard() {
             <SalesCard
               active={isActive("sales")}
               index={2}
-              totalUsd={sales?.this_month.total_usd ?? 0}
-              totalKg={sales?.this_month.total_kg ?? 0}
-              entryCount={sales?.this_month.entry_count ?? 0}
-              exportCount={sales?.this_month.export_count ?? 0}
-              localCount={sales?.this_month.local_count ?? 0}
+              thisMonth={sales?.this_month ?? { total_usd: 0, total_kg: 0, entry_count: 0, export_count: 0, local_count: 0 }}
+              lastMonth={sales?.last_month   ?? { total_usd: 0, total_kg: 0, entry_count: 0 }}
               momChangePct={sales?.mom_change_pct ?? null}
-              timeLabel={
-                sales?.last_updated_at
-                  ? relativeTime(new Date(sales.last_updated_at))
-                  : "—"
-              }
-              dateLabel={
-                sales?.last_updated_at
-                  ? fmtDate(new Date(sales.last_updated_at))
-                  : "not available"
-              }
+              monthlyBreakdown={sales?.monthly_breakdown ?? []}
+              timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
+              dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "not available"}
+              selectedMonthKey={selectedMthKey}
             />
 
             {LEFT_STUBS.map((g, i) => (
@@ -1011,8 +943,8 @@ export default function CEODashboard() {
                 icon={g.icon}
                 label={g.label}
                 summary={g.summary}
-                stat={g.stat}
-                unit={g.unit}
+                stat="—"
+                unit="—"
                 timeLabel="—"
                 dateLabel="not available"
                 active={isActive(g.id)}
@@ -1030,16 +962,8 @@ export default function CEODashboard() {
               totalUnits={maintenance?.total_units ?? 0}
               completion={maintenance?.completion ?? 0}
               statusBreakdown={maintenance?.status_breakdown}
-              timeLabel={
-                maintenance?.last_updated_at
-                  ? relativeTime(new Date(maintenance.last_updated_at))
-                  : "—"
-              }
-              dateLabel={
-                maintenance?.last_updated_at
-                  ? fmtDate(new Date(maintenance.last_updated_at))
-                  : "not available"
-              }
+              timeLabel={maintenance?.last_updated_at ? relativeTime(new Date(maintenance.last_updated_at)) : "—"}
+              dateLabel={maintenance?.last_updated_at ? fmtDate(new Date(maintenance.last_updated_at)) : "not available"}
             />
 
             <EnergyCard
@@ -1047,33 +971,23 @@ export default function CEODashboard() {
               index={1}
               currentMonth={
                 energy?.current_month ?? {
-                  month: format(new Date(), "yyyy-MM"),
-                  total_billed: 0,
-                  total_kw: 0,
-                  account2_billed: 0,
-                  account3_billed: 0,
+                  month: currentMonthKey(),
+                  total_billed: 0, total_kw: 0,
+                  account2_billed: 0, account3_billed: 0,
                   has_data: false,
                 }
               }
               previousMonth={
                 energy?.previous_month ?? {
-                  month: format(new Date(), "yyyy-MM"),
-                  total_billed: 0,
-                  has_data: false,
+                  month: "", total_billed: 0, has_data: false,
                 }
               }
               momChangePct={energy?.mom_change_pct ?? null}
               ytdTotal={energy?.ytd_summary?.total_billed_amount ?? 0}
-              timeLabel={
-                energy?.last_updated_at
-                  ? relativeTime(new Date(energy.last_updated_at))
-                  : "—"
-              }
-              dateLabel={
-                energy?.last_updated_at
-                  ? fmtDate(new Date(energy.last_updated_at))
-                  : "not available"
-              }
+              timeLabel={energy?.last_updated_at ? relativeTime(new Date(energy.last_updated_at)) : "—"}
+              dateLabel={energy?.last_updated_at ? fmtDate(new Date(energy.last_updated_at)) : "not available"}
+              selectedMonthKey={selectedMthKey}
+              monthlyTrends={energy?.monthly_trends ?? []}
             />
 
             {RIGHT_STUBS.map((g, i) => (
@@ -1084,8 +998,8 @@ export default function CEODashboard() {
                 icon={g.icon}
                 label={g.label}
                 summary={g.summary}
-                stat={g.stat}
-                unit={g.unit}
+                stat="—"
+                unit="—"
                 timeLabel="—"
                 dateLabel="not available"
                 active={isActive(g.id)}

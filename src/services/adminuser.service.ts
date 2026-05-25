@@ -5,6 +5,7 @@ export interface AdminUser {
   name: string;
   email: string;
   department: string | null;
+  role: string | null;
   created_at: string;
 }
 
@@ -13,6 +14,7 @@ export interface AdminUpdateUserPayload {
   name?: string;
   email?: string;
   department?: string;
+  role?: string;
   password?: string;
   password_confirmation?: string;
 }
