@@ -49,6 +49,7 @@ import {
   Trash2,
   Search,
   RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -61,19 +62,42 @@ import {
 } from "@/services/adminuser.service";
 
 const DEPARTMENTS = [
-  { id: "production", label: "Production" },
-  { id: "procurement", label: "Procurement" },
-  { id: "sales", label: "Sales" },
-  { id: "accounts", label: "Accounts" },
-  { id: "trading", label: "Trading" },
-  { id: "qc", label: "Quality Control" },
-  { id: "workforce", label: "Workforce" },
-  { id: "maintenance", label: "Maintenance" },
-  { id: "energy", label: "Energy" },
+  { id: "production",   label: "Production" },
+  { id: "procurement",  label: "Procurement" },
+  { id: "sales",        label: "Sales" },
+  { id: "accounts",     label: "Accounts" },
+  { id: "trading",      label: "Trading" },
+  { id: "qc",           label: "Quality Control" },
+  { id: "workforce",    label: "Workforce" },
+  { id: "maintenance",  label: "Maintenance" },
+  { id: "energy",       label: "Energy" },
 ];
 
 const getDeptLabel = (id: string | null) =>
   DEPARTMENTS.find((d) => d.id === id)?.label ?? id ?? "—";
+
+const ROLES = [
+  { id: "superadmin", label: "Super Admin" },
+  { id: "admin",      label: "Admin" },
+  { id: "user",       label: "User" },
+];
+
+const ROLE_BADGE: Record<string, string> = {
+  superadmin: "bg-purple-100 text-purple-700 border-purple-200",
+  admin:      "bg-blue-100 text-blue-700 border-blue-200",
+  user:       "bg-gray-100 text-gray-600 border-gray-200",
+};
+
+function RoleBadge({ role }: { role: string | null }) {
+  const r = role ?? "user";
+  const label = ROLES.find((x) => x.id === r)?.label ?? r;
+  const cls = ROLE_BADGE[r] ?? ROLE_BADGE.user;
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>
+      {label}
+    </span>
+  );
+}
 
 export function Users() {
   // ─── Register form ─────────────────────────────────────────
@@ -83,6 +107,7 @@ export function Users() {
     email: "",
     password: "",
     department: "",
+    role: "user",
   });
 
   // ─── Table ─────────────────────────────────────────────────
@@ -98,6 +123,7 @@ export function Users() {
     name: "",
     email: "",
     department: "",
+    role: "user",
     password: "",
     password_confirmation: "",
   });
@@ -139,7 +165,7 @@ export function Users() {
     try {
       await registerUser(regForm);
       toast.success("User registered successfully.");
-      setRegForm({ name: "", email: "", password: "", department: "" });
+      setRegForm({ name: "", email: "", password: "", department: "", role: "user" });
       // Refresh table so new user appears
       await fetchUsers();
     } catch (err: any) {
@@ -156,6 +182,7 @@ export function Users() {
       name: user.name,
       email: user.email,
       department: user.department ?? "",
+      role: user.role ?? "user",
       password: "",
       password_confirmation: "",
     });
@@ -168,10 +195,7 @@ export function Users() {
       toast.error("Name and email are required.");
       return;
     }
-    if (
-      editForm.password &&
-      editForm.password !== editForm.password_confirmation
-    ) {
+    if (editForm.password && editForm.password !== editForm.password_confirmation) {
       toast.error("Passwords do not match.");
       return;
     }
@@ -187,6 +211,7 @@ export function Users() {
         name: editForm.name,
         email: editForm.email,
         department: editForm.department,
+        role: editForm.role,
         ...(editForm.password
           ? {
               password: editForm.password,
@@ -233,12 +258,13 @@ export function Users() {
     (u) =>
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
-      (u.department ?? "").toLowerCase().includes(search.toLowerCase()),
+      (u.department ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
   // ─── Render ────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+
       {/* ── Registration Form ─────────────────────────────── */}
       <Card>
         <CardHeader>
@@ -253,9 +279,7 @@ export function Users() {
             </Label>
             <Input
               value={regForm.name}
-              onChange={(e) =>
-                setRegForm((p) => ({ ...p, name: e.target.value }))
-              }
+              onChange={(e) => setRegForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="John Doe"
             />
           </div>
@@ -267,9 +291,7 @@ export function Users() {
             <Input
               type="email"
               value={regForm.email}
-              onChange={(e) =>
-                setRegForm((p) => ({ ...p, email: e.target.value }))
-              }
+              onChange={(e) => setRegForm((p) => ({ ...p, email: e.target.value }))}
               placeholder="john@example.com"
             />
           </div>
@@ -281,9 +303,7 @@ export function Users() {
             <Input
               type="password"
               value={regForm.password}
-              onChange={(e) =>
-                setRegForm((p) => ({ ...p, password: e.target.value }))
-              }
+              onChange={(e) => setRegForm((p) => ({ ...p, password: e.target.value }))}
               placeholder="••••••••"
             />
           </div>
@@ -292,22 +312,35 @@ export function Users() {
             <Label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Building2 className="h-3.5 w-3.5" /> Department
             </Label>
-
             <Select
               value={regForm.department}
-              onValueChange={(v) =>
-                setRegForm((p) => ({ ...p, department: v }))
-              }
+              onValueChange={(v) => setRegForm((p) => ({ ...p, department: v }))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
-
               <SelectContent>
                 {DEPARTMENTS.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.label}
-                  </SelectItem>
+                  <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 w-full">
+            <Label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5" /> Role
+            </Label>
+            <Select
+              value={regForm.role}
+              onValueChange={(v) => setRegForm((p) => ({ ...p, role: v }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLES.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -359,9 +392,7 @@ export function Users() {
                 disabled={tableLoading}
                 title="Refresh"
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${tableLoading ? "animate-spin" : ""}`}
-                />
+                <RefreshCw className={`h-4 w-4 ${tableLoading ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>
@@ -375,6 +406,7 @@ export function Users() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Department</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Registered</TableHead>
                   <TableHead className="text-right w-[90px]">Actions</TableHead>
                 </TableRow>
@@ -383,14 +415,14 @@ export function Users() {
               <TableBody>
                 {tableLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10">
+                    <TableCell colSpan={6} className="text-center py-10">
                       <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center text-muted-foreground py-10 text-sm"
                     >
                       {users.length === 0
@@ -402,10 +434,9 @@ export function Users() {
                   filtered.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {user.email}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{user.email}</TableCell>
                       <TableCell>{getDeptLabel(user.department)}</TableCell>
+                      <TableCell><RoleBadge role={user.role} /></TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {new Date(user.created_at).toLocaleDateString()}
                       </TableCell>
@@ -438,8 +469,7 @@ export function Users() {
 
           {!tableLoading && filtered.length > 0 && (
             <p className="text-xs text-muted-foreground mt-2 text-right">
-              {filtered.length} of {users.length} user
-              {users.length !== 1 ? "s" : ""}
+              {filtered.length} of {users.length} user{users.length !== 1 ? "s" : ""}
             </p>
           )}
         </CardContent>
@@ -451,11 +481,8 @@ export function Users() {
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update details for{" "}
-              <span className="font-medium text-foreground">
-                {editForm.name}
-              </span>
-              . Leave password blank to keep it unchanged.
+              Update details for <span className="font-medium text-foreground">{editForm.name}</span>.
+              Leave password blank to keep it unchanged.
             </DialogDescription>
           </DialogHeader>
 
@@ -466,9 +493,7 @@ export function Users() {
               </Label>
               <Input
                 value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, name: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
               />
             </div>
 
@@ -479,30 +504,43 @@ export function Users() {
               <Input
                 type="email"
                 value={editForm.email}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, email: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 w-full">
               <Label className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Building2 className="h-3.5 w-3.5" /> Department
               </Label>
               <Select
                 value={editForm.department}
-                onValueChange={(v) =>
-                  setEditForm((p) => ({ ...p, department: v }))
-                }
+                onValueChange={(v) => setEditForm((p) => ({ ...p, department: v }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
                   {DEPARTMENTS.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.label}
-                    </SelectItem>
+                    <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5" /> Role
+              </Label>
+              <Select
+                value={editForm.role}
+                onValueChange={(v) => setEditForm((p) => ({ ...p, role: v }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -511,16 +549,12 @@ export function Users() {
             <div className="space-y-1.5">
               <Label className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Lock className="h-3.5 w-3.5" /> New Password
-                <span className="ml-1 text-muted-foreground/60">
-                  (optional)
-                </span>
+                <span className="ml-1 text-muted-foreground/60">(optional)</span>
               </Label>
               <Input
                 type="password"
                 value={editForm.password}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, password: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, password: e.target.value }))}
                 placeholder="••••••••"
               />
             </div>
@@ -534,10 +568,7 @@ export function Users() {
                   type="password"
                   value={editForm.password_confirmation}
                   onChange={(e) =>
-                    setEditForm((p) => ({
-                      ...p,
-                      password_confirmation: e.target.value,
-                    }))
+                    setEditForm((p) => ({ ...p, password_confirmation: e.target.value }))
                   }
                   placeholder="••••••••"
                 />
@@ -572,10 +603,8 @@ export function Users() {
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>
-              ? This action cannot be undone.
+              <span className="font-medium text-foreground">{deleteTarget?.name}</span>?
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
@@ -599,6 +628,7 @@ export function Users() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
