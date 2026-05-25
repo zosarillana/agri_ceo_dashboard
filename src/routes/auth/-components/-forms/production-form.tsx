@@ -38,7 +38,23 @@ import { Product } from "@/types/products.types";
 type FormRow = { actual: string; target: string; isReadOnly: boolean };
 type FormState = Record<number, FormRow>;
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// Helper function to format numbers with commas for display
+
+// Helper function to parse number from formatted string back to raw number string
+
+function formatDisplayValue(value: string): string {
+  if (!value) return "";
+  const num = parseFloat(value);
+  if (isNaN(num)) return value;
+  if (Number.isInteger(num)) {
+    return num.toLocaleString();
+  } else {
+    return num.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+}
 
 function getTodayISO() {
   return new Date().toLocaleDateString("en-CA");
@@ -155,8 +171,22 @@ export default function DailyProductionForm({
   const [status, setStatus]                 = useState<"idle" | "success" | "error">("idle");
   const [statusMsg, setStatusMsg]           = useState("");
   const [isSaving, setIsSaving]             = useState(false);
+  const [displayValues, setDisplayValues]   = useState<Record<number, { actual: string; target: string }>>({});
 
   const cache = useRef<Record<string, ProductionEntry[]>>({ [today]: entries });
+
+  // Initialize display values
+  useEffect(() => {
+    const initialDisplay: Record<number, { actual: string; target: string }> = {};
+    products.forEach(p => {
+      const row = form[p.id];
+      initialDisplay[p.id] = {
+        actual: row?.actual ? formatDisplayValue(row.actual) : "",
+        target: row?.target ? formatDisplayValue(row.target) : ""
+      };
+    });
+    setDisplayValues(initialDisplay);
+  }, [products, form]);
 
   // ── sync when parent entries change ──────────────────────────────────────
 
@@ -209,16 +239,29 @@ export default function DailyProductionForm({
     const entry   = activeEntries.find((e) => e.product_id === productId);
     const product = products.find((p) => p.id === productId);
 
+    const actualValue = entry?.actual_output != null ? String(entry.actual_output) : "";
+    const targetValue = entry?.target_output != null
+      ? String(entry.target_output)
+      : (product?.default_target?.toString() ?? "");
+
     setForm((prev) => ({
       ...prev,
       [productId]: {
-        actual: entry?.actual_output != null ? String(entry.actual_output) : "",
-        target: entry?.target_output != null
-          ? String(entry.target_output)
-          : (product?.default_target?.toString() ?? ""),
+        actual: actualValue,
+        target: targetValue,
         isReadOnly: true,
       },
     }));
+    
+    // Update display values
+    setDisplayValues(prev => ({
+      ...prev,
+      [productId]: {
+        actual: actualValue ? formatDisplayValue(actualValue) : "",
+        target: targetValue ? formatDisplayValue(targetValue) : ""
+      }
+    }));
+    
     setStatus("idle");
     setStatusMsg("");
   }
@@ -235,8 +278,20 @@ export default function DailyProductionForm({
     if (cache.current[newISO] !== undefined) {
       const cached = cache.current[newISO];
       setActiveEntries(cached);
-      setForm(populateForm(products, cached));
+      const newForm = populateForm(products, cached);
+      setForm(newForm);
       setIsFormReadOnly(allSaved(products, cached));
+      
+      // Update display values
+      const newDisplay: Record<number, { actual: string; target: string }> = {};
+      products.forEach(p => {
+        const row = newForm[p.id];
+        newDisplay[p.id] = {
+          actual: row?.actual ? formatDisplayValue(row.actual) : "",
+          target: row?.target ? formatDisplayValue(row.target) : ""
+        };
+      });
+      setDisplayValues(newDisplay);
       return;
     }
 
@@ -245,14 +300,38 @@ export default function DailyProductionForm({
       const data = await productionService.getByDate(newISO);
       cache.current[newISO] = data;
       setActiveEntries(data);
-      setForm(populateForm(products, data));
+      const newForm = populateForm(products, data);
+      setForm(newForm);
       setIsFormReadOnly(allSaved(products, data));
+      
+      // Update display values
+      const newDisplay: Record<number, { actual: string; target: string }> = {};
+      products.forEach(p => {
+        const row = newForm[p.id];
+        newDisplay[p.id] = {
+          actual: row?.actual ? formatDisplayValue(row.actual) : "",
+          target: row?.target ? formatDisplayValue(row.target) : ""
+        };
+      });
+      setDisplayValues(newDisplay);
     } catch (err) {
       console.error("Date fetch error:", err);
       cache.current[newISO] = [];
       setActiveEntries([]);
-      setForm(emptyForm(products));
+      const newForm = emptyForm(products);
+      setForm(newForm);
       setIsFormReadOnly(false);
+      
+      // Update display values
+      const newDisplay: Record<number, { actual: string; target: string }> = {};
+      products.forEach(p => {
+        const row = newForm[p.id];
+        newDisplay[p.id] = {
+          actual: row?.actual ? formatDisplayValue(row.actual) : "",
+          target: row?.target ? formatDisplayValue(row.target) : ""
+        };
+      });
+      setDisplayValues(newDisplay);
     } finally {
       setFetchingEntries(false);
     }
@@ -266,18 +345,69 @@ export default function DailyProductionForm({
     value: string,
   ) {
     if (form[productId]?.isReadOnly) return;
+    
+    // Store the raw number value (remove commas)
+    const rawValue = value.replace(/,/g, '');
+    
     setForm((prev) => ({
       ...prev,
-      [productId]: { ...prev[productId], [field]: value },
+      [productId]: { ...prev[productId], [field]: rawValue },
     }));
+    
+    // Update display value with formatting
+    setDisplayValues(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [field]: value // Keep the formatted display value
+      }
+    }));
+    
     setStatus("idle");
   }
 
+  function handleBlur(productId: number, field: "actual" | "target") {
+    const currentValue = form[productId]?.[field];
+    if (currentValue) {
+      const formatted = formatDisplayValue(currentValue);
+      setDisplayValues(prev => ({
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          [field]: formatted
+        }
+      }));
+    }
+  }
+
+  function handleFocus(productId: number, field: "actual" | "target") {
+    const rawValue = form[productId]?.[field];
+    setDisplayValues(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [field]: rawValue || ""
+      }
+    }));
+  }
+
   function handleReset() {
-    setForm(populateForm(products, activeEntries));
+    const resetForm = populateForm(products, activeEntries);
+    setForm(resetForm);
     setUnlockedIds(new Set());
     setStatus("idle");
     setStatusMsg("");
+    
+    // Reset display values
+    const resetDisplay: Record<number, { actual: string; target: string }> = {};
+    products.forEach(p => {
+      const row = resetForm[p.id];
+      resetDisplay[p.id] = {
+        actual: row?.actual ? formatDisplayValue(row.actual) : "",
+        target: row?.target ? formatDisplayValue(row.target) : ""
+      };
+    });
+    setDisplayValues(resetDisplay);
   }
 
   // ── save ──────────────────────────────────────────────────────────────────
@@ -316,9 +446,21 @@ export default function DailyProductionForm({
 
       cache.current[dateISO] = merged;
       setActiveEntries(merged);
-      setForm(populateForm(products, merged));
+      const newForm = populateForm(products, merged);
+      setForm(newForm);
       setUnlockedIds(new Set());
       setIsFormReadOnly(allSaved(products, merged));
+      
+      // Update display values
+      const newDisplay: Record<number, { actual: string; target: string }> = {};
+      products.forEach(p => {
+        const row = newForm[p.id];
+        newDisplay[p.id] = {
+          actual: row?.actual ? formatDisplayValue(row.actual) : "",
+          target: row?.target ? formatDisplayValue(row.target) : ""
+        };
+      });
+      setDisplayValues(newDisplay);
 
       const isUpdate = entriesToSave.some((e) => e.id != null);
       setStatus("success");
@@ -426,6 +568,7 @@ export default function DailyProductionForm({
             const isReadOnly = row?.isReadOnly ?? false;
             const isUnlocked = unlockedIds.has(p.id);
             const isEditable = !isReadOnly || isUnlocked;
+            const displayRow = displayValues[p.id];
 
             return (
               <Card
@@ -490,9 +633,7 @@ export default function DailyProductionForm({
                         </Label>
                         <Input
                           id={`${p.id}-${field}`}
-                          type="number"
-                          min={0}
-                          step={1}
+                          type="text"
                           placeholder={
                             field === "target" && !isEditable
                               ? "Default target"
@@ -500,8 +641,10 @@ export default function DailyProductionForm({
                           }
                           readOnly={!isEditable}
                           disabled={isSaving || !isEditable}
-                          value={row?.[field] ?? ""}
+                          value={displayRow?.[field] ?? row?.[field] ?? ""}
                           onChange={(e) => handleChange(p.id, field, e.target.value)}
+                          onFocus={() => handleFocus(p.id, field)}
+                          onBlur={() => handleBlur(p.id, field)}
                           className={
                             !isEditable
                               ? "bg-muted cursor-default pointer-events-none"

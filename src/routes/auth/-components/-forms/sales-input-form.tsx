@@ -68,6 +68,21 @@ function fmtUSD(n: number) {
   return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Helper function to format numbers with commas for display
+function formatDisplayValue(value: number | string): string {
+  if (value === "" || value === null || value === undefined) return "";
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return String(value);
+  if (Number.isInteger(num)) {
+    return num.toLocaleString();
+  } else {
+    return num.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+}
+
 function emptyRows(products: Product[]): Record<number, SaleRow> {
   return Object.fromEntries(
     products.map((p) => [
@@ -170,12 +185,27 @@ export default function SalesInputForm({
   // Track which product IDs have been manually unlocked for editing
   const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set());
 
+  // Display values for formatted numbers
+  const [displayValues, setDisplayValues] = useState<Record<number, { aspPerKg: string; quantityKg: string }>>({});
+
   // ── Status banners ────────────────────────────────────────────────────────
   const [status, setStatus]       = useState<"idle" | "success" | "error">("idle");
   const [statusMsg, setStatusMsg] = useState("");
 
   // Cache fetched sales per date so we don't re-fetch on tab switch
   const cache = useRef<Record<string, Sale[]>>({});
+
+  // Initialize display values when rows change
+  useEffect(() => {
+    const newDisplay: Record<number, { aspPerKg: string; quantityKg: string }> = {};
+    Object.entries(rows).forEach(([id, row]) => {
+      newDisplay[Number(id)] = {
+        aspPerKg: row.aspPerKg ? formatDisplayValue(row.aspPerKg) : "",
+        quantityKg: row.quantityKg ? formatDisplayValue(row.quantityKg) : ""
+      };
+    });
+    setDisplayValues(newDisplay);
+  }, [rows]);
 
   // ── Seed rows when products load ─────────────────────────────────────────
   useEffect(() => {
@@ -234,16 +264,59 @@ export default function SalesInputForm({
     setStatus("idle");
   }
 
-  function setNumeric(id: number, field: "aspPerKg" | "quantityKg", raw: string) {
+  function setNumeric(id: number, field: "aspPerKg" | "quantityKg", formattedValue: string) {
     // Only allow numeric changes if row is editable (unlocked or not read-only)
     if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
-    const val = parseFloat(raw) || 0;
+    
+    // Remove commas to get raw number
+    const rawValue = formattedValue.replace(/,/g, '');
+    const val = parseFloat(rawValue) || 0;
+    
     setRows((r) => {
       const updated = { ...r[id], [field]: val };
       updated.totalSalesUSD = updated.aspPerKg * updated.quantityKg;
       return { ...r, [id]: updated };
     });
+    
+    // Update display value with formatted version
+    setDisplayValues(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]: formattedValue
+      }
+    }));
+    
     setStatus("idle");
+  }
+
+  function handleBlur(id: number, field: "aspPerKg" | "quantityKg") {
+    const row = rows[id];
+    if (row) {
+      const value = field === "aspPerKg" ? row.aspPerKg : row.quantityKg;
+      const formatted = formatDisplayValue(value);
+      setDisplayValues(prev => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          [field]: formatted
+        }
+      }));
+    }
+  }
+
+  function handleFocus(id: number, field: "aspPerKg" | "quantityKg") {
+    const row = rows[id];
+    if (row) {
+      const rawValue = field === "aspPerKg" ? row.aspPerKg : row.quantityKg;
+      setDisplayValues(prev => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          [field]: rawValue.toString()
+        }
+      }));
+    }
   }
 
   // ── Unlock / Relock functions (UPDATE TRIGGER) ───────────────────────────
@@ -445,6 +518,7 @@ export default function SalesInputForm({
               const isReadOnly = row?.isReadOnly ?? false;
               const isUnlocked = unlockedIds.has(p.id);
               const isEditable = !isReadOnly || isUnlocked;
+              const displayRow = displayValues[p.id];
 
               return (
                 <Card 
@@ -533,15 +607,17 @@ export default function SalesInputForm({
                             $
                           </span>
                           <Input
-                            type="number"
+                            type="text"
                             min={0}
                             step="0.01"
                             placeholder="0.00"
                             className={`pl-5 h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
-                            value={row?.aspPerKg || ""}
+                            value={displayRow?.aspPerKg ?? (row?.aspPerKg ? formatDisplayValue(row.aspPerKg) : "")}
                             readOnly={!isEditable}
                             disabled={isSaving || !isEditable}
                             onChange={(e) => setNumeric(p.id, "aspPerKg", e.target.value)}
+                            onFocus={() => handleFocus(p.id, "aspPerKg")}
+                            onBlur={() => handleBlur(p.id, "aspPerKg")}
                           />
                         </div>
                       </div>
@@ -549,15 +625,17 @@ export default function SalesInputForm({
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Quantity (Kg)</p>
                         <Input
-                          type="number"
+                          type="text"
                           min={0}
                           step="0.01"
                           placeholder="0"
                           className={`h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
-                          value={row?.quantityKg || ""}
+                          value={displayRow?.quantityKg ?? (row?.quantityKg ? formatDisplayValue(row.quantityKg) : "")}
                           readOnly={!isEditable}
                           disabled={isSaving || !isEditable}
                           onChange={(e) => setNumeric(p.id, "quantityKg", e.target.value)}
+                          onFocus={() => handleFocus(p.id, "quantityKg")}
+                          onBlur={() => handleBlur(p.id, "quantityKg")}
                         />
                       </div>
                     </div>
