@@ -35,8 +35,20 @@ import DailyProductionForm from "../-forms/production-form";
 
 type Tab = "view" | "input" | "products";
 
-function fmt(n: number) {
-  return n.toLocaleString();
+function fmt(n: number | string | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  
+  // Convert to number if it's a string
+  let num = typeof n === 'string' ? parseFloat(n) : n;
+  
+  // Check if it's a valid number
+  if (isNaN(num)) return "—";
+  
+  // Format with commas and always show 2 decimal places
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function getTodayISO() {
@@ -522,7 +534,7 @@ export default function ProductionDash() {
                                     <TrendingDown className="h-3 w-3" />
                                   )}
                                   {isPositive ? "+" : "-"}
-                                  {Math.abs(diff)} ({isPositive ? "+" : "-"}
+                                  {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
                                   {Math.abs(parseFloat(pct))}%)
                                 </span>
                               ) : (
