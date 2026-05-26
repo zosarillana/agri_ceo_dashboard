@@ -271,10 +271,10 @@ export default function WorkforceDash() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Building2 className="h-5 w-5" />
-                    DEPARTMENT
+                    OPEX
                   </CardTitle>
                   <Badge variant="outline" className="font-normal">
-                    {deptRecords.length} Departments
+                    {deptRecords.length} OPEX
                   </Badge>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -286,7 +286,7 @@ export default function WorkforceDash() {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="font-semibold w-[260px]">Department</TableHead>
+                          <TableHead className="font-semibold w-[260px]">OPEX</TableHead>
                           <TableHead className="text-right font-semibold w-28">Present</TableHead>
                           <TableHead className="text-right font-semibold w-28">Headcount</TableHead>
                           <TableHead className="text-right font-semibold w-28">Incidents</TableHead>

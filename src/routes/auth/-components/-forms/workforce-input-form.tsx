@@ -3,20 +3,40 @@
 
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Lock, Pencil, X, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import {
+  CalendarIcon,
+  Lock,
+  Pencil,
+  X,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  Popover, PopoverContent, PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { workforceService } from "@/services/workforce.service";
@@ -49,27 +69,45 @@ const DEPT_SECTIONS: { heading: string; keys: string[] }[] = [
   {
     heading: "DEPARTMENT",
     keys: [
-      "opex", "hr", "it", "sales", "finance", "gen_ops",
-      "proc_rm", "proc_nrm", "proc_local_sales",
-      "project", "field_ops", "business_ops", "engineering",
+      "hr",
+      "it",
+      "sales",
+      "finance",
+      "gen_ops",
+      "proc_rm",
+      "proc_nrm",
+      "proc_local_sales",
+      "project",
+      "field_ops",
+      "business_ops",
+      "engineering",
     ],
   },
   {
     heading: "DIRECT COST",
     keys: [
-      "proc_nuts_receiving", "prod_dry_process",
-      "prod_liquid_line", "quality",
+      "proc_nuts_receiving",
+      "prod_dry_process",
+      "prod_liquid_line",
+      "quality",
     ],
   },
 ];
 
 const DEPT_LABELS: Record<string, string> = {
-  opex: "OPEX", hr: "HR", it: "IT", sales: "Sales",
-  finance: "Finance", gen_ops: "Gen Ops",
-  proc_rm: "Procurement - RM", proc_nrm: "Procurement - NRM",
+  //   opex: "OPEX",
+  hr: "HR",
+  it: "IT",
+  sales: "Sales",
+  finance: "Finance",
+  gen_ops: "Gen Ops",
+  proc_rm: "Procurement - RM",
+  proc_nrm: "Procurement - NRM",
   proc_local_sales: "Procurement - Local Sales",
-  project: "Project", field_ops: "Field Operations",
-  business_ops: "Business Ops", engineering: "Engineering",
+  project: "Project",
+  field_ops: "Field Operations",
+  business_ops: "Business Ops",
+  engineering: "Engineering",
   proc_nuts_receiving: "Procurement - Nuts Receiving",
   prod_dry_process: "Production - Dry Process",
   prod_liquid_line: "Production - Liquid Line",
@@ -129,13 +167,14 @@ function populateSections(records: WorkforceRecord[]): Section[] {
     heading,
     rows: keys.map((key) => {
       const existing = recordMap.get(key);
-      const hasData  = existing && (existing.present > 0 || existing.headcount > 0);
+      const hasData =
+        existing && (existing.present > 0 || existing.headcount > 0);
       return {
         key,
-        label:      DEPT_LABELS[key],
-        present:    existing ? String(existing.present)   : "",
-        headcount:  existing ? String(existing.headcount) : "",
-        incidents:  existing ? String(existing.incidents) : "",
+        label: DEPT_LABELS[key],
+        present: existing ? String(existing.present) : "",
+        headcount: existing ? String(existing.headcount) : "",
+        incidents: existing ? String(existing.incidents) : "",
         isReadOnly: !!hasData,
       };
     }),
@@ -178,17 +217,19 @@ function InputSkeleton() {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps) {
+export default function WorkforceInputForm({
+  onSaved,
+}: WorkforceInputFormProps) {
   const { saveRecords } = useWorkforceStore();
 
-  const [dateISO, setDateISO]         = useState(getTodayISO);
-  const [calOpen, setCalOpen]         = useState(false);
-  const [sections, setSections]       = useState<Section[]>(buildEmptySections);
+  const [dateISO, setDateISO] = useState(getTodayISO);
+  const [calOpen, setCalOpen] = useState(false);
+  const [sections, setSections] = useState<Section[]>(buildEmptySections);
   const [fetchingRows, setFetchingRows] = useState(false);
-  const [isSaving, setIsSaving]       = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [unlockedKeys, setUnlockedKeys] = useState<Set<string>>(new Set());
-  const [status, setStatus]           = useState<"idle" | "success" | "error">("idle");
-  const [statusMsg, setStatusMsg]     = useState("");
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [statusMsg, setStatusMsg] = useState("");
   const [isAllReadOnly, setIsAllReadOnly] = useState(false);
 
   const cache = useRef<Record<string, WorkforceRecord[]>>({});
@@ -196,7 +237,7 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
   // ── Initial fetch ───────────────────────────────────────────────────────────
   useEffect(() => {
     fetchForDate(getTodayISO());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Date fetch ──────────────────────────────────────────────────────────────
@@ -225,7 +266,9 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
   function applySections(records: WorkforceRecord[]) {
     const populated = populateSections(records);
     setSections(populated);
-    const allReadOnly = populated.every((sec) => sec.rows.every((r) => r.isReadOnly));
+    const allReadOnly = populated.every((sec) =>
+      sec.rows.every((r) => r.isReadOnly),
+    );
     setIsAllReadOnly(allReadOnly);
     setUnlockedKeys(new Set());
   }
@@ -249,12 +292,14 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
     setStatus("idle");
     setSections((prev) =>
       prev.map((sec, si) =>
-        si !== sectionIdx ? sec : {
-          ...sec,
-          rows: sec.rows.map((row, ri) =>
-            ri !== rowIdx ? row : { ...row, [field]: value },
-          ),
-        },
+        si !== sectionIdx
+          ? sec
+          : {
+              ...sec,
+              rows: sec.rows.map((row, ri) =>
+                ri !== rowIdx ? row : { ...row, [field]: value },
+              ),
+            },
       ),
     );
   }
@@ -293,13 +338,19 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
           if (original) {
             return {
               ...row,
-              present:    String(original.present),
-              headcount:  String(original.headcount),
-              incidents:  String(original.incidents),
+              present: String(original.present),
+              headcount: String(original.headcount),
+              incidents: String(original.incidents),
               isReadOnly: true,
             };
           }
-          return { ...row, present: "", headcount: "", incidents: "", isReadOnly: false };
+          return {
+            ...row,
+            present: "",
+            headcount: "",
+            incidents: "",
+            isReadOnly: false,
+          };
         }),
       })),
     );
@@ -319,11 +370,20 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
 
   // ── Derived totals ──────────────────────────────────────────────────────────
 
-  const allRows       = sections.flatMap((s) => s.rows);
-  const totalPresent   = allRows.reduce((sum, r) => sum + toNum(r.present), 0);
-  const totalHeadcount = allRows.reduce((sum, r) => sum + toNum(r.headcount), 0);
-  const totalIncidents = allRows.reduce((sum, r) => sum + toNum(r.incidents), 0);
-  const totalRate      = attendanceRate(String(totalPresent), String(totalHeadcount));
+  const allRows = sections.flatMap((s) => s.rows);
+  const totalPresent = allRows.reduce((sum, r) => sum + toNum(r.present), 0);
+  const totalHeadcount = allRows.reduce(
+    (sum, r) => sum + toNum(r.headcount),
+    0,
+  );
+  const totalIncidents = allRows.reduce(
+    (sum, r) => sum + toNum(r.incidents),
+    0,
+  );
+  const totalRate = attendanceRate(
+    String(totalPresent),
+    String(totalHeadcount),
+  );
 
   // ── Save ────────────────────────────────────────────────────────────────────
 
@@ -338,15 +398,17 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
 
     if (rowsToSave.length === 0) {
       setStatus("error");
-      setStatusMsg("Enter headcount for at least one department, or unlock a saved entry to update it.");
+      setStatusMsg(
+        "Enter headcount for at least one department, or unlock a saved entry to update it.",
+      );
       return;
     }
 
     const payload: WorkforceRowPayload[] = rowsToSave.map((r) => ({
       department_key: r.key,
-      present:        toNum(r.present),
-      headcount:      toNum(r.headcount),
-      incidents:      toNum(r.incidents),
+      present: toNum(r.present),
+      headcount: toNum(r.headcount),
+      incidents: toNum(r.incidents),
     }));
 
     setIsSaving(true);
@@ -360,12 +422,15 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
       setUnlockedKeys(new Set());
       setStatus("success");
       setStatusMsg(
-        `Workforce records ${unlockedKeys.size > 0 ? "updated" : "saved"} for ${format(isoToDate(dateISO), "PPP")}.`
+        `Workforce records ${unlockedKeys.size > 0 ? "updated" : "saved"} for ${format(isoToDate(dateISO), "PPP")}.`,
       );
       onSaved?.();
     } catch (err: any) {
       setStatus("error");
-      setStatusMsg(err?.response?.data?.message ?? "Something went wrong. Please try again.");
+      setStatusMsg(
+        err?.response?.data?.message ??
+          "Something went wrong. Please try again.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -373,21 +438,25 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
 
   // ── Derived flags ───────────────────────────────────────────────────────────
 
-  const hasEditableRows   = allRows.some((r) => !r.isReadOnly && toNum(r.headcount) > 0);
-  const hasUnlockedRows   = unlockedKeys.size > 0;
-  const showActionButtons = (hasEditableRows || hasUnlockedRows) && !fetchingRows;
-  const selectedDate      = isoToDate(dateISO);
+  const hasEditableRows = allRows.some(
+    (r) => !r.isReadOnly && toNum(r.headcount) > 0,
+  );
+  const hasUnlockedRows = unlockedKeys.size > 0;
+  const showActionButtons =
+    (hasEditableRows || hasUnlockedRows) && !fetchingRows;
+  const selectedDate = isoToDate(dateISO);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
-
       {/* Date picker card */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">Workforce Entry</CardTitle>
-          <CardDescription>Enter attendance and safety data per department</CardDescription>
+          <CardDescription>
+            Enter attendance and safety data per department
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 flex-wrap">
@@ -418,14 +487,16 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
             {isAllReadOnly && !fetchingRows && unlockedKeys.size === 0 && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All records saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update
+                All records saved — click{" "}
+                <Pencil className="h-3 w-3 inline mx-0.5" /> to update
               </span>
             )}
 
             {unlockedKeys.size > 0 && (
               <span className="flex items-center gap-1.5 text-xs text-amber-600">
                 <Pencil className="h-3 w-3 shrink-0" />
-                {unlockedKeys.size} row{unlockedKeys.size === 1 ? "" : "s"} unlocked for editing
+                {unlockedKeys.size} row{unlockedKeys.size === 1 ? "" : "s"}{" "}
+                unlocked for editing
               </span>
             )}
           </div>
@@ -434,7 +505,7 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
 
       {/* Banners */}
       {status === "success" && <SuccessBanner message={statusMsg} />}
-      {status === "error"   && <ErrorBanner   message={statusMsg} />}
+      {status === "error" && <ErrorBanner message={statusMsg} />}
 
       {/* Table */}
       {fetchingRows ? (
@@ -446,11 +517,21 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="font-semibold w-[220px]">Department / Cost Center</TableHead>
-                    <TableHead className="text-right font-semibold w-28">Present</TableHead>
-                    <TableHead className="text-right font-semibold w-28">Headcount</TableHead>
-                    <TableHead className="text-right font-semibold w-28">Incidents</TableHead>
-                    <TableHead className="text-right font-semibold w-20">Rate</TableHead>
+                    <TableHead className="font-semibold w-[220px]">
+                      OPEX
+                    </TableHead>
+                    <TableHead className="text-right font-semibold w-28">
+                      Present
+                    </TableHead>
+                    <TableHead className="text-right font-semibold w-28">
+                      Headcount
+                    </TableHead>
+                    <TableHead className="text-right font-semibold w-28">
+                      Incidents
+                    </TableHead>
+                    <TableHead className="text-right font-semibold w-20">
+                      Rate
+                    </TableHead>
                     <TableHead className="w-8" />
                   </TableRow>
                 </TableHeader>
@@ -459,7 +540,10 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
                   {sections.map((sec, si) => (
                     <>
                       {/* Section heading */}
-                      <TableRow key={sec.heading} className="bg-muted/60 hover:bg-muted/60">
+                      <TableRow
+                        key={sec.heading}
+                        className="bg-muted/60 hover:bg-muted/60"
+                      >
                         <TableCell
                           colSpan={6}
                           className="py-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
@@ -470,12 +554,12 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
 
                       {/* Department rows */}
                       {sec.rows.map((row, ri) => {
-                        const isUnlocked  = unlockedKeys.has(row.key);
-                        const isEditable  = !row.isReadOnly || isUnlocked;
-                        const wasSaved    = cache.current[dateISO]?.some(
+                        const isUnlocked = unlockedKeys.has(row.key);
+                        const isEditable = !row.isReadOnly || isUnlocked;
+                        const wasSaved = cache.current[dateISO]?.some(
                           (r) => r.department_key === row.key,
                         );
-                        const rate        = attendanceRate(row.present, row.headcount);
+                        const rate = attendanceRate(row.present, row.headcount);
 
                         return (
                           <TableRow
@@ -500,15 +584,19 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
                             {/* Present */}
                             <TableCell className="text-right py-1.5">
                               <Input
-                                type="number" min={0}
+                                type="number"
+                                min={0}
                                 value={row.present}
-                                onChange={(e) => updateRow(si, ri, "present", e.target.value)}
+                                onChange={(e) =>
+                                  updateRow(si, ri, "present", e.target.value)
+                                }
                                 placeholder="0"
                                 readOnly={!isEditable}
                                 disabled={isSaving}
                                 className={cn(
                                   "h-8 w-24 ml-auto text-right tabular-nums",
-                                  !isEditable && "bg-muted cursor-default pointer-events-none",
+                                  !isEditable &&
+                                    "bg-muted cursor-default pointer-events-none",
                                 )}
                               />
                             </TableCell>
@@ -516,15 +604,19 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
                             {/* Headcount */}
                             <TableCell className="text-right py-1.5">
                               <Input
-                                type="number" min={0}
+                                type="number"
+                                min={0}
                                 value={row.headcount}
-                                onChange={(e) => updateRow(si, ri, "headcount", e.target.value)}
+                                onChange={(e) =>
+                                  updateRow(si, ri, "headcount", e.target.value)
+                                }
                                 placeholder="0"
                                 readOnly={!isEditable}
                                 disabled={isSaving}
                                 className={cn(
                                   "h-8 w-24 ml-auto text-right tabular-nums",
-                                  !isEditable && "bg-muted cursor-default pointer-events-none",
+                                  !isEditable &&
+                                    "bg-muted cursor-default pointer-events-none",
                                 )}
                               />
                             </TableCell>
@@ -532,15 +624,19 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
                             {/* Incidents */}
                             <TableCell className="text-right py-1.5">
                               <Input
-                                type="number" min={0}
+                                type="number"
+                                min={0}
                                 value={row.incidents}
-                                onChange={(e) => updateRow(si, ri, "incidents", e.target.value)}
+                                onChange={(e) =>
+                                  updateRow(si, ri, "incidents", e.target.value)
+                                }
                                 placeholder="0"
                                 readOnly={!isEditable}
                                 disabled={isSaving}
                                 className={cn(
                                   "h-8 w-24 ml-auto text-right tabular-nums",
-                                  !isEditable && "bg-muted cursor-default pointer-events-none",
+                                  !isEditable &&
+                                    "bg-muted cursor-default pointer-events-none",
                                 )}
                               />
                             </TableCell>
@@ -548,16 +644,20 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
                             {/* Rate */}
                             <TableCell className="text-right py-1.5">
                               {rate !== null ? (
-                                <Badge variant={rateBadgeVariant(rate)}>{rate}%</Badge>
+                                <Badge variant={rateBadgeVariant(rate)}>
+                                  {rate}%
+                                </Badge>
                               ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
+                                <span className="text-xs text-muted-foreground">
+                                  —
+                                </span>
                               )}
                             </TableCell>
 
                             {/* Lock / unlock */}
                             <TableCell className="py-1.5 text-center">
-                              {wasSaved && (
-                                isUnlocked ? (
+                              {wasSaved &&
+                                (isUnlocked ? (
                                   <button
                                     type="button"
                                     onClick={() => relockRow(row.key)}
@@ -577,8 +677,7 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </button>
-                                )
-                              )}
+                                ))}
                             </TableCell>
                           </TableRow>
                         );
@@ -588,7 +687,9 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
 
                   {/* TOTAL row */}
                   <TableRow className="border-t-2 bg-muted/30 hover:bg-muted/30">
-                    <TableCell className="font-semibold text-sm">TOTAL</TableCell>
+                    <TableCell className="font-semibold text-sm">
+                      TOTAL
+                    </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
                       {totalPresent > 0 ? totalPresent : "—"}
                     </TableCell>
@@ -600,7 +701,9 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
                     </TableCell>
                     <TableCell className="text-right">
                       {totalRate !== null ? (
-                        <Badge variant={rateBadgeVariant(totalRate)}>{totalRate}%</Badge>
+                        <Badge variant={rateBadgeVariant(totalRate)}>
+                          {totalRate}%
+                        </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -617,13 +720,22 @@ export default function WorkforceInputForm({ onSaved }: WorkforceInputFormProps)
             <div className="flex items-center gap-3 mt-4">
               <Button type="submit" disabled={isSaving} className="flex-1">
                 {isSaving ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
-                ) : hasUnlockedRows
-                  ? `Update ${unlockedKeys.size} row${unlockedKeys.size === 1 ? "" : "s"}`
-                  : "Save Records"
-                }
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : hasUnlockedRows ? (
+                  `Update ${unlockedKeys.size} row${unlockedKeys.size === 1 ? "" : "s"}`
+                ) : (
+                  "Save Records"
+                )}
               </Button>
-              <Button type="button" variant="outline" onClick={handleReset} disabled={isSaving}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleReset}
+                disabled={isSaving}
+              >
                 Reset
               </Button>
             </div>
