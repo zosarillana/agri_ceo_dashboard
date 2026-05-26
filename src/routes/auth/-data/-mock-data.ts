@@ -68,6 +68,7 @@ interface QCData {
   }[];
 }
 
+// Update the WorkforceData interface in mock-data.ts
 interface WorkforceData {
   presentToday: number;
   totalHeadcount: number;
@@ -76,7 +77,20 @@ interface WorkforceData {
     name: string;
     present: number;
     total: number;
+    incidents?: number; // Add optional incidents field
   }[];
+  opex?: {
+    // Add OPEX data structure
+    totalMonthly: number;
+    ytdTotal: number;
+    budgetVariance: number;
+    perEmployee: number;
+    categories: {
+      name: string;
+      amount: number;
+      percentage: number;
+    }[];
+  };
 }
 
 interface MaintenanceUnit {
@@ -336,42 +350,62 @@ export const mockData = {
     ],
   } as QCData,
 
+  // Update the workforce mock data in mock-data.ts
   workforce: {
     presentToday: 218,
     totalHeadcount: 240,
-    safetyIncidents: 0,
+    safetyIncidents: 2, // Changed from 0 to show some incidents
     departments: [
       {
         name: "Production",
         present: 98,
         total: 108,
+        incidents: 1,
       },
       {
         name: "Quality Control",
         present: 22,
         total: 24,
+        incidents: 0,
       },
       {
         name: "Maintenance",
         present: 18,
         total: 20,
+        incidents: 1,
       },
       {
         name: "Logistics",
         present: 32,
         total: 36,
+        incidents: 0,
       },
       {
         name: "Administration",
         present: 28,
         total: 32,
+        incidents: 0,
       },
       {
         name: "Sales & Trading",
         present: 20,
         total: 20,
+        incidents: 0,
       },
     ],
+    opex: {
+      totalMonthly: 245000,
+      ytdTotal: 2150000,
+      budgetVariance: 12500,
+      perEmployee: 1021, // 245000 / 240 ≈ 1021
+      categories: [
+        { name: "Salaries & Wages", amount: 185000, percentage: 75.5 },
+        { name: "Benefits", amount: 42000, percentage: 17.1 },
+        { name: "Training", amount: 8000, percentage: 3.3 },
+        { name: "Recruitment", amount: 6000, percentage: 2.5 },
+        { name: "Other", amount: 4000, percentage: 1.6 },
+      ],
+    },
   } as WorkforceData,
 
   maintenance: [
