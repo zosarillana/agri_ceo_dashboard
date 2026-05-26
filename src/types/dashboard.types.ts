@@ -87,4 +87,34 @@ export type DashboardStats = {
     total_months: number;
     last_updated_at: string | null;
   };
+
+  // Add workforce to DashboardStats
+  workforce: WorkforceStats;
 };
+
+export interface WorkforceDeptStat {
+  key: string;
+  label: string;
+  section: string;
+  present: number;
+  headcount: number;
+  incidents: number;
+  rate: number | null;
+}
+
+export interface WorkforceStats {
+  total_present: number;
+  total_headcount: number;
+  total_incidents: number;
+  attendance_rate: number | null;
+  department_count: number;
+  by_section: Record<string, {
+    present: number;
+    headcount: number;
+    incidents: number;
+    rate: number | null;
+  }>;
+  lowest_dept: { label: string; rate: number | null } | null;
+  departments: WorkforceDeptStat[];
+  last_updated_at: string | null;
+}
