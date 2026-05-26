@@ -842,10 +842,10 @@ function WorkforceCard({
                     </div>
                   </div>
 
-                  {/* Departments Breakdown */}
+                  {/* OPEX Breakdown */}
                   <div className="pt-1 space-y-2">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-                      Departments ({workforce.department_count})
+                      OPEX ({workforce.department_count})
                     </p>
                     <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                       {workforce.departments.map((dept) => {
