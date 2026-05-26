@@ -27,6 +27,7 @@ import {
 
 import { useDashboardStore } from "@/store/dashboard.store";
 import { mockData } from "@/routes/auth/-data/-mock-data";
+import { WorkforceStats } from "@/types/dashboard.types";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    TYPES
@@ -129,13 +130,6 @@ const _procOpen    = _proc.filter((p) => p.status !== "received").length;
 const _trades = mockData.trading.filter((t) => t.volumeIn > 0);
 const _tradeTotalVolumeIn = _trades.reduce((s, t) => s + t.volumeIn, 0);
 const _tradeActiveCount   = _trades.length;
-
-// ── Workforce ─────────────────────────────────────────────────────────────────
-const _wf = mockData.workforce;
-const _wfAbsent = _wf.totalHeadcount - _wf.presentToday;
-const _wfLowestDept = [..._wf.departments].sort(
-  (a, b) => (a.present / a.total) - (b.present / b.total),
-)[0];
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ANIMATION
@@ -450,48 +444,6 @@ const TradingExpanded = () => (
   </div>
 );
 
-const WorkforceExpanded = () => {
-  const attendancePct = Math.round((_wf.presentToday / _wf.totalHeadcount) * 100);
-  return (
-    <div className="space-y-2">
-      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-        <motion.div
-          className="h-full bg-emerald-500 rounded-full"
-          initial={{ width: 0 }}
-          animate={{ width: `${attendancePct}%` }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="space-y-1">
-          <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Present</p>
-          <p className="text-sm font-semibold">{_wf.presentToday}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[10px] text-red-600 dark:text-red-400">Absent</p>
-          <p className="text-sm font-semibold">{_wfAbsent}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground">Incidents</p>
-          <p className="text-sm font-semibold">{_wf.safetyIncidents}</p>
-        </div>
-      </div>
-      <div className="pt-1 border-t border-border/30 space-y-1.5">
-        {_wf.departments.map((d) => (
-          <div key={d.name} className="flex justify-between items-center">
-            <span className="text-[10px] text-muted-foreground">{d.name}</span>
-            <span className="text-[10px] font-semibold">
-              {d.present}/{d.total}
-              <span className="text-muted-foreground ml-1">({Math.round((d.present / d.total) * 100)}%)</span>
-            </span>
-          </div>
-        ))}
-        {_wfLowestDept && <MockRow label="Lowest attendance" value={_wfLowestDept.name} />}
-      </div>
-    </div>
-  );
-};
-
 /* ─────────────────────────────────────────────────────────────────────────────
    ENERGY CARD
 ───────────────────────────────────────────────────────────────────────────── */
@@ -780,6 +732,196 @@ function SalesCard({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   WORKFORCE CARD
+───────────────────────────────────────────────────────────────────────────── */
+
+function WorkforceCard({
+  active,
+  index,
+  workforce,
+  timeLabel,
+  dateLabel,
+}: {
+  active: boolean;
+  index: number;
+  workforce: WorkforceStats | undefined;
+  timeLabel: string;
+  dateLabel: string;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  if (!workforce) {
+    return (
+      <AnimatedCard index={index}>
+        <Card className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}>
+          <CardContent className="px-5 py-4">
+            <div className="flex justify-between">
+              <CardHeader color="pink" icon={Users} label="Workforce" summary="Loading workforce data..." />
+              <div className="text-right">
+                <p className="text-2xl font-bold text-muted-foreground">—</p>
+                <p className="text-xs text-muted-foreground">present today</p>
+                <CardTimestamp timeLabel="—" dateLabel="—" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </AnimatedCard>
+    );
+  }
+
+  const absentCount = workforce.total_headcount - workforce.total_present;
+  const attendanceRate = workforce.attendance_rate ?? 0;
+
+  return (
+    <AnimatedCard index={index}>
+      <Card className={`transition-all hover:shadow-md ${active ? "border-primary" : ""}`}>
+        <CardContent className="px-5 py-4 space-y-3">
+          <div className="flex justify-between cursor-pointer" onClick={() => setExpanded((v) => !v)}>
+            <CardHeader
+              color="pink"
+              icon={Users}
+              label="Workforce"
+              summary={`${attendanceRate}% attendance · ${workforce.total_incidents} incidents`}
+            />
+            <div className="text-right">
+              <p className="text-2xl font-bold">
+                {workforce.total_present}/{workforce.total_headcount}
+              </p>
+              <p className="text-xs text-muted-foreground">present today</p>
+              <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
+            </div>
+          </div>
+
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <motion.div
+                key="workforce-expanded"
+                variants={expandVariants}
+                initial="collapsed"
+                animate="expanded"
+                exit="collapsed"
+                transition={{ duration: 0.22, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3 border-t border-border/50 space-y-3">
+                  {/* Attendance Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Attendance Rate</span>
+                      <span className="font-medium text-foreground">{attendanceRate}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full bg-emerald-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${attendanceRate}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Key Metrics Grid */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wide font-medium">
+                        Present
+                      </p>
+                      <p className="text-lg font-bold">{workforce.total_present}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-red-600 dark:text-red-400 uppercase tracking-wide font-medium">
+                        Absent
+                      </p>
+                      <p className="text-lg font-bold">{absentCount}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wide font-medium">
+                        Incidents
+                      </p>
+                      <p className="text-lg font-bold">{workforce.total_incidents}</p>
+                    </div>
+                  </div>
+
+                  {/* Departments Breakdown */}
+                  <div className="pt-1 space-y-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                      Departments ({workforce.department_count})
+                    </p>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                      {workforce.departments.map((dept) => {
+                        const deptRate = dept.rate ?? 0;
+                        return (
+                          <div key={dept.key} className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] font-medium text-foreground truncate max-w-[140px]">
+                                {dept.label}
+                              </span>
+                              <span className="text-[10px] font-semibold">
+                                {dept.present}/{dept.headcount}
+                                <span className="text-muted-foreground ml-1">
+                                  ({deptRate}%)
+                                </span>
+                              </span>
+                            </div>
+                            <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
+                              <motion.div
+                                className={`h-full rounded-full ${
+                                  deptRate >= 80
+                                    ? "bg-emerald-500"
+                                    : deptRate >= 60
+                                    ? "bg-amber-500"
+                                    : "bg-red-500"
+                                }`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${deptRate}%` }}
+                                transition={{ duration: 0.3, ease: "easeOut" }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Lowest Department Warning */}
+                  {workforce.lowest_dept && workforce.lowest_dept.rate !== null && workforce.lowest_dept.rate < 70 && (
+                    <div className="pt-2 mt-1 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-600 dark:text-amber-400 text-[10px] font-medium">⚠️ Attention Needed</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {workforce.lowest_dept.label} has the lowest attendance at {workforce.lowest_dept.rate}%
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Section Summary */}
+                  {Object.keys(workforce.by_section).length > 0 && (
+                    <div className="pt-1 border-t border-border/30">
+                      <p className="text-[10px] text-muted-foreground mb-1">By Section</p>
+                      {Object.entries(workforce.by_section).map(([section, data]) => (
+                        <div key={section} className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">{section}</span>
+                          <span>
+                            {data.present}/{data.headcount} ({data.rate ?? 0}%)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <ExpandRow id="workforce" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        </CardContent>
+      </Card>
+    </AnimatedCard>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -799,6 +941,7 @@ export default function CEODashboard() {
   const maintenance = stats?.maintenance;
   const sales       = stats?.sales;
   const energy      = stats?.energy;
+  const workforce   = stats?.workforce;
 
   React.useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
@@ -946,6 +1089,7 @@ export default function CEODashboard() {
               active={isActive("procurement")} index={7}
               expandedContent={<ProcurementExpanded />}
             />
+            
             <StubCard
               id="trading" color="blue" label="Trading" icon={ArrowLeftRight}
               summary={`${_tradeActiveCount} operations · ${fmt(_tradeTotalVolumeIn)} kg input`}
@@ -953,12 +1097,13 @@ export default function CEODashboard() {
               active={isActive("trading")} index={8}
               expandedContent={<TradingExpanded />}
             />
-            <StubCard
-              id="workforce" color="pink" label="Workforce" icon={Users}
-              summary={`${Math.round((_wf.presentToday / _wf.totalHeadcount) * 100)}% attendance · ${_wf.safetyIncidents} incidents`}
-              stat={`${_wf.presentToday} / ${_wf.totalHeadcount}`} unit="present today"
-              active={isActive("workforce")} index={9}
-              expandedContent={<WorkforceExpanded />}
+            
+            <WorkforceCard
+              active={isActive("workforce")}
+              index={9}
+              workforce={workforce}
+              timeLabel={workforce?.last_updated_at ? relativeTime(new Date(workforce.last_updated_at)) : "—"}
+              dateLabel={workforce?.last_updated_at ? fmtDate(new Date(workforce.last_updated_at)) : "not available"}
             />
           </div>
         </div>
