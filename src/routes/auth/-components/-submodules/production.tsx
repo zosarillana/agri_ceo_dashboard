@@ -18,7 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, CalendarIcon, Minus, BarChart2, Package, PlusCircle } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  CalendarIcon,
+  Minus,
+  BarChart2,
+  Package,
+  PlusCircle,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -37,17 +45,17 @@ type Tab = "view" | "input" | "products";
 
 function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  
+
   // Convert to number if it's a string
-  let num = typeof n === 'string' ? parseFloat(n) : n;
-  
+  let num = typeof n === "string" ? parseFloat(n) : n;
+
   // Check if it's a valid number
   if (isNaN(num)) return "—";
-  
+
   // Format with commas and always show 2 decimal places
   return num.toLocaleString(undefined, {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 }
 
@@ -534,7 +542,8 @@ export default function ProductionDash() {
                                     <TrendingDown className="h-3 w-3" />
                                   )}
                                   {isPositive ? "+" : "-"}
-                                  {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
+                                  {fmt(Math.abs(diff))} (
+                                  {isPositive ? "+" : "-"}
                                   {Math.abs(parseFloat(pct))}%)
                                 </span>
                               ) : (
@@ -600,43 +609,7 @@ export default function ProductionDash() {
             </CardHeader>
           </Card>
 
-          {productsLoading ? (
-            <ProductTabSkeleton />
-          ) : products.length > 0 ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Existing Products
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="font-semibold">Name</TableHead>
-                      <TableHead className="font-semibold">Unit</TableHead>
-                      <TableHead className="text-right font-semibold">
-                        Default Target / day
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {products.map((pr) => (
-                      <TableRow key={pr.id}>
-                        <TableCell className="font-medium">{pr.name}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {pr.unit}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {fmt(pr.default_target ?? 0)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          ) : null}
+          {productsLoading ? <ProductTabSkeleton /> : null}
 
           <ProductInputForm onSave={handleProductSave} />
         </>
