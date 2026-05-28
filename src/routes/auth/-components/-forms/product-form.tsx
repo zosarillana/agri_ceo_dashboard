@@ -12,6 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { CheckCircle, AlertCircle, Plus, Trash2, Loader2, Pencil, X } from "lucide-react";
 import { productsService } from "@/services/products.service";
 import { useProductsStore } from "@/store/products.store";
@@ -51,9 +59,9 @@ function newDraft(): ProductDraft {
   return { localId: generateUUID(), name: "", unit: "", defaultTarget: "" };
 }
 
-/* ── edit row ────────────────────────────────────────────────────────────────── */
+/* ── edit row inline ────────────────────────────────────────────────────────────────── */
 
-function EditRow({
+function EditRowInline({
   product,
   onCancel,
   onSaved,
@@ -99,84 +107,86 @@ function EditRow({
   }
 
   return (
-    <Card className="border-primary/50">
-      <CardContent className="pt-4 pb-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-medium text-primary">Editing: {product.name}</p>
-          <button
-            onClick={onCancel}
-            disabled={saving}
-            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-            aria-label="Cancel edit"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Product name</Label>
-            <Input
-              type="text"
-              value={draft.name}
+    <TableRow className="bg-primary/5">
+      <TableCell colSpan={4} className="p-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-primary">Editing: {product.name}</p>
+            <button
+              onClick={onCancel}
               disabled={saving}
-              onChange={(e) => handleChange("name", e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Unit</Label>
-            <Select
-              value={draft.unit}
-              disabled={saving}
-              onValueChange={(val) => handleChange("unit", val)}
+              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              aria-label="Cancel edit"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select unit" />
-              </SelectTrigger>
-              <SelectContent>
-                {UNIT_OPTIONS.map((u) => (
-                  <SelectItem key={u} value={u}>{u}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Default target / day</Label>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={draft.defaultTarget}
-              disabled={saving}
-              onChange={(e) => handleChange("defaultTarget", e.target.value)}
-            />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Product name</Label>
+              <Input
+                type="text"
+                value={draft.name}
+                disabled={saving}
+                onChange={(e) => handleChange("name", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Unit</Label>
+              <Select
+                value={draft.unit}
+                disabled={saving}
+                onValueChange={(val) => handleChange("unit", val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIT_OPTIONS.map((u) => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Default target / day</Label>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                value={draft.defaultTarget}
+                disabled={saving}
+                onChange={(e) => handleChange("defaultTarget", e.target.value)}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 rounded-md px-3 py-2 text-sm bg-rose-500/10 text-rose-600">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving
+                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Saving…</>
+                : "Save changes"
+              }
+            </Button>
           </div>
         </div>
-
-        {error && (
-          <div className="flex items-center gap-2 mt-3 rounded-md px-3 py-2 text-sm bg-rose-500/10 text-rose-600">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 mt-3">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
-            {saving
-              ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Saving…</>
-              : "Save changes"
-            }
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </TableCell>
+    </TableRow>
   );
 }
 
-/* ── existing products list ──────────────────────────────────────────────────── */
+/* ── existing products table ──────────────────────────────────────────────────── */
 
 function ExistingProducts() {
   const { products, fetchProducts } = useProductsStore();
@@ -197,64 +207,73 @@ function ExistingProducts() {
     }
   }
 
-  if (!products || products.length === 0) return null;
+  if (!products || products.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No products found. Add your first product above.
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-0.5">
-        Existing products
-      </p>
-
-      {products.map((product) =>
-        editingId === product.id ? (
-          <EditRow
-            key={product.id}
-            product={product}
-            onCancel={() => setEditingId(null)}
-            onSaved={() => setEditingId(null)}
-          />
-        ) : (
-          <Card key={product.id}>
-            <CardContent className="py-3 px-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="text-sm font-medium">{product.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {product.unit}
-                      {product.default_target
-                        ? ` · target: ${product.default_target}/day`
-                        : ""}
-                    </p>
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Unit</TableHead>
+            <TableHead>Default Target / day</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products.map((product) => {
+            if (editingId === product.id) {
+              return (
+                <EditRowInline
+                  key={product.id}
+                  product={product}
+                  onCancel={() => setEditingId(null)}
+                  onSaved={() => setEditingId(null)}
+                />
+              );
+            }
+            
+            return (
+              <TableRow key={product.id}>
+                <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell>{product.unit}</TableCell>
+                <TableCell>
+                  {product.default_target ? `${product.default_target.toLocaleString()}/day` : "-"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditingId(product.id)}
+                      disabled={deletingId === product.id}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                      aria-label="Edit product"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      disabled={deletingId === product.id}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
+                      aria-label="Delete product"
+                    >
+                      {deletingId === product.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Trash2 className="h-3.5 w-3.5" />
+                      }
+                    </button>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setEditingId(product.id)}
-                    disabled={deletingId === product.id}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-                    aria-label="Edit product"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(product.id)}
-                    disabled={deletingId === product.id}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
-                    aria-label="Delete product"
-                  >
-                    {deletingId === product.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Trash2 className="h-3.5 w-3.5" />
-                    }
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )
-      )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -332,128 +351,138 @@ export default function ProductInputForm({ onSave }: ProductInputFormProps) {
 
   return (
     <div className="space-y-6">
-      {/* Existing products with edit/delete */}
-      <ExistingProducts />
+      {/* Existing products table */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Existing Products</CardTitle>
+          <CardDescription>
+            Manage your existing product definitions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ExistingProducts />
+        </CardContent>
+      </Card>
 
-      <div className="space-y-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Add New Products</CardTitle>
-            <CardDescription>
-              Add new product definitions used across production tracking
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <div className="space-y-3">
-          {drafts.map((d, idx) => (
-            <Card key={d.localId}>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-medium text-muted-foreground">Product {idx + 1}</p>
-                  {drafts.length > 1 && (
-                    <button
-                      onClick={() => removeRow(d.localId)}
-                      disabled={saving}
-                      className="text-muted-foreground hover:text-rose-600 transition-colors disabled:opacity-50"
-                      aria-label="Remove product"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor={`${d.localId}-name`} className="text-xs text-muted-foreground">
-                      Product name
-                    </Label>
-                    <Input
-                      id={`${d.localId}-name`}
-                      type="text"
-                      placeholder="e.g. Coconut Water"
-                      value={d.name}
-                      disabled={saving}
-                      onChange={(e) => handleChange(d.localId, "name", e.target.value)}
-                    />
+      {/* Add new products section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Add New Products</CardTitle>
+          <CardDescription>
+            Add new product definitions used across production tracking
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            {drafts.map((d, idx) => (
+              <Card key={d.localId}>
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-muted-foreground">Product {idx + 1}</p>
+                    {drafts.length > 1 && (
+                      <button
+                        onClick={() => removeRow(d.localId)}
+                        disabled={saving}
+                        className="text-muted-foreground hover:text-rose-600 transition-colors disabled:opacity-50"
+                        aria-label="Remove product"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
 
-                  <div className="space-y-1">
-                    <Label htmlFor={`${d.localId}-unit`} className="text-xs text-muted-foreground">
-                      Unit
-                    </Label>
-                    <Select
-                      value={d.unit}
-                      disabled={saving}
-                      onValueChange={(val) => handleChange(d.localId, "unit", val)}
-                    >
-                      <SelectTrigger id={`${d.localId}-unit`}>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UNIT_OPTIONS.map((u) => (
-                          <SelectItem key={u} value={u}>{u}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor={`${d.localId}-name`} className="text-xs text-muted-foreground">
+                        Product name
+                      </Label>
+                      <Input
+                        id={`${d.localId}-name`}
+                        type="text"
+                        placeholder="e.g. Coconut Water"
+                        value={d.name}
+                        disabled={saving}
+                        onChange={(e) => handleChange(d.localId, "name", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor={`${d.localId}-unit`} className="text-xs text-muted-foreground">
+                        Unit
+                      </Label>
+                      <Select
+                        value={d.unit}
+                        disabled={saving}
+                        onValueChange={(val) => handleChange(d.localId, "unit", val)}
+                      >
+                        <SelectTrigger id={`${d.localId}-unit`}>
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {UNIT_OPTIONS.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor={`${d.localId}-target`} className="text-xs text-muted-foreground">
+                        Default target / day
+                      </Label>
+                      <Input
+                        id={`${d.localId}-target`}
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="0"
+                        value={d.defaultTarget}
+                        disabled={saving}
+                        onChange={(e) => handleChange(d.localId, "defaultTarget", e.target.value)}
+                      />
+                    </div>
                   </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor={`${d.localId}-target`} className="text-xs text-muted-foreground">
-                      Default target / day
-                    </Label>
-                    <Input
-                      id={`${d.localId}-target`}
-                      type="number"
-                      min={0}
-                      step={1}
-                      placeholder="0"
-                      value={d.defaultTarget}
-                      disabled={saving}
-                      onChange={(e) => handleChange(d.localId, "defaultTarget", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <button
-          onClick={addRow}
-          disabled={saving}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-        >
-          <Plus className="h-4 w-4" />
-          Add another product
-        </button>
-
-        <div className="flex flex-col gap-3">
-          {status !== "idle" && (
-            <div
-              className={`flex items-center gap-2 rounded-md px-4 py-3 text-sm ${
-                status === "success"
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : "bg-rose-500/10 text-rose-600"
-              }`}
-            >
-              {status === "success"
-                ? <CheckCircle className="h-4 w-4 shrink-0" />
-                : <AlertCircle className="h-4 w-4 shrink-0" />}
-              {statusMsg}
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handleReset} disabled={saving}>Reset</Button>
-            <Button onClick={handleSubmit} disabled={saving}>
-              {saving
-                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
-                : "Save products"
-              }
-            </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </div>
-      </div>
+
+          <button
+            onClick={addRow}
+            disabled={saving}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            Add another product
+          </button>
+
+          <div className="flex flex-col gap-3">
+            {status !== "idle" && (
+              <div
+                className={`flex items-center gap-2 rounded-md px-4 py-3 text-sm ${
+                  status === "success"
+                    ? "bg-emerald-500/10 text-emerald-600"
+                    : "bg-rose-500/10 text-rose-600"
+                }`}
+              >
+                {status === "success"
+                  ? <CheckCircle className="h-4 w-4 shrink-0" />
+                  : <AlertCircle className="h-4 w-4 shrink-0" />}
+                {statusMsg}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleReset} disabled={saving}>Reset</Button>
+              <Button onClick={handleSubmit} disabled={saving}>
+                {saving
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
+                  : "Save products"
+                }
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

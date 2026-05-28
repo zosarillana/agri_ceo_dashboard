@@ -118,14 +118,6 @@ const _acctOverdue = mockData.accounts.filter(
   (a) => a.type === "receivable" && a.due !== "Received" && new Date(a.due) < new Date(),
 ).length;
 
-// ── QC ────────────────────────────────────────────────────────────────────────
-const _qc = mockData.qc;
-const _qcFailed = _qc.samplesTested - _qc.samplesPassed;
-// find product with worst pass rate for "top issue"
-const _qcWorstProduct = [..._qc.products].sort(
-  (a, b) => (a.passed / a.tested) - (b.passed / b.tested),
-)[0];
-
 // ── Procurement ───────────────────────────────────────────────────────────────
 const _proc = mockData.procurement;
 const _procPending = _proc.filter((p) => p.status === "pending").length;
@@ -149,11 +141,6 @@ const MOCK = {
     stat: fmtPHP(_acctNet),
     unit: "net cash position",
     summary: "Accounts overview",
-  },
-  qc: {
-    stat: `${_qc.passRate}%`,
-    unit: "pass rate this month",
-    summary: `${_qc.samplesTested} samples tested`,
   },
   procurement: {
     stat: String(_procOpen),
@@ -416,6 +403,287 @@ function StubCard({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   QC CARD (using real API data)
+───────────────────────────────────────────────────────────────────────────── */
+
+function QcCard({
+  index,
+  qcStats,
+  timeLabel,
+  dateLabel,
+  selectedMonthKey,
+  onSignIn,
+}: {
+  index: number;
+  qcStats: any;
+  timeLabel: string;
+  dateLabel: string;
+  selectedMonthKey: string;
+  onSignIn: () => void;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  if (!qcStats || !qcStats.current_month) {
+    return (
+      <AnimatedCard index={index}>
+        <Card className="transition-all hover:shadow-md">
+          <CardContent className="px-5 py-4">
+            <div className="flex justify-between">
+              <CardHeaderBlock
+                color="coral"
+                icon={FlaskConical}
+                label="Quality Control"
+                summary="Loading QC data..."
+              />
+              <div className="text-right">
+                <p className="text-2xl font-bold text-muted-foreground">—</p>
+                <p className="text-xs text-muted-foreground">pass rate</p>
+                <CardTimestamp timeLabel="—" dateLabel="—" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </AnimatedCard>
+    );
+  }
+
+  const currentMonth = qcStats.current_month;
+  const previousMonth = qcStats.previous_month;
+  const momChange = qcStats.mom_pass_rate_change;
+  const hasData = currentMonth.samples_tested > 0;
+  const isCurrentMonth = selectedMonthKey === currentMonth.month;
+
+  const displayPassRate = isCurrentMonth
+    ? currentMonth.pass_rate
+    : (qcStats.monthly_breakdown?.find((m: any) => m.month === selectedMonthKey)
+        ?.pass_rate ?? null);
+
+  const momLabel = momChange != null
+    ? `${momChange >= 0 ? "+" : ""}${momChange}% vs last month`
+    : "No prior month data";
+
+  return (
+    <AnimatedCard index={index}>
+      <Card className="transition-all hover:shadow-md">
+        <CardContent className="px-5 py-4 space-y-3">
+          <div className="flex justify-between cursor-pointer" onClick={() => setExpanded((v) => !v)}>
+            <CardHeaderBlock
+              color="coral"
+              icon={FlaskConical}
+              label="Quality Control"
+              summary={`${currentMonth.samples_tested.toLocaleString()} samples · ${currentMonth.pass_rate}% pass rate`}
+            />
+            <div className="text-right">
+              <p className="text-2xl font-bold">
+                {displayPassRate != null ? `${displayPassRate}%` : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">pass rate</p>
+              {!isCurrentMonth && displayPassRate != null && (
+                <div className="flex justify-end mt-1">
+                  <HistoricalBadge label={fmtMonthLabel(selectedMonthKey)} />
+                </div>
+              )}
+              <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
+            </div>
+          </div>
+
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <motion.div
+                key="qc-expanded"
+                variants={expandVariants}
+                initial="collapsed"
+                animate="expanded"
+                exit="collapsed"
+                transition={{ duration: 0.22, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3 border-t border-border/50 space-y-3">
+                  {/* Pass Rate Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Pass Rate</span>
+                      <span className="font-medium text-foreground">
+                        {currentMonth.pass_rate}%
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full bg-emerald-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${currentMonth.pass_rate}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Key Metrics Grid */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Tested
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {currentMonth.samples_tested.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                        Passed
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {currentMonth.samples_passed.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-red-600 dark:text-red-400 uppercase tracking-wide">
+                        Failed
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {currentMonth.samples_failed.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Rejection Rate */}
+                  <div className="pt-1 space-y-1">
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Rejection Rate</span>
+                      <span className="font-medium text-foreground">
+                        {currentMonth.rejection_rate}%
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full bg-red-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${currentMonth.rejection_rate}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Products Tested */}
+                  {qcStats.product_performance && qcStats.product_performance.length > 0 && (
+                    <div className="pt-1 space-y-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                        Products Tested ({currentMonth.products_tested})
+                      </p>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                        {qcStats.product_performance.slice(0, 5).map((product: any, idx: number) => (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] font-medium text-foreground truncate max-w-[140px]">
+                                {product.product_name}
+                              </span>
+                              <span className="text-[10px] font-semibold">
+                                {product.passed}/{product.tested}
+                                <span className="text-muted-foreground ml-1">
+                                  ({product.pass_rate}%)
+                                </span>
+                              </span>
+                            </div>
+                            <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
+                              <motion.div
+                                className={`h-full rounded-full ${
+                                  product.pass_rate >= 90
+                                    ? "bg-emerald-500"
+                                    : product.pass_rate >= 70
+                                      ? "bg-amber-500"
+                                      : "bg-red-500"
+                                }`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${product.pass_rate}%` }}
+                                transition={{ duration: 0.3, ease: "easeOut" }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Low Pass Rate Warning */}
+                  {currentMonth.pass_rate < 85 && (
+                    <div className="pt-2 mt-1 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-600 dark:text-amber-400 text-[10px] font-medium">
+                          ⚠️ Quality Alert
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Pass rate below 85% ({currentMonth.pass_rate}%). 
+                        Review quality control processes.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Monthly Comparison */}
+                  {isCurrentMonth && previousMonth.samples_tested > 0 && (
+                    <div className="flex justify-between items-center pt-1 border-t border-border/30">
+                      <span className="text-[10px] text-muted-foreground">
+                        Previous Month ({fmtMonthLabel(previousMonth.month)})
+                      </span>
+                      <div className="text-right">
+                        <span className="text-xs font-medium">
+                          {previousMonth.pass_rate}% pass rate
+                        </span>
+                        <span
+                          className={`text-[10px] ml-2 ${
+                            momChange >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          {momLabel}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Daily Trend (last 7 days) */}
+                  {qcStats.daily_trend && qcStats.daily_trend.length > 0 && (
+                    <div className="pt-1 space-y-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                        Last 7 Days Trend
+                      </p>
+                      <div className="space-y-1">
+                        {qcStats.daily_trend.slice(-7).map((day: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center text-[10px]">
+                            <span className="text-muted-foreground">
+                              {format(new Date(day.date), "MMM d")}
+                            </span>
+                            <div className="flex-1 mx-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full"
+                                style={{ width: `${day.pass_rate}%` }}
+                              />
+                            </div>
+                            <span className="font-medium">{day.pass_rate}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!hasData && (
+                    <p className="text-[10px] text-muted-foreground italic">
+                      No QC data recorded for {fmtMonthLabel(currentMonth.month)}.
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <ExpandRow id="qc" expanded={expanded} onToggle={() => setExpanded((v) => !v)} onSignIn={onSignIn} />
+        </CardContent>
+      </Card>
+    </AnimatedCard>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    EXPANDED CONTENT — one per stub
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -442,48 +710,6 @@ const AccountsExpanded = () => {
           />
         ))}
         <MockRow label="Overdue accounts" value={`${_acctOverdue} invoices`} />
-      </div>
-    </div>
-  );
-};
-
-const QcExpanded = () => {
-  const q = mockData.qc;
-  return (
-    <div className="space-y-2">
-      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-        <motion.div
-          className="h-full bg-emerald-500 rounded-full"
-          initial={{ width: 0 }}
-          animate={{ width: `${q.passRate}%` }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground">Tested</p>
-          <p className="text-sm font-semibold">{fmt(q.samplesTested)}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Passed</p>
-          <p className="text-sm font-semibold">{fmt(q.samplesPassed)}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[10px] text-red-600 dark:text-red-400">Failed</p>
-          <p className="text-sm font-semibold">{fmt(_qcFailed)}</p>
-        </div>
-      </div>
-      <div className="pt-1 border-t border-border/30 space-y-1.5">
-        {q.products.map((p) => (
-          <MockRow
-            key={p.name}
-            label={p.name}
-            value={`${p.passed}/${p.tested} passed`}
-          />
-        ))}
-        {_qcWorstProduct && (
-          <MockRow label="Lowest pass rate" value={_qcWorstProduct.name} />
-        )}
       </div>
     </div>
   );
@@ -964,6 +1190,7 @@ export function LandingDashboard() {
   const maintenance = stats?.maintenance;
   const sales       = stats?.sales;
   const energy      = stats?.energy;
+  const qc          = stats?.qc;
 
   const productionStat = loadingStats
     ? "—"
@@ -1067,13 +1294,14 @@ export function LandingDashboard() {
               expandedContent={<AccountsExpanded />}
               onSignIn={() => handleSignIn("Accounts")}
             />
-            <StubCard
-              id="qc" index={3} color="coral" label="Quality Control" icon={FlaskConical}
-              summary={MOCK.qc.summary}
-              stat={MOCK.qc.stat}
-              unit={MOCK.qc.unit}
-              timeLabel="Sample"
-              expandedContent={<QcExpanded />}
+            
+            {/* QC CARD - Now using real API data */}
+            <QcCard
+              index={3}
+              qcStats={qc}
+              timeLabel={qc?.last_updated_at ? relativeTime(new Date(qc.last_updated_at)) : "—"}
+              dateLabel={qc?.last_updated_at ? fmtDate(new Date(qc.last_updated_at)) : "not available"}
+              selectedMonthKey={selectedMthKey}
               onSignIn={() => handleSignIn("Quality Control")}
             />
           </div>

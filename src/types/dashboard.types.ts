@@ -88,9 +88,66 @@ export type DashboardStats = {
     last_updated_at: string | null;
   };
 
+  // Add QC to DashboardStats
+  qc: QcStats;
+
   // Add workforce to DashboardStats
   workforce: WorkforceStats;
 };
+
+export interface QcProductPerformance {
+  product_name: string;
+  tested: number;
+  passed: number;
+  failed: number;
+  pass_rate: number;
+}
+
+export interface QcDailyTrend {
+  date: string;
+  tested: number;
+  passed: number;
+  failed: number;
+  pass_rate: number;
+}
+
+export interface QcWeeklyBreakdown {
+  week: string;
+  start_date: string;
+  end_date: string;
+  tested: number;
+  passed: number;
+  failed: number;
+  pass_rate: number;
+}
+
+export interface QcStats {
+  current_month: {
+    samples_tested: number;
+    samples_passed: number;
+    samples_failed: number;
+    pass_rate: number;
+    rejection_rate: number;
+    products_tested: number;
+    month: string;
+  };
+  previous_month: {
+    samples_tested: number;
+    samples_passed: number;
+    samples_failed: number;
+    pass_rate: number;
+    rejection_rate: number;
+    products_tested: number;
+    month: string;
+  };
+  mom_pass_rate_change: number | null;
+  weekly_breakdown: QcWeeklyBreakdown[];
+  daily_trend: QcDailyTrend[];
+  top_products: QcProductPerformance[];
+  product_performance: QcProductPerformance[];
+  has_data: boolean;
+  last_updated_at: string | null;
+}
 
 export interface WorkforceDeptStat {
   key: string;

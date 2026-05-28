@@ -257,11 +257,11 @@ export default function WorkforceDash() {
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Direct / Indirect Split</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Headcount Distribution</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{directSplit}% / {deptSplit}%</div>
-                    <p className="text-xs text-muted-foreground mt-1">Direct vs Department</p>
+                    <div className="text-2xl font-bold">{deptSplit}% / {directSplit}% </div>
+                    <p className="text-xs text-muted-foreground mt-1">OPEX vs Direct </p>
                   </CardContent>
                 </Card>
               </div>
@@ -274,7 +274,7 @@ export default function WorkforceDash() {
                     OPEX
                   </CardTitle>
                   <Badge variant="outline" className="font-normal">
-                    {deptRecords.length} OPEX
+                    {deptRecords.length} Cost Center
                   </Badge>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -286,7 +286,7 @@ export default function WorkforceDash() {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="font-semibold w-[260px]">OPEX</TableHead>
+                          <TableHead className="font-semibold w-[260px]">Cost Center</TableHead>
                           <TableHead className="text-right font-semibold w-28">Present</TableHead>
                           <TableHead className="text-right font-semibold w-28">Headcount</TableHead>
                           <TableHead className="text-right font-semibold w-28">Incidents</TableHead>
@@ -314,7 +314,7 @@ export default function WorkforceDash() {
                           </TableRow>
                         ))}
                         <TableRow className="border-t-2 bg-muted/30 hover:bg-muted/30">
-                          <TableCell className="font-semibold">Total DEPARTMENT</TableCell>
+                          <TableCell className="font-semibold">Total OPEX</TableCell>
                           <TableCell className="text-right font-semibold tabular-nums">{deptPresent}</TableCell>
                           <TableCell className="text-right font-semibold tabular-nums">{deptHeadcount}</TableCell>
                           <TableCell className="text-right font-semibold tabular-nums">{deptIncidents}</TableCell>
