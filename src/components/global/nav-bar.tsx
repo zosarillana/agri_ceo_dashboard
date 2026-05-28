@@ -267,7 +267,8 @@ export function GlobalNavbar() {
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Settings</span>
                     </DropdownMenuItem>
-                    {user?.role === "admin" || user?.role === "superadmin" && (
+                    {(user?.role === "admin" ||
+                      user?.role === "superadmin") && (
                       <DropdownMenuItem
                         onClick={() => handleNavigate(usersPath)}
                       >
