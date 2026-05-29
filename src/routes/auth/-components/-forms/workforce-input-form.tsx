@@ -1,6 +1,6 @@
 // src/components/-forms/workforce-input-form.tsx
 "use client";
-
+import React from "react";
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import {
@@ -95,7 +95,6 @@ const DEPT_SECTIONS: { heading: string; keys: string[] }[] = [
 ];
 
 const DEPT_LABELS: Record<string, string> = {
-  //   opex: "OPEX",
   hr: "HR",
   it: "IT",
   sales: "Sales",
@@ -112,6 +111,27 @@ const DEPT_LABELS: Record<string, string> = {
   prod_dry_process: "Production - Dry Process",
   prod_liquid_line: "Production - Liquid Line",
   quality: "Quality",
+};
+
+// ─── Default Headcounts ───────────────────────────────────────────────────────
+
+const DEFAULT_HEADCOUNTS: Record<string, number> = {
+  hr: 13,
+  it: 3,
+  sales: 4,
+  finance: 16,
+  gen_ops: 20,
+  proc_rm: 6,
+  proc_nrm: 5,
+  proc_local_sales: 1,
+  project: 6,
+  field_ops: 17,
+  business_ops: 3,
+  engineering: 30,
+  proc_nuts_receiving: 0,
+  prod_dry_process: 19,
+  prod_liquid_line: 13,
+  quality: 28,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -154,7 +174,9 @@ function buildEmptySections(): Section[] {
       key,
       label: DEPT_LABELS[key],
       present: "",
-      headcount: "",
+      headcount: DEFAULT_HEADCOUNTS[key] != null
+        ? String(DEFAULT_HEADCOUNTS[key])
+        : "",
       incidents: "",
       isReadOnly: false,
     })),
@@ -169,13 +191,28 @@ function populateSections(records: WorkforceRecord[]): Section[] {
       const existing = recordMap.get(key);
       const hasData =
         existing && (existing.present > 0 || existing.headcount > 0);
+
+      if (existing && hasData) {
+        return {
+          key,
+          label: DEPT_LABELS[key],
+          present: String(existing.present),
+          headcount: String(existing.headcount),
+          incidents: String(existing.incidents),
+          isReadOnly: true,
+        };
+      }
+
+      // Pre-fill headcount from defaults for new entries
       return {
         key,
         label: DEPT_LABELS[key],
-        present: existing ? String(existing.present) : "",
-        headcount: existing ? String(existing.headcount) : "",
-        incidents: existing ? String(existing.incidents) : "",
-        isReadOnly: !!hasData,
+        present: "",
+        headcount: DEFAULT_HEADCOUNTS[key] != null
+          ? String(DEFAULT_HEADCOUNTS[key])
+          : "",
+        incidents: "",
+        isReadOnly: false,
       };
     }),
   }));
@@ -347,7 +384,9 @@ export default function WorkforceInputForm({
           return {
             ...row,
             present: "",
-            headcount: "",
+            headcount: DEFAULT_HEADCOUNTS[key] != null
+              ? String(DEFAULT_HEADCOUNTS[key])
+              : "",
             incidents: "",
             isReadOnly: false,
           };
@@ -358,7 +397,7 @@ export default function WorkforceInputForm({
   }
 
   function handleReset() {
-    if (cache.current[dateISO]) {
+    if (cache.current[dateISO] && cache.current[dateISO].length > 0) {
       applySections(cache.current[dateISO]);
     } else {
       setSections(buildEmptySections());
@@ -538,12 +577,9 @@ export default function WorkforceInputForm({
 
                 <TableBody>
                   {sections.map((sec, si) => (
-                    <>
+                    <React.Fragment key={sec.heading}>
                       {/* Section heading */}
-                      <TableRow
-                        key={sec.heading}
-                        className="bg-muted/60 hover:bg-muted/60"
-                      >
+                      <TableRow className="bg-muted/60 hover:bg-muted/60">
                         <TableCell
                           colSpan={6}
                           className="py-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
@@ -682,7 +718,7 @@ export default function WorkforceInputForm({
                           </TableRow>
                         );
                       })}
-                    </>
+                    </React.Fragment>
                   ))}
 
                   {/* TOTAL row */}

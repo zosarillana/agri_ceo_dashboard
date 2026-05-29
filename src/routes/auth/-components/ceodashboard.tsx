@@ -429,7 +429,7 @@ function DashCard({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   QC CARD (now using real API data)
+   QC CARD (FIXED - Now properly shows daily data like Workforce card)
 ───────────────────────────────────────────────────────────────────────────── */
 
 function QcCard({
@@ -438,14 +438,14 @@ function QcCard({
   qcStats,
   timeLabel,
   dateLabel,
-  selectedMonthKey,
+  selectedDateISO,
 }: {
   active: boolean;
   index: number;
   qcStats: any;
   timeLabel: string;
   dateLabel: string;
-  selectedMonthKey: string;
+  selectedDateISO: string;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
@@ -475,21 +475,78 @@ function QcCard({
     );
   }
 
-  const currentMonth = qcStats.current_month;
-  const previousMonth = qcStats.previous_month;
-  const momChange = qcStats.mom_pass_rate_change;
-  const hasData = currentMonth.samples_tested > 0;
-  const isCurrentMonth = selectedMonthKey === currentMonth.month;
+  // Find the daily data for the selected date from daily_trend
+  const selectedDayData = qcStats.daily_trend?.find((day: any) => {
+    const dayDate = day.date.includes("T") ? day.date.split("T")[0] : day.date;
+    return dayDate === selectedDateISO;
+  });
 
-  const displayPassRate = isCurrentMonth
-    ? currentMonth.pass_rate
-    : (qcStats.monthly_breakdown?.find((m: any) => m.month === selectedMonthKey)
-        ?.pass_rate ?? null);
+  // Get today's date for comparison
+  const isToday = selectedDateISO === getTodayISO();
+  const selectedDateObj = new Date(selectedDateISO + "T00:00:00");
 
-  const momLabel =
-    momChange != null
-      ? `${momChange >= 0 ? "+" : ""}${momChange}% vs last month`
-      : "No prior month data";
+  // DAILY DATA is the primary source - this is what shows in the main stat
+  const hasDailyData = selectedDayData && selectedDayData.tested > 0;
+  const displayPassRate = hasDailyData ? selectedDayData.pass_rate : 0;
+  const displayTested = hasDailyData ? selectedDayData.tested : 0;
+  const displayPassed = hasDailyData ? selectedDayData.passed : 0;
+  const displayFailed = hasDailyData ? selectedDayData.failed : 0;
+
+  // Monthly data for the selected date's month (for expanded view)
+  const selectedMonthKey = toMonthKey(selectedDateISO);
+  const monthlyData =
+    qcStats.monthly_breakdown?.find((m: any) => m.month === selectedMonthKey) ||
+    qcStats.current_month;
+
+  // Get previous month data for comparison
+  const previousMonthDate = new Date(selectedDateObj);
+  previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+  const previousMonthKey = toMonthKey(
+    previousMonthDate.toLocaleDateString("en-CA"),
+  );
+  const previousMonthlyData = qcStats.monthly_breakdown?.find(
+    (m: any) => m.month === previousMonthKey,
+  );
+
+  // Calculate month-over-month change
+  const momChange =
+    previousMonthlyData && monthlyData
+      ? monthlyData.pass_rate - previousMonthlyData.pass_rate
+      : null;
+
+  // Get product performance for the month
+  const productPerformance = qcStats.product_performance || [];
+
+  // Get trend data for last 7 days relative to selected date
+  const getTrendDataForSelectedDate = () => {
+    if (!qcStats.daily_trend || qcStats.daily_trend.length === 0) return [];
+
+    // Convert all dates to ISO format (YYYY-MM-DD)
+    const trendsWithProperDates = qcStats.daily_trend.map((day: any) => ({
+      ...day,
+      date: day.date.includes("T") ? day.date.split("T")[0] : day.date,
+    }));
+
+    const selectedIndex = trendsWithProperDates.findIndex(
+      (day: any) => day.date === selectedDateISO,
+    );
+
+    if (selectedIndex === -1) {
+      // If selected date not found, show last 7 days
+      return trendsWithProperDates.slice(-7);
+    }
+
+    // Show up to 7 days ending at selected date
+    const startIndex = Math.max(0, selectedIndex - 6);
+    return trendsWithProperDates.slice(startIndex, selectedIndex + 1);
+  };
+
+  const trendData = getTrendDataForSelectedDate();
+
+  // Summary text for header - shows monthly context
+  const summaryText = monthlyData
+    ? `${monthlyData.samples_tested?.toLocaleString() || 0} samples · ${monthlyData.pass_rate || 0}% pass rate (${format(selectedDateObj, "MMMM yyyy")})`
+    : "No data available";
 
   return (
     <AnimatedCard index={index}>
@@ -505,19 +562,51 @@ function QcCard({
               color="coral"
               icon={FlaskConical}
               label="Quality Control"
-              summary={`${currentMonth.samples_tested.toLocaleString()} samples · ${currentMonth.pass_rate}% pass rate`}
+              summary={summaryText}
             />
             <div className="text-right">
               <p className="text-2xl font-bold">
-                {displayPassRate != null ? `${displayPassRate}%` : "—"}
+                {displayPassRate > 0 ? `${displayPassRate}%` : "0%"}
               </p>
               <p className="text-xs text-muted-foreground">pass rate</p>
-              {!isCurrentMonth && displayPassRate != null && (
+              {!isToday && selectedDayData && (
                 <div className="flex justify-end mt-1">
-                  <HistoricalBadge label={fmtMonthLabel(selectedMonthKey)} />
+                  <HistoricalBadge label={format(selectedDateObj, "MMM d")} />
                 </div>
               )}
               <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
+            </div>
+          </div>
+
+          {/* Daily Summary Section - Shows selected date's data prominently */}
+          <div className="pt-1 border-t border-border/30">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                {format(selectedDateObj, "MMMM d, yyyy")}
+              </p>
+              {!hasDailyData && (
+                <span className="text-[10px] text-muted-foreground italic">
+                  No inspections
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-muted-foreground">Tested</p>
+                <p className="text-base font-bold">{displayTested}</p>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                  Passed
+                </p>
+                <p className="text-base font-bold">{displayPassed}</p>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-red-600 dark:text-red-400">
+                  Failed
+                </p>
+                <p className="text-base font-bold">{displayFailed}</p>
+              </div>
             </div>
           </div>
 
@@ -532,176 +621,212 @@ function QcCard({
                 transition={{ duration: 0.22, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <div className="pt-3 border-t border-border/50 space-y-3">
-                  {/* Pass Rate Progress Bar */}
+                <div className="pt-2 border-t border-border/50 space-y-3">
+                  {/* Monthly Pass Rate Progress Bar */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Pass Rate</span>
+                      <span>
+                        Monthly Pass Rate (
+                        {format(selectedDateObj, "MMMM yyyy")})
+                      </span>
                       <span className="font-medium text-foreground">
-                        {currentMonth.pass_rate}%
+                        {monthlyData?.pass_rate || 0}%
                       </span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
                       <motion.div
                         className="h-full bg-emerald-500 rounded-full"
                         initial={{ width: 0 }}
-                        animate={{ width: `${currentMonth.pass_rate}%` }}
+                        animate={{ width: `${monthlyData?.pass_rate || 0}%` }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
                       />
                     </div>
                   </div>
 
-                  {/* Key Metrics Grid */}
+                  {/* Monthly Key Metrics Grid */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                         Tested
                       </p>
                       <p className="text-sm font-semibold">
-                        {currentMonth.samples_tested.toLocaleString()}
+                        {monthlyData?.samples_tested?.toLocaleString() || 0}
                       </p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
                         Passed
                       </p>
                       <p className="text-sm font-semibold">
-                        {currentMonth.samples_passed.toLocaleString()}
+                        {monthlyData?.samples_passed?.toLocaleString() || 0}
                       </p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <p className="text-[10px] text-red-600 dark:text-red-400 uppercase tracking-wide">
                         Failed
                       </p>
                       <p className="text-sm font-semibold">
-                        {currentMonth.samples_failed.toLocaleString()}
+                        {monthlyData?.samples_failed?.toLocaleString() || 0}
                       </p>
                     </div>
                   </div>
 
-                  {/* Rejection Rate */}
-                  <div className="pt-1 space-y-1">
+                  {/* Monthly Rejection Rate */}
+                  <div className="pt-1 space-y-1.5">
                     <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Rejection Rate</span>
+                      <span>Monthly Rejection Rate</span>
                       <span className="font-medium text-foreground">
-                        {currentMonth.rejection_rate}%
+                        {monthlyData?.rejection_rate || 0}%
                       </span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
                       <motion.div
                         className="h-full bg-red-500 rounded-full"
                         initial={{ width: 0 }}
-                        animate={{ width: `${currentMonth.rejection_rate}%` }}
+                        animate={{
+                          width: `${monthlyData?.rejection_rate || 0}%`,
+                        }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
                       />
                     </div>
                   </div>
 
                   {/* Products Tested */}
-                  <div className="pt-1 space-y-2">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-                      Products Tested ({currentMonth.products_tested})
-                    </p>
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                      {qcStats.product_performance?.slice(0, 5).map((product: any, idx: number) => (
-                        <div key={idx} className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[11px] font-medium text-foreground truncate max-w-[140px]">
-                              {product.product_name}
-                            </span>
-                            <span className="text-[10px] font-semibold">
-                              {product.passed}/{product.tested}
-                              <span className="text-muted-foreground ml-1">
-                                ({product.pass_rate}%)
-                              </span>
-                            </span>
-                          </div>
-                          <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
-                            <motion.div
-                              className={`h-full rounded-full ${
-                                product.pass_rate >= 90
-                                  ? "bg-emerald-500"
-                                  : product.pass_rate >= 70
-                                    ? "bg-amber-500"
-                                    : "bg-red-500"
-                              }`}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${product.pass_rate}%` }}
-                              transition={{ duration: 0.3, ease: "easeOut" }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Low Pass Rate Warning */}
-                  {currentMonth.pass_rate < 85 && (
-                    <div className="pt-2 mt-1 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
-                      <div className="flex items-center gap-2">
-                        <span className="text-amber-600 dark:text-amber-400 text-[10px] font-medium">
-                          ⚠️ Quality Alert
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Pass rate below 85% ({currentMonth.pass_rate}%). 
-                        Review quality control processes.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Monthly Comparison */}
-                  {isCurrentMonth && previousMonth.samples_tested > 0 && (
-                    <div className="flex justify-between items-center pt-1 border-t border-border/30">
-                      <span className="text-[10px] text-muted-foreground">
-                        Previous Month ({fmtMonthLabel(previousMonth.month)})
-                      </span>
-                      <div className="text-right">
-                        <span className="text-xs font-medium">
-                          {previousMonth.pass_rate}% pass rate
-                        </span>
-                        <span
-                          className={`text-[10px] ml-2 ${
-                            momChange >= 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-red-600 dark:text-red-400"
-                          }`}
-                        >
-                          {momLabel}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Daily Trend (last 7 days) */}
-                  {qcStats.daily_trend && qcStats.daily_trend.length > 0 && (
+                  {productPerformance.length > 0 && (
                     <div className="pt-1 space-y-2">
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-                        Last 7 Days Trend
+                        Products Tested ({monthlyData?.samples_tested || 0}{" "}
+                        total)
                       </p>
-                      <div className="space-y-1">
-                        {qcStats.daily_trend.slice(-7).map((day: any, idx: number) => (
-                          <div key={idx} className="flex justify-between items-center text-[10px]">
-                            <span className="text-muted-foreground">
-                              {format(new Date(day.date), "MMM d")}
-                            </span>
-                            <div className="flex-1 mx-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className="h-full bg-emerald-500 rounded-full"
-                                style={{ width: `${day.pass_rate}%` }}
-                              />
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                        {productPerformance
+                          .slice(0, 5)
+                          .map((product: any, idx: number) => (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[11px] font-medium text-foreground truncate max-w-[140px]">
+                                  {product.product_name}
+                                </span>
+                                <span className="text-[10px] font-semibold">
+                                  {product.passed}/{product.tested}
+                                  <span className="text-muted-foreground ml-1">
+                                    ({product.pass_rate}%)
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
+                                <motion.div
+                                  className={`h-full rounded-full ${
+                                    product.pass_rate >= 90
+                                      ? "bg-emerald-500"
+                                      : product.pass_rate >= 70
+                                        ? "bg-amber-500"
+                                        : "bg-red-500"
+                                  }`}
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${product.pass_rate}%` }}
+                                  transition={{
+                                    duration: 0.3,
+                                    ease: "easeOut",
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <span className="font-medium">{day.pass_rate}%</span>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </div>
                   )}
 
-                  {!hasData && (
-                    <p className="text-[10px] text-muted-foreground italic">
-                      No QC data recorded for {fmtMonthLabel(currentMonth.month)}.
-                    </p>
+                  {/* Monthly Low Pass Rate Warning */}
+                  {monthlyData?.pass_rate < 85 &&
+                    monthlyData?.pass_rate > 0 && (
+                      <div className="pt-2 mt-1 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-600 dark:text-amber-400 text-[10px] font-medium">
+                            ⚠️ Quality Alert
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Monthly pass rate below 85% ({monthlyData.pass_rate}
+                          %). Review quality control processes for{" "}
+                          {format(selectedDateObj, "MMMM yyyy")}.
+                        </p>
+                      </div>
+                    )}
+
+                  {/* Month-over-Month Comparison */}
+                  {previousMonthlyData &&
+                    previousMonthlyData.samples_tested > 0 && (
+                      <div className="flex justify-between items-center pt-1 border-t border-border/30">
+                        <span className="text-[10px] text-muted-foreground">
+                          Previous Month ({previousMonthlyData.month})
+                        </span>
+                        <div className="text-right">
+                          <span className="text-xs font-medium">
+                            {previousMonthlyData.pass_rate}% pass rate
+                          </span>
+                          {momChange !== null && (
+                            <span
+                              className={`text-[10px] ml-2 ${
+                                momChange >= 0
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-red-600 dark:text-red-400"
+                              }`}
+                            >
+                              {momChange >= 0 ? "+" : ""}
+                              {momChange}% vs last month
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Daily Trend (last 7 days around selected date) */}
+                  {trendData.length > 0 && (
+                    <div className="pt-1 space-y-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                        Daily Trend
+                      </p>
+                      <div className="space-y-1.5">
+                        {trendData.map((day: any, idx: number) => {
+                          const dayDate = day.date.includes("T")
+                            ? day.date.split("T")[0]
+                            : day.date;
+                          const isSelected = dayDate === selectedDateISO;
+                          return (
+                            <div
+                              key={idx}
+                              className="flex justify-between items-center text-[10px]"
+                            >
+                              <span
+                                className={`text-muted-foreground ${isSelected ? "font-medium" : ""}`}
+                              >
+                                {format(
+                                  new Date(dayDate + "T00:00:00"),
+                                  "MMM d",
+                                )}
+                                {isSelected && (
+                                  <span className="ml-1 text-[8px] font-medium text-primary">
+                                    (selected)
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex-1 mx-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-500 rounded-full"
+                                  style={{ width: `${day.pass_rate}%` }}
+                                />
+                              </div>
+                              <span
+                                className={`font-medium ${isSelected ? "text-primary" : ""}`}
+                              >
+                                {day.pass_rate}%
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -1632,20 +1757,33 @@ function WorkforceCard({
                         By Section
                       </p>
                       {Object.entries(workforce.by_section).map(
-                        ([section, data]) => (
-                          <div
-                            key={section}
-                            className="flex justify-between text-[10px]"
-                          >
-                            <span className="text-muted-foreground">
-                              {section}
-                            </span>
-                            <span>
-                              {data.present}/{data.headcount} ({data.rate ?? 0}
-                              %)
-                            </span>
-                          </div>
-                        ),
+                        ([section, data]) => {
+                          // Function to transform section name
+                          const getDisplayName = (sectionName: string) => {
+                            if (
+                              sectionName.toLowerCase().includes("department")
+                            ) {
+                              return "OPEX";
+                            }
+                            // Add other transformations here if needed
+                            return sectionName;
+                          };
+
+                          return (
+                            <div
+                              key={section}
+                              className="flex justify-between text-[10px]"
+                            >
+                              <span className="text-muted-foreground">
+                                {getDisplayName(section)}
+                              </span>
+                              <span>
+                                {data.present}/{data.headcount} (
+                                {data.rate ?? 0}%)
+                              </span>
+                            </div>
+                          );
+                        },
                       )}
                     </div>
                   )}
@@ -1803,8 +1941,9 @@ export default function CEODashboard() {
                   : "—"
               }
               dateLabel={
-                                production?.last_updated_at ?
-                fmtDate(new Date(production.last_updated_at)) : "—"
+                production?.last_updated_at
+                  ? fmtDate(new Date(production.last_updated_at))
+                  : "—"
               }
               active={isActive("production")}
               index={0}
@@ -1857,8 +1996,8 @@ export default function CEODashboard() {
               index={4}
               expandedContent={<AccountsExpanded />}
             />
-            
-            {/* QC Card - Now using real API data */}
+
+            {/* QC Card - Now with proper daily date filtering */}
             <QcCard
               active={isActive("qc")}
               index={5}
@@ -1873,7 +2012,7 @@ export default function CEODashboard() {
                   ? fmtDate(new Date(qc.last_updated_at))
                   : "not available"
               }
-              selectedMonthKey={selectedMthKey}
+              selectedDateISO={selectedISO}
             />
           </div>
 
