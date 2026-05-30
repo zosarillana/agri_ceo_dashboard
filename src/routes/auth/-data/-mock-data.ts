@@ -288,9 +288,9 @@ export const mockData = {
       unit: "kg",
     },
     {
-      name: "VCO",
-      input: "Virgin coconut oil",
-      output: "Oil",
+      name: "FMS tolling — Cake → VCO",
+      input: "Cake",
+      output: "VCO",
       volumeIn: 8500,
       volumeOut: 2800,
       unit: "kg",
