@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Line,
-  LineChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import {
   Card,
@@ -37,12 +31,7 @@ import {
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-import {
-  TrendingUp,
-  TrendingDown,
-  BarChart2,
-  PlusCircle,
-} from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart2, PlusCircle } from "lucide-react";
 
 import EnergyInputForm from "../-forms/energy-input-form";
 import { energyService } from "@/services/energy.service";
@@ -60,10 +49,13 @@ function fmt(n: number) {
 }
 
 function fmtPHP(n: number) {
-  return "₱" + Number(n || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return (
+    "₱" +
+    Number(n || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
 function formatMonth(date: string) {
@@ -265,7 +257,7 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
     });
 
     return Array.from(map.values()).sort((a, b) =>
-      a.month.localeCompare(b.month)
+      a.month.localeCompare(b.month),
     );
   }, [account2, account3]);
 
@@ -285,34 +277,28 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
 
   const totalBilled2 = monthlyRows.reduce(
     (sum, row) => sum + row.account2_billed,
-    0
+    0,
   );
 
   const totalBilled3 = monthlyRows.reduce(
     (sum, row) => sum + row.account3_billed,
-    0
+    0,
   );
 
   const grandTotal = totalBilled2 + totalBilled3;
 
-  const totalKw2 = monthlyRows.reduce(
-    (sum, row) => sum + row.account2_kw,
-    0
-  );
+  const totalKw2 = monthlyRows.reduce((sum, row) => sum + row.account2_kw, 0);
 
-  const totalKw3 = monthlyRows.reduce(
-    (sum, row) => sum + row.account3_kw,
-    0
-  );
+  const totalKw3 = monthlyRows.reduce((sum, row) => sum + row.account3_kw, 0);
 
   const totalDemand2 = monthlyRows.reduce(
     (sum, row) => sum + row.account2_demand,
-    0
+    0,
   );
 
   const totalDemand3 = monthlyRows.reduce(
     (sum, row) => sum + row.account3_demand,
-    0
+    0,
   );
 
   /* ─────────────────────────────────────────
@@ -320,14 +306,10 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
   ───────────────────────────────────────── */
 
   const latestMonth =
-    monthlyRows.length > 0
-      ? monthlyRows[monthlyRows.length - 1]
-      : null;
+    monthlyRows.length > 0 ? monthlyRows[monthlyRows.length - 1] : null;
 
   const prevMonth =
-    monthlyRows.length > 1
-      ? monthlyRows[monthlyRows.length - 2]
-      : null;
+    monthlyRows.length > 1 ? monthlyRows[monthlyRows.length - 2] : null;
 
   const accountTiles = [
     {
@@ -366,45 +348,31 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="space-y-4">
-
       {/* ───────────────── tiles ───────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {accountTiles.map((a) => {
           const diff = a.latest - a.prev;
 
-          const pct =
-            a.prev > 0
-              ? ((diff / a.prev) * 100).toFixed(1)
-              : "0.0";
+          const pct = a.prev > 0 ? ((diff / a.prev) * 100).toFixed(1) : "0.0";
 
           const isPositive = diff >= 0;
 
           return (
             <Card key={a.label}>
               <CardContent className="pt-4 pb-4">
-
-                <p className="text-xs text-muted-foreground mb-2">
-                  {a.label}
-                </p>
+                <p className="text-xs text-muted-foreground mb-2">{a.label}</p>
 
                 <p className="text-2xl font-bold tracking-tight">
                   {fmtPHP(a.billed)}
                 </p>
 
-                <p className="text-xs text-muted-foreground">
-                  total billed
-                </p>
+                <p className="text-xs text-muted-foreground">total billed</p>
 
                 <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-3">
-
                   <div>
-                    <p className="text-xs text-muted-foreground">
-                      Total kW
-                    </p>
+                    <p className="text-xs text-muted-foreground">Total kW</p>
 
-                    <p className="text-xs font-medium">
-                      {fmt(a.kw)}
-                    </p>
+                    <p className="text-xs font-medium">{fmt(a.kw)}</p>
                   </div>
 
                   <div>
@@ -412,9 +380,7 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
                       Total Demand
                     </p>
 
-                    <p className="text-xs font-medium">
-                      {fmt(a.demand)}
-                    </p>
+                    <p className="text-xs font-medium">{fmt(a.demand)}</p>
                   </div>
                 </div>
 
@@ -431,12 +397,10 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
                     ) : (
                       <TrendingDown className="h-3 w-3" />
                     )}
-
                     {isPositive ? "+" : ""}
                     {pct}% vs prev
                   </div>
                 </div>
-
               </CardContent>
             </Card>
           );
@@ -456,17 +420,12 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
         </CardHeader>
 
         <CardContent className="px-2 pt-2 sm:px-6">
-
           <ChartContainer
             config={chartConfig}
             className="aspect-auto h-[220px] w-full"
           >
             <LineChart data={chartData}>
-
-              <CartesianGrid
-                vertical={false}
-                strokeDasharray="3 3"
-              />
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
 
               <XAxis
                 dataKey="month"
@@ -516,130 +475,129 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
                 activeDot={{ r: 6 }}
               />
 
-              <ChartLegend
-                content={<ChartLegendContent />}
-              />
-
+              <ChartLegend content={<ChartLegendContent />} />
             </LineChart>
           </ChartContainer>
-
         </CardContent>
       </Card>
 
       {/* ───────────────── table ───────────────── */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">
-            Monthly Summary
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">Monthly Summary</CardTitle>
 
-          <CardDescription>
-            Combined breakdown per month
-          </CardDescription>
+          <CardDescription>Combined breakdown per month</CardDescription>
         </CardHeader>
 
         <CardContent>
-
           <Table>
-
             <TableHeader>
               <TableRow>
-                <TableHead>Month</TableHead>
-
-                <TableHead className="text-right">
-                  A2 kW
+                <TableHead rowSpan={2} className="align-middle border-r">
+                  Month
                 </TableHead>
-
-                <TableHead className="text-right">
-                  A2 ₱
+                <TableHead
+                  colSpan={3}
+                  className="text-center border-r border-b-0"
+                >
+                  Account 2
                 </TableHead>
-
-                <TableHead className="text-right">
-                  A3 kW
+                <TableHead colSpan={3} className="text-center border-b-0">
+                  Account 3
                 </TableHead>
-
-                <TableHead className="text-right">
-                  A3 ₱
-                </TableHead>
-
-                <TableHead className="text-right">
+                <TableHead
+                  rowSpan={2}
+                  className="text-right align-middle border-l"
+                >
                   Total
                 </TableHead>
+              </TableRow>
+
+              <TableRow>
+                {/* Account 2 sub-headers */}
+                <TableHead className="text-right">Demand</TableHead>
+                <TableHead className="text-right">kW-hr</TableHead>
+                <TableHead className="text-right border-r">
+                  Billed PHP
+                </TableHead>
+
+                {/* Account 3 sub-headers */}
+                <TableHead className="text-right">Demand</TableHead>
+                <TableHead className="text-right">kW-hr</TableHead>
+                <TableHead className="text-right">Billed PHP</TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
-
               {monthlyRows.map((row) => {
-
-                const total =
-                  row.account2_billed +
-                  row.account3_billed;
-
+                const total = row.account2_billed + row.account3_billed;
                 return (
                   <TableRow key={row.month}>
-
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium border-r">
                       {formatMonth(row.month)}
                     </TableCell>
 
+                    {/* Account 2 */}
+                    <TableCell className="text-right tabular-nums">
+                      {fmt(row.account2_demand)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmt(row.account2_kw)}
                     </TableCell>
-
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-right tabular-nums border-r">
                       {fmtPHP(row.account2_billed)}
                     </TableCell>
 
+                    {/* Account 3 */}
+                    <TableCell className="text-right tabular-nums">
+                      {fmt(row.account3_demand)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmt(row.account3_kw)}
                     </TableCell>
-
                     <TableCell className="text-right tabular-nums">
                       {fmtPHP(row.account3_billed)}
                     </TableCell>
 
-                    <TableCell className="text-right tabular-nums font-semibold">
+                    <TableCell className="text-right tabular-nums font-semibold border-l">
                       {fmtPHP(total)}
                     </TableCell>
-
                   </TableRow>
                 );
               })}
 
+              {/* Totals row */}
               <TableRow className="border-t-2 font-semibold bg-muted/40">
+                <TableCell className="border-r">Total</TableCell>
 
-                <TableCell>Total</TableCell>
-
+                <TableCell className="text-right tabular-nums">
+                  {fmt(totalDemand2)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {fmt(totalKw2)}
                 </TableCell>
-
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums border-r">
                   {fmtPHP(totalBilled2)}
                 </TableCell>
 
                 <TableCell className="text-right tabular-nums">
+                  {fmt(totalDemand3)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
                   {fmt(totalKw3)}
                 </TableCell>
-
                 <TableCell className="text-right tabular-nums">
                   {fmtPHP(totalBilled3)}
                 </TableCell>
 
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums border-l">
                   {fmtPHP(grandTotal)}
                 </TableCell>
-
               </TableRow>
-
             </TableBody>
-
           </Table>
-
         </CardContent>
       </Card>
-
     </div>
   );
 }
@@ -661,10 +619,8 @@ export default function EnergyDash() {
 
   return (
     <div className="space-y-4">
-
       {/* ───────────────── tabs ───────────────── */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-
         <button
           onClick={() => setTab("view")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
@@ -688,18 +644,12 @@ export default function EnergyDash() {
           <PlusCircle className="h-3.5 w-3.5" />
           Input
         </button>
-
       </div>
 
       {/* ───────────────── content ───────────────── */}
-      {tab === "view" && (
-        <EnergyView refreshKey={refreshKey} />
-      )}
+      {tab === "view" && <EnergyView refreshKey={refreshKey} />}
 
-      {tab === "input" && (
-        <EnergyInputForm onSaved={handleSaved} />
-      )}
-
+      {tab === "input" && <EnergyInputForm onSaved={handleSaved} />}
     </div>
   );
 }
