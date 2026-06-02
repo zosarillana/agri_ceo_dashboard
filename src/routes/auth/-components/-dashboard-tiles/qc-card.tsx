@@ -24,6 +24,7 @@ export function QcCard({
   timeLabel,
   dateLabel,
   selectedDateISO,
+  basePath,
 }: {
   active: boolean;
   index: number;
@@ -31,6 +32,7 @@ export function QcCard({
   timeLabel: string;
   dateLabel: string;
   selectedDateISO: string;
+  basePath?: string;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
@@ -278,7 +280,12 @@ export function QcCard({
             )}
           </AnimatePresence>
 
-          <ExpandRow id="qc" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+          <ExpandRow
+            id="qc"
+            expanded={expanded}
+            onToggle={() => setExpanded((v) => !v)}
+            basePath={basePath}
+          />
         </CardContent>
       </Card>
     </AnimatedCard>

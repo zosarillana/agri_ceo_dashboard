@@ -27,6 +27,7 @@ export function EnergyCard({
   dateLabel,
   selectedMonthKey,
   monthlyTrends,
+  basePath,
 }: {
   active: boolean;
   index: number;
@@ -50,6 +51,7 @@ export function EnergyCard({
     total_kw: number;
     total_demand: number;
   }>;
+  basePath?: string;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
@@ -107,7 +109,12 @@ export function EnergyCard({
               </motion.div>
             )}
           </AnimatePresence>
-          <ExpandRow id="energy" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+          <ExpandRow
+            id="energy"
+            expanded={expanded}
+            onToggle={() => setExpanded((v) => !v)}
+            basePath={basePath}
+          />
         </CardContent>
       </Card>
     </AnimatedCard>

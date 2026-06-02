@@ -21,12 +21,14 @@ export function WorkforceCard({
   workforce,
   timeLabel,
   dateLabel,
+  basePath,
 }: {
   active: boolean;
   index: number;
   workforce: WorkforceStats | undefined;
   timeLabel: string;
   dateLabel: string;
+  basePath?: string;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
@@ -144,7 +146,12 @@ export function WorkforceCard({
             )}
           </AnimatePresence>
 
-          <ExpandRow id="workforce" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+          <ExpandRow
+            id="workforce"
+            expanded={expanded}
+            onToggle={() => setExpanded((v) => !v)}
+            basePath={basePath}
+          />
         </CardContent>
       </Card>
     </AnimatedCard>

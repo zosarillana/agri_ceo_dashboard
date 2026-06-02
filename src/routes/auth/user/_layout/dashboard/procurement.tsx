@@ -5,6 +5,7 @@ export const Route = createFileRoute(
   "/auth/user/_layout/dashboard/procurement",
 )({
   component: RouteComponent,
+  staticData: { title: 'Procurement' },
 });
 
 function RouteComponent() {

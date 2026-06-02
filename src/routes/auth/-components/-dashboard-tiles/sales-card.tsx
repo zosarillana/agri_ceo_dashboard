@@ -26,6 +26,7 @@ export function SalesCard({
   timeLabel,
   dateLabel,
   selectedMonthKey,
+  basePath,
 }: {
   active: boolean;
   index: number;
@@ -47,6 +48,7 @@ export function SalesCard({
   timeLabel: string;
   dateLabel: string;
   selectedMonthKey: string;
+  basePath?: string;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
@@ -107,7 +109,12 @@ export function SalesCard({
               <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
             </div>
           </div>
-          <ExpandRow id="sales" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+          <ExpandRow
+            id="sales"
+            expanded={expanded}
+            onToggle={() => setExpanded((v) => !v)}
+            basePath={basePath}
+          />
         </CardContent>
       </Card>
     </AnimatedCard>

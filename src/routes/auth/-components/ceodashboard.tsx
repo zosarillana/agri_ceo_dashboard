@@ -4,45 +4,18 @@ import { useLocation } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Factory, Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 import { useDashboardStore } from "@/store/dashboard.store";
 import { toMonthKey, getTodayISO, toISO, fmt, fmtDate, relativeTime, currentMonthKey } from "@/lib/dashboard-utils";
-import { DashCard, AnimatedCard } from "./-dashboard-tiles/shared-dashboard-ui";
+import { AnimatedCard } from "./-dashboard-tiles/shared-dashboard-ui";
 import { AccountsStubCard, ProcurementStubCard, TradingStubCard } from "./-dashboard-tiles/stub-tiles";
+import { ProductionCard } from "./-dashboard-tiles/production-card";
 import { QcCard } from "./-dashboard-tiles/qc-card";
 import { WorkforceCard } from "./-dashboard-tiles/workforce-card";
 import { SalesCard } from "./-dashboard-tiles/sales-card";
 import { EnergyCard } from "./-dashboard-tiles/energy-card";
 import { MaintenanceCard } from "./-dashboard-tiles/maintenance-card";
-
-function ProductionExpanded({ production }: { production: any }) {
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            Today
-          </p>
-          <p className="text-sm font-semibold">
-            {production?.today_production_output ? fmt(production.today_production_output) : "—"}
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            Yesterday
-          </p>
-          <p className="text-sm font-semibold">
-            {production?.yesterday_production_output ? fmt(production.yesterday_production_output) : "—"}
-          </p>
-        </div>
-      </div>
-      <p className="text-[10px] text-muted-foreground">
-        6 product lines running
-      </p>
-    </div>
-  );
-}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
@@ -82,18 +55,6 @@ export default function CEODashboard() {
     setSelectedDate(d);
     fetchStats(toISO(d));
   }
-
-  const productionStat = loadingStats
-    ? "—"
-    : production?.today_production_output
-      ? fmt(production.today_production_output)
-      : production?.yesterday_production_output && isToday
-        ? `${fmt(production.yesterday_production_output)} (yesterday)`
-        : "No data";
-
-  const productionUnit = isToday
-    ? "units today"
-    : `units on ${format(new Date(selectedISO + "T00:00:00"), "MMM d")}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,27 +97,12 @@ export default function CEODashboard() {
         <div className="flex flex-col md:flex-row gap-3 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-3 flex-1 min-w-0">
-            <DashCard
-              id="production"
-              color="teal"
-              icon={Factory}
-              label="Production Output"
-              summary="6 product lines running"
-              stat={productionStat}
-              unit={productionUnit}
-              timeLabel={
-                production?.last_updated_at
-                  ? relativeTime(new Date(production.last_updated_at))
-                  : "—"
-              }
-              dateLabel={
-                production?.last_updated_at
-                  ? fmtDate(new Date(production.last_updated_at))
-                  : "—"
-              }
+            <ProductionCard
+              production={production}
+              loading={loadingStats}
+              isToday={isToday}
+              selectedISO={selectedISO}
               active={isActive("production")}
-              index={0}
-              expandedContent={<ProductionExpanded production={production} />}
             />
 
             <SalesCard

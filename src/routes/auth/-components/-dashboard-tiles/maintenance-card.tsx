@@ -26,6 +26,7 @@ export function MaintenanceCard({
   statusBreakdown,
   timeLabel,
   dateLabel,
+  basePath,
 }: {
   active: boolean;
   index: number;
@@ -35,6 +36,7 @@ export function MaintenanceCard({
   statusBreakdown: Record<string, number> | undefined;
   timeLabel: string;
   dateLabel: string;
+  basePath?: string;
 }) {
   const [expanded, setExpanded] = React.useState(false);
   return (
@@ -50,7 +52,12 @@ export function MaintenanceCard({
             </div>
           </div>
           {/* ... expanded content and footer row ... */}
-          <ExpandRow id="maintenance" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+          <ExpandRow
+            id="maintenance"
+            expanded={expanded}
+            onToggle={() => setExpanded((v) => !v)}
+            basePath={basePath}
+          />
         </CardContent>
       </Card>
     </AnimatedCard>

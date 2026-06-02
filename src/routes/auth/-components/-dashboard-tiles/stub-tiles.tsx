@@ -73,14 +73,74 @@ const TradingExpanded = () => (
 );
 
 // ── Specific Stub Cards ────────────────────────────────────────────────────
-export const AccountsStubCard = ({ active, index }: { active: boolean, index: number }) => (
-  <StubCard id="accounts" color="purple" label="Accounts" icon={Wallet} summary={`Net position · ${fmtPHP(_acctNet)}`} stat={fmtPHP(_acctNet)} unit="net cash position" active={active} index={index} expandedContent={<AccountsExpanded />} />
+export const AccountsStubCard = ({
+  active,
+  index,
+  basePath,
+}: {
+  active: boolean;
+  index: number;
+  basePath?: string;
+}) => (
+  <StubCard
+    id="accounts"
+    color="purple"
+    label="Accounts"
+    icon={Wallet}
+    summary={`Net position · ${fmtPHP(_acctNet)}`}
+    stat={fmtPHP(_acctNet)}
+    unit="net cash position"
+    active={active}
+    index={index}
+    expandedContent={<AccountsExpanded />}
+    basePath={basePath}
+  />
 );
 
-export const ProcurementStubCard = ({ active, index }: { active: boolean, index: number }) => (
-  <StubCard id="procurement" color="amber" label="Procurement" icon={ShoppingCart} summary={`${_procOpen} open POs · ${_procDelayed} delayed`} stat={String(_procOpen)} unit="open purchase orders" active={active} index={index} expandedContent={<ProcurementExpanded />} />
+export const ProcurementStubCard = ({
+  active,
+  index,
+  basePath,
+}: {
+  active: boolean;
+  index: number;
+  basePath?: string;
+}) => (
+  <StubCard
+    id="procurement"
+    color="amber"
+    label="Procurement"
+    icon={ShoppingCart}
+    summary={`${_procOpen} open POs · ${_procDelayed} delayed`}
+    stat={String(_procOpen)}
+    unit="open purchase orders"
+    active={active}
+    index={index}
+    expandedContent={<ProcurementExpanded />}
+    basePath={basePath}
+  />
 );
 
-export const TradingStubCard = ({ active, index }: { active: boolean, index: number }) => (
-  <StubCard id="trading" color="blue" label="Trading" icon={ArrowLeftRight} summary={`${_tradeActiveCount} operations · ${fmt(_tradeTotalVolumeIn)} kg input`} stat={String(_tradeActiveCount)} unit="active trade operations" active={active} index={index} expandedContent={<TradingExpanded />} />
+export const TradingStubCard = ({
+  active,
+  index,
+  basePath,
+}: {
+  active: boolean;
+  index: number;
+  basePath?: string;
+}) => (
+  <StubCard
+    id="trading"
+    color="blue"
+    label="Trading"
+    icon={ArrowLeftRight}
+    summary={`${_tradeActiveCount} operations · ${fmt(_tradeTotalVolumeIn)} kg input`}
+    stat={String(_tradeActiveCount)}
+    unit="active trade operations"
+    active={active}
+    index={index}
+    expandedContent={<TradingExpanded />}
+    basePath={basePath}
+  />
 );
