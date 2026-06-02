@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Wallet, ShoppingCart, ArrowLeftRight } from "lucide-react";
 import { mockData } from "@/routes/auth/-data/-mock-data";
 import { fmt, fmtPHP } from "@/lib/dashboard-utils";

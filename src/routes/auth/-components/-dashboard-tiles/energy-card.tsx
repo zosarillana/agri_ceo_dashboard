@@ -9,7 +9,7 @@ import {
   AnimatedCard, 
   ExpandRow 
 } from "./shared-dashboard-ui";
-import { fmt, fmtPHP, fmtMonthLabel } from "@/lib/dashboard-utils";
+import { fmtPHP, fmtMonthLabel } from "@/lib/dashboard-utils";
 
 const expandVariants = {
   collapsed: { height: 0, opacity: 0 },
@@ -21,7 +21,6 @@ export function EnergyCard({
   index,
   currentMonth,
   previousMonth,
-  momChangePct,
   ytdTotal,
   timeLabel,
   dateLabel,
@@ -70,18 +69,6 @@ export function EnergyCard({
     : isPreviousMonth
       ? previousMonth.has_data ? previousMonth.total_billed : null
       : (trendEntry?.total_billed ?? null);
-
-  const displayKw = isCurrentMonth
-    ? currentMonth.has_data ? currentMonth.total_kw : null
-    : (trendEntry?.total_kw ?? null);
-
-  const displayAcc2 = isCurrentMonth && currentMonth.has_data ? currentMonth.account2_billed : null;
-  const displayAcc3 = isCurrentMonth && currentMonth.has_data ? currentMonth.account3_billed : null;
-
-  const momLabel =
-    momChangePct != null
-      ? `${momChangePct >= 0 ? "+" : ""}${momChangePct}% vs last month`
-      : "No prior month data";
 
   return (
     <AnimatedCard index={index}>

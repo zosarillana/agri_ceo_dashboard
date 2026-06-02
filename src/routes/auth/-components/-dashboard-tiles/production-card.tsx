@@ -1,4 +1,3 @@
-import * as React from "react";
 import { format } from "date-fns";
 import { Factory } from "lucide-react";
 import { DashCard } from "./shared-dashboard-ui";

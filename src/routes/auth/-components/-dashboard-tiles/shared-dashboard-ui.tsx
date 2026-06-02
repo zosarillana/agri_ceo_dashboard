@@ -1,7 +1,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "@tanstack/react-router";
-import { Calendar as CalendarIcon, ChevronDown, ExternalLink, Lock } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 /* ─────────────────────────────────────────────────────────────────────────────

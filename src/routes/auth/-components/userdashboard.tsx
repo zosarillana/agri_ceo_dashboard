@@ -18,20 +18,6 @@ import { QcCard } from "./-dashboard-tiles/qc-card";
 import { WorkforceCard } from "./-dashboard-tiles/workforce-card";
 import { AccountsStubCard, ProcurementStubCard, TradingStubCard } from "./-dashboard-tiles/stub-tiles";
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   TYPES
-───────────────────────────────────────────────────────────────────────────── */
-
-type SegmentColor =
-  | "teal"
-  | "amber"
-  | "green"
-  | "purple"
-  | "blue"
-  | "coral"
-  | "pink"
-  | "red";
-
 type DashboardSegment =
   | "production"
   | "sales"

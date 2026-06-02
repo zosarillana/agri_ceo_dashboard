@@ -1,5 +1,4 @@
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -9,18 +8,13 @@ import {
   AnimatedCard, 
   ExpandRow 
 } from "./shared-dashboard-ui";
-import { fmt, fmtUSD, fmtMonthLabel, currentMonthKey, toMonthKey } from "@/lib/dashboard-utils";
+import { fmt, fmtUSD, fmtMonthLabel, currentMonthKey } from "@/lib/dashboard-utils";
 
-const expandVariants = {
-  collapsed: { height: 0, opacity: 0 },
-  expanded: { height: "auto", opacity: 1 },
-};
 
 export function SalesCard({
   active,
   index,
   thisMonth,
-  lastMonth,
   momChangePct,
   monthlyBreakdown,
   timeLabel,

@@ -7,8 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon } from "lucide-react";
 
 import { useDashboardStore } from "@/store/dashboard.store";
-import { toMonthKey, getTodayISO, toISO, fmt, fmtDate, relativeTime, currentMonthKey } from "@/lib/dashboard-utils";
-import { AnimatedCard } from "./-dashboard-tiles/shared-dashboard-ui";
+import { toMonthKey, getTodayISO, toISO, fmtDate, relativeTime, currentMonthKey } from "@/lib/dashboard-utils";
 import { AccountsStubCard, ProcurementStubCard, TradingStubCard } from "./-dashboard-tiles/stub-tiles";
 import { ProductionCard } from "./-dashboard-tiles/production-card";
 import { QcCard } from "./-dashboard-tiles/qc-card";

@@ -1,21 +1,12 @@
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   CardHeader, 
   CardTimestamp, 
   AnimatedCard, 
-  ExpandRow,
-  StatusPill
+  ExpandRow
 } from "./shared-dashboard-ui";
-
-const expandVariants = {
-  collapsed: { height: 0, opacity: 0 },
-  expanded: { height: "auto", opacity: 1 },
-};
-
-const STATUS_ORDER = ["operational", "maintenance", "standby", "down"] as const;
 
 export function MaintenanceCard({
   active,
@@ -23,7 +14,6 @@ export function MaintenanceCard({
   checkedToday,
   totalUnits,
   completion,
-  statusBreakdown,
   timeLabel,
   dateLabel,
   basePath,

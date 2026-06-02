@@ -10,7 +10,7 @@ import {
   AnimatedCard, 
   ExpandRow 
 } from "./shared-dashboard-ui";
-import { toMonthKey, getTodayISO, fmtDate } from "@/lib/dashboard-utils";
+import { toMonthKey, getTodayISO } from "@/lib/dashboard-utils";
 
 const expandVariants = {
   collapsed: { height: 0, opacity: 0 },
