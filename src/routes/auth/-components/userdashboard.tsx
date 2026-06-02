@@ -53,21 +53,22 @@ type DashboardSegment =
   | "maintenance"
   | "energy";
 
-
 /* ─────────────────────────────────────────────────────────────────────────────
    DEPARTMENT → ALLOWED TILES
+   Keys match department `name` values from the DB (lowercase).
 ───────────────────────────────────────────────────────────────────────────── */
 
 const DEPARTMENT_TILES: Record<string, DashboardSegment[]> = {
-  sales:       ["sales"],
-  production:  ["production"],
-  maintenance: ["maintenance"],
-  energy:      ["energy"],
-  qc:          ["qc"],
-  procurement: ["procurement"],
-  workforce:   ["workforce"],
-  trading:     ["trading"],
-  accounts:    ["accounts"],
+  sales:           ["sales"],
+  production:      ["production"],
+  maintenance:     ["maintenance"],
+  energy:          ["energy"],
+  qc:              ["qc"],
+  "quality control": ["qc"],
+  procurement:     ["procurement"],
+  workforce:       ["workforce"],
+  trading:         ["trading"],
+  accounts:        ["accounts"],
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -123,6 +124,24 @@ function relativeTime(date: Date) {
   return `${days}d ago`;
 }
 
+/**
+ * Derive allowed tiles from the user's departments array.
+ * A user with multiple departments sees the union of all their tiles.
+ */
+function getAllowedTiles(
+  departments: { id: number; name: string }[] | null | undefined
+): DashboardSegment[] {
+  if (!departments?.length) return [];
+
+  const tileSet = new Set<DashboardSegment>();
+  for (const dept of departments) {
+    const key = dept.name.toLowerCase();
+    const tiles = DEPARTMENT_TILES[key] ?? [];
+    for (const tile of tiles) tileSet.add(tile);
+  }
+  return Array.from(tileSet);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    SHARED SMALL COMPONENTS
 ───────────────────────────────────────────────────────────────────────────── */
@@ -171,8 +190,6 @@ function CardHeader({
     </div>
   );
 }
-
-/* ── ExpandRow — links to /auth/user/dashboard/:id instead of admin ────────── */
 
 function ExpandRow({
   id,
@@ -224,7 +241,7 @@ function AnimatedCard({ index, children }: { index: number; children: React.Reac
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   CARD COMPONENTS  (identical to CEO, only ExpandRow links differ)
+   CARD COMPONENTS
 ───────────────────────────────────────────────────────────────────────────── */
 
 function DashCard({
@@ -541,11 +558,11 @@ function EnergyCard({
 ───────────────────────────────────────────────────────────────────────────── */
 
 const STUB_CONFIGS: Record<string, { color: SegmentColor; icon: React.ElementType; label: string; summary: string }> = {
-  accounts:    { color: "purple", icon: Wallet,        label: "Accounts",        summary: "Net position"        },
-  qc:          { color: "coral",  icon: FlaskConical,  label: "Quality Control", summary: "QC status"           },
-  procurement: { color: "amber",  icon: ShoppingCart,  label: "Procurement",     summary: "Supply chain status" },
-  trading:     { color: "blue",   icon: ArrowLeftRight, label: "Trading",        summary: "Active trades"       },
-  workforce:   { color: "pink",   icon: Users,          label: "Workforce",      summary: "Attendance tracking" },
+  accounts:    { color: "purple", icon: Wallet,         label: "Accounts",        summary: "Net position"        },
+  qc:          { color: "coral",  icon: FlaskConical,   label: "Quality Control", summary: "QC status"           },
+  procurement: { color: "amber",  icon: ShoppingCart,   label: "Procurement",     summary: "Supply chain status" },
+  trading:     { color: "blue",   icon: ArrowLeftRight, label: "Trading",         summary: "Active trades"       },
+  workforce:   { color: "pink",   icon: Users,          label: "Workforce",       summary: "Attendance tracking" },
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -553,17 +570,18 @@ const STUB_CONFIGS: Record<string, { color: SegmentColor; icon: React.ElementTyp
 ───────────────────────────────────────────────────────────────────────────── */
 
 export default function UserDashboard() {
-  const { user }   = useAuthStore();
-  const location   = useLocation();
+  const { user } = useAuthStore();
+  const location = useLocation();
 
-  const department                        = user?.department ?? "";
-  const allowedTiles: DashboardSegment[] = DEPARTMENT_TILES[department] ?? [];
+  // departments is now an array from the many-to-many relationship
+  const departments = user?.departments ?? [];
+  const allowedTiles: DashboardSegment[] = getAllowedTiles(departments);
 
   const isActive = (id: string) =>
     location.pathname === `/auth/user/dashboard/${id}`;
 
-  const [time, setTime]                   = React.useState(() => new Date());
-  const [selectedDate, setSelectedDate]   = React.useState<Date>(() => new Date());
+  const [time, setTime]                 = React.useState(() => new Date());
+  const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
 
   const selectedISO = toISO(selectedDate);
   const isToday     = selectedISO === getTodayISO();
@@ -629,8 +647,11 @@ export default function UserDashboard() {
         <div className="text-center space-y-2">
           <p className="text-sm font-medium text-foreground">No dashboard available</p>
           <p className="text-xs text-muted-foreground">
-            Your department (<span className="font-mono">{department || "unknown"}</span>) has no
-            assigned tiles. Contact your administrator.
+            {departments.length === 0
+              ? "You have no departments assigned."
+              : <>Your department{departments.length > 1 ? "s" : ""} (<span className="font-mono">{departments.map((d) => d.name).join(", ")}</span>) have no assigned tiles.</>
+            }{" "}
+            Contact your administrator.
           </p>
         </div>
       </div>
@@ -644,11 +665,23 @@ export default function UserDashboard() {
 
         {/* HEADER */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Department:</span>
-            <span className="text-xs font-semibold capitalize px-2 py-0.5 rounded-md bg-muted">
-              {department}
+          {/* Department badges — one per department */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">
+              {departments.length === 1 ? "Department:" : "Departments:"}
             </span>
+            {departments.length > 0 ? (
+              departments.map((d) => (
+                <span
+                  key={d.id}
+                  className="text-xs font-semibold capitalize px-2 py-0.5 rounded-md bg-muted"
+                >
+                  {d.name}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground italic">None assigned</span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

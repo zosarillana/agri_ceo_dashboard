@@ -286,7 +286,7 @@ function CardHeaderBlock({
   return (
     <div className="flex gap-3">
       <div
-        className={`shrink-0 h-9 w-9 rounded-lg ${bg} flex items-center justify-centter`}
+        className={`shrink-0 h-9 w-9 rounded-lg ${bg} flex items-center justify-center`}
       >
         <Icon className={`h-4 w-4 ${iconColor}`} />
       </div>

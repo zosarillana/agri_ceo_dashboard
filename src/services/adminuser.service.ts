@@ -1,10 +1,17 @@
 import api from "@/lib/api";
 
+// ─── Types ────────────────────────────────────────────────────
+
+export interface AdminUserDepartment {
+  id: number;
+  name: string;
+}
+
 export interface AdminUser {
   id: number;
   name: string;
   email: string;
-  department: string | null;
+  departments: AdminUserDepartment[];
   role: string | null;
   created_at: string;
 }
@@ -13,13 +20,14 @@ export interface AdminUpdateUserPayload {
   id: number;
   name?: string;
   email?: string;
-  department?: string;
+  department_ids?: number[];
   role?: string;
   password?: string;
   password_confirmation?: string;
 }
 
 // ─── GET all users ────────────────────────────────────────────
+
 export const getUsers = async (): Promise<AdminUser[]> => {
   console.log("📋 getUsers() called");
   const res = await api.get("/api/admin/users");
@@ -28,6 +36,7 @@ export const getUsers = async (): Promise<AdminUser[]> => {
 };
 
 // ─── UPDATE any user by ID ────────────────────────────────────
+
 export const adminUpdateUser = async (
   payload: AdminUpdateUserPayload
 ): Promise<AdminUser> => {
@@ -38,6 +47,7 @@ export const adminUpdateUser = async (
 };
 
 // ─── DELETE any user by ID ────────────────────────────────────
+
 export const adminDeleteUser = async (id: number): Promise<void> => {
   console.log("🗑️ adminDeleteUser() called", id);
   await api.delete("/api/admin/users/delete", { data: { id } });
