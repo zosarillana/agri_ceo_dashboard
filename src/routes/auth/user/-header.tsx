@@ -10,14 +10,14 @@ import { Separator } from "@/components/ui/separator";
 
 const tabs = [
   { id: "production", label: "Production" },
-//   { id: "procurement", label: "Procurement" },
-//   { id: "sales", label: "Sales" },
-//   { id: "accounts", label: "Accounts" },
-//   { id: "trading", label: "Trading" },
-//   { id: "qc", label: "Quality Control" },
-//   { id: "workforce", label: "Workforce" },
-//   { id: "maintenance", label: "Maintenance" },
-//   { id: "energy", label: "Energy" },
+  { id: "procurement", label: "Procurement" },
+  { id: "sales", label: "Sales" },
+  { id: "account", label: "Accounts" },
+  { id: "trading", label: "Trading" },
+  { id: "qc", label: "Quality Control" },
+  { id: "workforce", label: "Workforce" },
+  { id: "maintenance", label: "Maintenance" },
+  { id: "energy", label: "Energy" },
 ] as const;
 
 export function UserHeader() {
@@ -31,7 +31,7 @@ export function UserHeader() {
       .filter(Boolean)
       .pop()
       ?.replace(/-/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase()) ?? "Admin";
+      .replace(/\b\w/g, (c) => c.toUpperCase()) ?? "User";
 
   const isDashboard = matchRoute({
     to: "/auth/user/dashboard",
@@ -93,7 +93,6 @@ export function UserHeader() {
   // ---------------- SUB DASHBOARD ----------------
   const activeTabLabel =
     tabs.find((t) => t.id === activeTab)?.label ?? "Dashboard";
-
   return (
     <>
       <div className="flex justify-between mt-2">
@@ -101,7 +100,7 @@ export function UserHeader() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate({ to: "/auth/admin/dashboard" })}
+            onClick={() => navigate({ to: "/auth/user/dashboard" })}
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Overview

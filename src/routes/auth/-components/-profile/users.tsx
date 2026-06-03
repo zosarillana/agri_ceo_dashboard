@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import {
   Select,
@@ -56,25 +57,14 @@ import { toast } from "sonner";
 import { registerUser } from "@/services/auth.service";
 import {
   AdminUser,
-  getUsers,
+  AdminUserDepartment,
   adminUpdateUser,
   adminDeleteUser,
 } from "@/services/adminuser.service";
+import { useDepartmentStore } from "@/store/department.store";
+import { useUserStore } from "@/store/user.store";
 
-const DEPARTMENTS = [
-  { id: "production",   label: "Production" },
-  { id: "procurement",  label: "Procurement" },
-  { id: "sales",        label: "Sales" },
-  { id: "accounts",     label: "Accounts" },
-  { id: "trading",      label: "Trading" },
-  { id: "qc",           label: "Quality Control" },
-  { id: "workforce",    label: "Workforce" },
-  { id: "maintenance",  label: "Maintenance" },
-  { id: "energy",       label: "Energy" },
-];
-
-const getDeptLabel = (id: string | null) =>
-  DEPARTMENTS.find((d) => d.id === id)?.label ?? id ?? "—";
+// ─── Helpers ───────────────────────────────────────────────────────────────
 
 const ROLES = [
   { id: "superadmin", label: "Super Admin" },
@@ -99,58 +89,103 @@ function RoleBadge({ role }: { role: string | null }) {
   );
 }
 
+function deptNames(departments: AdminUserDepartment[] | undefined): string {
+  if (!departments?.length) return "—";
+  return departments.map((d) => d.name).join(", ");
+}
+
+// ─── Department multi-checkbox picker ──────────────────────────────────────
+
+function DepartmentPicker({
+  departments,
+  selected,
+  onChange,
+}: {
+  departments: AdminUserDepartment[];
+  selected: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const toggle = (id: number) => {
+    onChange(
+      selected.includes(id)
+        ? selected.filter((x) => x !== id)
+        : [...selected, id]
+    );
+  };
+
+  if (!departments.length) {
+    return (
+      <p className="text-xs text-muted-foreground">No departments available.</p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+      {departments.map((d) => (
+        <label
+          key={d.id}
+          className="flex items-center gap-2 text-sm cursor-pointer select-none"
+        >
+          <Checkbox
+            checked={selected.includes(d.id)}
+            onCheckedChange={() => toggle(d.id)}
+          />
+          {d.name}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────
+
 export function Users() {
-  // ─── Register form ─────────────────────────────────────────
+
+  // ── Departments from store ──────────────────────────────────────────────
+  const { departments, fetchDepartments } = useDepartmentStore();
+
+  useEffect(() => {
+    fetchDepartments();
+  }, [fetchDepartments]);
+
+  // ── Register form ───────────────────────────────────────────────────────
   const [regLoading, setRegLoading] = useState(false);
   const [regForm, setRegForm] = useState({
     name: "",
     email: "",
     password: "",
-    department: "",
+    department_ids: [] as number[],
     role: "user",
   });
 
-  // ─── Table ─────────────────────────────────────────────────
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tableLoading, setTableLoading] = useState(false);
+  // ── Table ───────────────────────────────────────────────────────────────
+  const { users, loading: tableLoading, fetchUsers, setUsers } = useUserStore();
   const [search, setSearch] = useState("");
 
-  // ─── Edit dialog ───────────────────────────────────────────
+  // ── Edit dialog ─────────────────────────────────────────────────────────
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editForm, setEditForm] = useState({
     id: 0,
     name: "",
     email: "",
-    department: "",
+    department_ids: [] as number[],
     role: "user",
     password: "",
     password_confirmation: "",
   });
 
-  // ─── Delete dialog ─────────────────────────────────────────
+  // ── Delete dialog ───────────────────────────────────────────────────────
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
 
-  // ─── Fetch users on mount ──────────────────────────────────
-  const fetchUsers = async () => {
-    setTableLoading(true);
-    try {
-      const data = await getUsers();
-      setUsers(data);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Failed to load users.");
-    } finally {
-      setTableLoading(false);
-    }
-  };
-
+  // ── Fetch users ─────────────────────────────────────────────────────────
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
-  // ─── Register ──────────────────────────────────────────────
+  // ── Register ────────────────────────────────────────────────────────────
   const handleRegister = async () => {
     if (!regForm.name || !regForm.email || !regForm.password) {
       toast.error("Please fill in all required fields.");
@@ -165,9 +200,8 @@ export function Users() {
     try {
       await registerUser(regForm);
       toast.success("User registered successfully.");
-      setRegForm({ name: "", email: "", password: "", department: "", role: "user" });
-      // Refresh table so new user appears
-      await fetchUsers();
+      setRegForm({ name: "", email: "", password: "", department_ids: [], role: "user" });
+      await fetchUsers(true);
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to register user.");
     } finally {
@@ -175,13 +209,13 @@ export function Users() {
     }
   };
 
-  // ─── Open edit ─────────────────────────────────────────────
+  // ── Open edit ───────────────────────────────────────────────────────────
   const openEdit = (user: AdminUser) => {
     setEditForm({
       id: user.id,
       name: user.name,
       email: user.email,
-      department: user.department ?? "",
+      department_ids: (user.departments ?? []).map((d) => d.id),
       role: user.role ?? "user",
       password: "",
       password_confirmation: "",
@@ -189,7 +223,7 @@ export function Users() {
     setEditOpen(true);
   };
 
-  // ─── Submit edit ───────────────────────────────────────────
+  // ── Submit edit ─────────────────────────────────────────────────────────
   const handleEdit = async () => {
     if (!editForm.name || !editForm.email) {
       toast.error("Name and email are required.");
@@ -210,7 +244,7 @@ export function Users() {
         id: editForm.id,
         name: editForm.name,
         email: editForm.email,
-        department: editForm.department,
+        department_ids: editForm.department_ids,
         role: editForm.role,
         ...(editForm.password
           ? {
@@ -231,13 +265,12 @@ export function Users() {
     }
   };
 
-  // ─── Open delete ───────────────────────────────────────────
+  // ── Open / confirm delete ───────────────────────────────────────────────
   const openDelete = (user: AdminUser) => {
     setDeleteTarget(user);
     setDeleteOpen(true);
   };
 
-  // ─── Confirm delete ────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleteLoading(true);
@@ -253,15 +286,17 @@ export function Users() {
     }
   };
 
-  // ─── Filter ────────────────────────────────────────────────
+  // ── Filter ──────────────────────────────────────────────────────────────
   const filtered = users.filter(
     (u) =>
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
-      (u.department ?? "").toLowerCase().includes(search.toLowerCase())
+      (u.departments ?? [])
+        .map((d) => d.name.toLowerCase())
+        .some((n) => n.includes(search.toLowerCase()))
   );
 
-  // ─── Render ────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto space-y-6">
 
@@ -308,23 +343,15 @@ export function Users() {
             />
           </div>
 
-          <div className="space-y-1.5 w-full">
+          <div className="space-y-1.5">
             <Label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Building2 className="h-3.5 w-3.5" /> Department
+              <Building2 className="h-3.5 w-3.5" /> Departments
             </Label>
-            <Select
-              value={regForm.department}
-              onValueChange={(v) => setRegForm((p) => ({ ...p, department: v }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                {DEPARTMENTS.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <DepartmentPicker
+              departments={departments}
+              selected={regForm.department_ids}
+              onChange={(ids) => setRegForm((p) => ({ ...p, department_ids: ids }))}
+            />
           </div>
 
           <div className="space-y-1.5 w-full">
@@ -373,7 +400,6 @@ export function Users() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Search */}
               <div className="relative w-56">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
@@ -383,12 +409,10 @@ export function Users() {
                   className="pl-8"
                 />
               </div>
-
-              {/* Refresh */}
               <Button
                 variant="outline"
                 size="icon"
-                onClick={fetchUsers}
+            onClick={() => fetchUsers(true)}
                 disabled={tableLoading}
                 title="Refresh"
               >
@@ -405,7 +429,7 @@ export function Users() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Department</TableHead>
+                  <TableHead>Departments</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Registered</TableHead>
                   <TableHead className="text-right w-[90px]">Actions</TableHead>
@@ -425,9 +449,7 @@ export function Users() {
                       colSpan={6}
                       className="text-center text-muted-foreground py-10 text-sm"
                     >
-                      {users.length === 0
-                        ? "No users found."
-                        : "No users match your search."}
+                      {users.length === 0 ? "No users found." : "No users match your search."}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -435,7 +457,7 @@ export function Users() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                      <TableCell>{getDeptLabel(user.department)}</TableCell>
+                      <TableCell className="text-sm">{deptNames(user.departments)}</TableCell>
                       <TableCell><RoleBadge role={user.role} /></TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {new Date(user.created_at).toLocaleDateString()}
@@ -481,7 +503,8 @@ export function Users() {
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update details for <span className="font-medium text-foreground">{editForm.name}</span>.
+              Update details for{" "}
+              <span className="font-medium text-foreground">{editForm.name}</span>.
               Leave password blank to keep it unchanged.
             </DialogDescription>
           </DialogHeader>
@@ -508,23 +531,15 @@ export function Users() {
               />
             </div>
 
-            <div className="space-y-1.5 w-full">
+            <div className="space-y-1.5">
               <Label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Building2 className="h-3.5 w-3.5" /> Department
+                <Building2 className="h-3.5 w-3.5" /> Departments
               </Label>
-              <Select
-                value={editForm.department}
-                onValueChange={(v) => setEditForm((p) => ({ ...p, department: v }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENTS.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <DepartmentPicker
+                departments={departments}
+                selected={editForm.department_ids}
+                onChange={(ids) => setEditForm((p) => ({ ...p, department_ids: ids }))}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -596,7 +611,7 @@ export function Users() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete Confirmation Dialog ─────────────────────── */}
+      {/* ── Delete Dialog ─────────────────────────────────── */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -628,7 +643,6 @@ export function Users() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

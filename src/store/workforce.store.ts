@@ -50,6 +50,15 @@ export const useWorkforceStore = create<WorkforceStore>((set, get) => ({
   error: null,
 
   fetchLatest: async (from?: string, to?: string) => {
+    const targetFrom = from ?? null;
+    const targetTo = to ?? null;
+
+    if (get().loading || (
+      // get().records.length > 0 && 
+      get().dateRange.from === targetFrom && 
+      get().dateRange.to === targetTo
+    )) return;
+
     set({ loading: true, error: null });
     try {
       const response = await workforceService.getLatest(from, to);

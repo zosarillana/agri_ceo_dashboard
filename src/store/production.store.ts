@@ -17,13 +17,14 @@ type ProductionStore = {
   deleteEntry: (id: number) => Promise<void>;
 };
 
-export const useProductionStore = create<ProductionStore>((set) => ({
+export const useProductionStore = create<ProductionStore>((set, get) => ({
   entries: [],
   loading: false,
   saving: false,
   error: null,
 
   fetchEntries: async () => {
+    // if (get().loading || get().entries.length > 0) return;
     set({ loading: true, error: null });
     try {
       const data = await productionService.getAll();
@@ -36,6 +37,7 @@ export const useProductionStore = create<ProductionStore>((set) => ({
   },
 
   fetchByDate: async (date: string) => {
+    if (get().loading) return;
     set({ loading: true, error: null });
     try {
       const data = await productionService.getByDate(date);

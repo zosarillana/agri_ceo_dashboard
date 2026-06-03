@@ -93,6 +93,41 @@ export type DashboardStats = {
 
   // Add workforce to DashboardStats
   workforce: WorkforceStats;
+
+  procurement: {
+    total_items: number;
+    received: number;
+    delayed: number;
+    pending: number;
+    from: string | null;
+    to: string | null;
+    month: string;
+    has_data: boolean;
+  };
+
+  trades: {
+    total_volume: number;
+    total_value: number;
+    avg_price: number;
+    total_orders: number;
+    export_orders: number;
+    local_orders: number;
+    from: string | null;
+    to: string | null;
+    month: string;
+    has_data: boolean;
+  };
+
+  accounts: {
+    total_receivable: number;
+    total_payable: number;
+    total_capex: number;
+    total_opex: number;
+    from: string | null;
+    to: string | null;
+    month: string;
+    has_data: boolean;
+  };
 };
 
 export interface QcProductPerformance {
