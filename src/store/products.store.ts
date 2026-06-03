@@ -19,7 +19,7 @@ export const useProductsStore = create<ProductStore>((set, get) => ({
   error: null,
 
   fetchProducts: async () => {
-    if (get().loading || get().products.length > 0) return;
+    // if (get().loading || get().products.length > 0) return;
     set({ loading: true, error: null });
 
     try {

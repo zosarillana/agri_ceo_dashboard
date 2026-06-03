@@ -47,7 +47,7 @@ export const useQcStore = create<QcStore>((set, get) => ({
     const targetTo = to ?? null;
 
     if (get().loading || (
-      get().records.length > 0 && 
+      // get().records.length > 0 && 
       get().dateRange.from === targetFrom && 
       get().dateRange.to === targetTo
     )) return;

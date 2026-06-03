@@ -25,7 +25,7 @@ export const usePlantStore = create<PlantStore>((set, get) => ({
    * This is what the maintenance dashboard calls on mount.
    */
   fetchPlants: async () => {
-    if (get().loading || get().plants.length > 0) return;
+    // if (get().loading || get().plants.length > 0) return;
     set({ loading: true, error: null });
     try {
       const data = await plantService.getAll();

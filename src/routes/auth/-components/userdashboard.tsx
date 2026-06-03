@@ -16,7 +16,9 @@ import { MaintenanceCard } from "./-dashboard-tiles/maintenance-card";
 import { ProductionCard } from "./-dashboard-tiles/production-card";
 import { QcCard } from "./-dashboard-tiles/qc-card";
 import { WorkforceCard } from "./-dashboard-tiles/workforce-card";
-import { AccountsStubCard, ProcurementStubCard, TradingStubCard } from "./-dashboard-tiles/stub-tiles";
+import { AccountsCard } from "./-dashboard-tiles/accounts-card";
+import { ProcurementCard } from "./-dashboard-tiles/procurement-card";
+import { TradesCard } from "./-dashboard-tiles/trades-card";
 
 type DashboardSegment =
   | "production"
@@ -100,6 +102,9 @@ export default function UserDashboard() {
   const energy      = stats?.energy;
   const workforce   = stats?.workforce;
   const qc          = stats?.qc;
+  const trades      = stats?.trades;
+  const procurement = stats?.procurement;
+  const accounts    = stats?.accounts;
 
   React.useEffect(() => {
     fetchStats();
@@ -277,25 +282,34 @@ export default function UserDashboard() {
           )}
 
           {allowedTiles.includes("accounts") && (
-            <AccountsStubCard
+            <AccountsCard
               active={isActive("accounts")}
               index={7}
+              accounts={accounts}
+              timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
+              dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "not available"}
               basePath="/auth/user/dashboard"
             />
           )}
 
           {allowedTiles.includes("procurement") && (
-            <ProcurementStubCard
+            <ProcurementCard
               active={isActive("procurement")}
               index={8}
+              procurement={procurement}
+              timeLabel={maintenance?.last_updated_at ? relativeTime(new Date(maintenance.last_updated_at)) : "—"}
+              dateLabel={maintenance?.last_updated_at ? fmtDate(new Date(maintenance.last_updated_at)) : "not available"}
               basePath="/auth/user/dashboard"
             />
           )}
 
           {allowedTiles.includes("trading") && (
-            <TradingStubCard
+            <TradesCard
               active={isActive("trading")}
               index={9}
+              trades={trades}
+              timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
+              dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "not available"}
               basePath="/auth/user/dashboard"
             />
           )}

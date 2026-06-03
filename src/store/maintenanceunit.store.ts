@@ -2,7 +2,10 @@
 import { create } from "zustand";
 import { unitService } from "@/services/maintenance.service";
 import { usePlantStore } from "@/store/plant.store";
-import { CreateUnitPayload, UpdateUnitPayload } from "@/types/maintenance.types";
+import {
+  CreateUnitPayload,
+  UpdateUnitPayload,
+} from "@/types/maintenance.types";
 
 type MaintenanceUnitStore = {
   saving: boolean;
@@ -27,7 +30,7 @@ export const useMaintenanceUnitStore = create<MaintenanceUnitStore>((set) => ({
     set({ saving: true, error: null });
     try {
       await unitService.create(payload);
-      // Refresh the plant the new unit belongs to
+      // ✅ Should be
       await usePlantStore.getState().fetchPlant(payload.plant_id);
     } catch (err: any) {
       set({ error: err?.response?.data?.message ?? "Failed to create unit." });

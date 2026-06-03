@@ -22,7 +22,9 @@ import { QcCard } from "@/routes/auth/-components/-dashboard-tiles/qc-card";
 import { MaintenanceCard } from "@/routes/auth/-components/-dashboard-tiles/maintenance-card";
 import { EnergyCard } from "@/routes/auth/-components/-dashboard-tiles/energy-card";
 import { WorkforceCard } from "@/routes/auth/-components/-dashboard-tiles/workforce-card";
-import { AccountsStubCard, ProcurementStubCard, TradingStubCard } from "@/routes/auth/-components/-dashboard-tiles/stub-tiles";
+import { AccountsCard } from "@/routes/auth/-components/-dashboard-tiles/accounts-card";
+import { ProcurementCard } from "@/routes/auth/-components/-dashboard-tiles/procurement-card";
+import { TradesCard } from "@/routes/auth/-components/-dashboard-tiles/trades-card";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
@@ -82,6 +84,9 @@ export function LandingDashboard() {
   const energy = stats?.energy;
   const workforce = stats?.workforce;
   const qc = stats?.qc;
+  const trades = stats?.trades;
+  const procurement = stats?.procurement;
+  const accounts = stats?.accounts;
 
   return (
     <div className="min-h-screen bg-background">
@@ -168,10 +173,12 @@ export function LandingDashboard() {
               selectedMonthKey={selectedMthKey}
             />
 
-            {/* Accounts Stub Card */}
-            <AccountsStubCard
+            <AccountsCard
               active={false}
               index={2}
+              accounts={accounts}
+              timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
+              dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "—"}
             />
 
             {/* QC Card */}
@@ -252,16 +259,20 @@ export function LandingDashboard() {
               monthlyTrends={energy?.monthly_trends ?? []}
             />
 
-            {/* Procurement Stub Card */}
-            <ProcurementStubCard
+            <ProcurementCard
               active={false}
               index={2}
+              procurement={procurement}
+              timeLabel={maintenance?.last_updated_at ? relativeTime(new Date(maintenance.last_updated_at)) : "—"}
+              dateLabel={maintenance?.last_updated_at ? fmtDate(new Date(maintenance.last_updated_at)) : "—"}
             />
 
-            {/* Trading Stub Card */}
-            <TradingStubCard
+            <TradesCard
               active={false}
               index={3}
+              trades={trades}
+              timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
+              dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "—"}
             />
 
             {/* Workforce Card */}

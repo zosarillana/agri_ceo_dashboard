@@ -45,7 +45,7 @@ export const useSalesStore = create<SalesStore>((set, get) => ({
     const targetTo = to ?? null;
 
     if (get().loading || (
-      get().sales.length > 0 && 
+      // get().sales.length > 0 && 
       get().dateRange.from === targetFrom && 
       get().dateRange.to === targetTo
     )) return;

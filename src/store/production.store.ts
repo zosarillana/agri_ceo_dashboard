@@ -24,7 +24,7 @@ export const useProductionStore = create<ProductionStore>((set, get) => ({
   error: null,
 
   fetchEntries: async () => {
-    if (get().loading || get().entries.length > 0) return;
+    // if (get().loading || get().entries.length > 0) return;
     set({ loading: true, error: null });
     try {
       const data = await productionService.getAll();

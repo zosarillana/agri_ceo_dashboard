@@ -8,13 +8,15 @@ import { Calendar as CalendarIcon } from "lucide-react";
 
 import { useDashboardStore } from "@/store/dashboard.store";
 import { toMonthKey, getTodayISO, toISO, fmtDate, relativeTime, currentMonthKey } from "@/lib/dashboard-utils";
-import { AccountsStubCard, ProcurementStubCard, TradingStubCard } from "./-dashboard-tiles/stub-tiles";
 import { ProductionCard } from "./-dashboard-tiles/production-card";
 import { QcCard } from "./-dashboard-tiles/qc-card";
 import { WorkforceCard } from "./-dashboard-tiles/workforce-card";
 import { SalesCard } from "./-dashboard-tiles/sales-card";
 import { EnergyCard } from "./-dashboard-tiles/energy-card";
 import { MaintenanceCard } from "./-dashboard-tiles/maintenance-card";
+import { AccountsCard }from "./-dashboard-tiles/accounts-card";
+import { ProcurementCard } from "./-dashboard-tiles/procurement-card";
+import { TradesCard } from "./-dashboard-tiles/trades-card";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
@@ -40,6 +42,9 @@ export default function CEODashboard() {
   const energy = stats?.energy;
   const workforce = stats?.workforce;
   const qc = stats?.qc;
+  const trades = stats?.trades;
+  const procurement = stats?.procurement;
+  const accounts = stats?.accounts;
 
   // Clock tick — isolated to its own state so it never affects fetchStats
   React.useEffect(() => {
@@ -129,9 +134,20 @@ export default function CEODashboard() {
               selectedMonthKey={selectedMthKey}
             />
 
-            <AccountsStubCard
+            <AccountsCard
               active={isActive("accounts")}
               index={4}
+              accounts={accounts}
+              timeLabel={
+                sales?.last_updated_at
+                  ? relativeTime(new Date(sales.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                sales?.last_updated_at
+                  ? fmtDate(new Date(sales.last_updated_at))
+                  : "—"
+              }
             />
 
             <QcCard
@@ -194,14 +210,36 @@ export default function CEODashboard() {
               monthlyTrends={energy?.monthly_trends ?? []}
             />
 
-            <ProcurementStubCard
+            <ProcurementCard
               active={isActive("procurement")}
               index={3}
+              procurement={procurement}
+              timeLabel={
+                maintenance?.last_updated_at
+                  ? relativeTime(new Date(maintenance.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                maintenance?.last_updated_at
+                  ? fmtDate(new Date(maintenance.last_updated_at))
+                  : "—"
+              }
             />
 
-            <TradingStubCard
+            <TradesCard
               active={isActive("trading")}
               index={4}
+              trades={trades}
+              timeLabel={
+                sales?.last_updated_at
+                  ? relativeTime(new Date(sales.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                sales?.last_updated_at
+                  ? fmtDate(new Date(sales.last_updated_at))
+                  : "—"
+              }
             />
 
             <WorkforceCard

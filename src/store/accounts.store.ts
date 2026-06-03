@@ -2,7 +2,11 @@
 
 import { create } from "zustand";
 import { accountService } from "@/services/accounts.service";
-import { Account, AccountPayload, AccountSummary } from "@/types/accounts.types";
+import {
+  Account,
+  AccountPayload,
+  AccountSummary,
+} from "@/types/accounts.types";
 
 interface DateRange {
   from: string | null;
@@ -21,7 +25,10 @@ interface AccountStore {
   setDateRange: (range: DateRange) => void;
   clearDateRange: () => void;
   saveAccount: (payload: AccountPayload) => Promise<void>;
-  updateAccount: (id: number, payload: Partial<AccountPayload>) => Promise<void>;
+  updateAccount: (
+    id: number,
+    payload: Partial<AccountPayload>,
+  ) => Promise<void>;
   deleteAccount: (id: number) => Promise<void>;
   markPaid: (id: number) => Promise<void>;
   clearError: () => void;
@@ -45,14 +52,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   error: null,
 
   fetchAll: async (from?: string, to?: string) => {
+    if (get().loading) return; // ✅ only this
     const targetFrom = from ?? null;
     const targetTo = to ?? null;
-
-    if (get().loading || (
-      get().accounts.length > 0 && 
-      get().dateRange.from === targetFrom && 
-      get().dateRange.to === targetTo
-    )) return;
 
     set({ loading: true, error: null });
     try {
@@ -79,7 +81,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
 
       set({ accounts, summary, dateRange: { from: targetFrom, to: targetTo } });
     } catch (err: any) {
-      set({ error: err?.response?.data?.message ?? "Failed to fetch accounts." });
+      set({
+        error: err?.response?.data?.message ?? "Failed to fetch accounts.",
+      });
     } finally {
       set({ loading: false });
     }
@@ -116,7 +120,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
       const { from, to } = get().dateRange;
       await get().fetchAll(from ?? undefined, to ?? undefined);
     } catch (err: any) {
-      set({ error: err?.response?.data?.message ?? "Failed to update account." });
+      set({
+        error: err?.response?.data?.message ?? "Failed to update account.",
+      });
       throw err;
     } finally {
       set({ saving: false });
@@ -130,7 +136,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
       const { from, to } = get().dateRange;
       await get().fetchAll(from ?? undefined, to ?? undefined);
     } catch (err: any) {
-      set({ error: err?.response?.data?.message ?? "Failed to delete account." });
+      set({
+        error: err?.response?.data?.message ?? "Failed to delete account.",
+      });
       throw err;
     } finally {
       set({ saving: false });

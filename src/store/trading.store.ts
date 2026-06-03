@@ -50,14 +50,7 @@ export const useTradingStore = create<TradingStore>((set, get) => ({
 
   // Fetch trades with optional date range
   fetchLatest: async (from?: string, to?: string) => {
-    const targetFrom = from ?? null;
-    const targetTo = to ?? null;
-
-    if (get().loading || (
-      get().trades.length > 0 && 
-      get().dateRange.from === targetFrom && 
-      get().dateRange.to === targetTo
-    )) return;
+    if (get().loading) return; // only guard against concurrent requests
 
     set({ loading: true, error: null });
     try {
