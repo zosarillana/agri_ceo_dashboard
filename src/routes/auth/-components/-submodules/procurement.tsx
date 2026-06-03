@@ -38,8 +38,7 @@ function procurementBadge(status: ProcurementStatus) {
         Received
       </Badge>
     );
-  if (status === "pending")
-    return <Badge variant="outline">Pending</Badge>;
+  if (status === "pending") return <Badge variant="outline">Pending</Badge>;
   return <Badge variant="destructive">Delayed</Badge>;
 }
 
@@ -91,12 +90,12 @@ export default function ProcurementDash() {
 
   // Date range filter state
   const [from, setFrom] = useState<Date | undefined>();
-  const [to, setTo]     = useState<Date | undefined>();
+  const [to, setTo] = useState<Date | undefined>();
 
   function handleFilter() {
     setDateRange({
       from: from ? format(from, "yyyy-MM-dd") : null,
-      to:   to   ? format(to,   "yyyy-MM-dd") : null,
+      to: to ? format(to, "yyyy-MM-dd") : null,
     });
   }
 
@@ -107,14 +106,10 @@ export default function ProcurementDash() {
   }
 
   function handleSaved() {
-    // Re-fetch latest data then switch to view tab
-    fetchLatest(
-      from ? format(from, "yyyy-MM-dd") : undefined,
-      to   ? format(to,   "yyyy-MM-dd") : undefined,
-    );
+    fetchLatest(); // 👈 let store decide based on its dateRange
     setTab("view");
   }
-
+  
   return (
     <div className="space-y-4">
       {/* ── Tab navigation ── */}
@@ -129,8 +124,8 @@ export default function ProcurementDash() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "view"  && <BarChart2   className="h-3.5 w-3.5" />}
-            {t === "input" && <PlusCircle  className="h-3.5 w-3.5" />}
+            {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
+            {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
             {t}
           </button>
         ))}
@@ -314,9 +309,7 @@ export default function ProcurementDash() {
       )}
 
       {/* ── Input tab ── */}
-      {tab === "input" && (
-        <ProcurementInputForm onSaved={handleSaved} />
-      )}
+      {tab === "input" && <ProcurementInputForm onSaved={handleSaved} />}
     </div>
   );
 }

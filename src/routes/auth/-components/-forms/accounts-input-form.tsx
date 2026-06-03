@@ -1,4 +1,3 @@
-// src/routes/auth/-components/-forms/account-input-form.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -51,8 +50,8 @@ function isoToDate(iso: string) {
   return new Date(y, m - 1, d);
 }
 
-function fmtPHP(n: number) {
-  return "₱" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatUSD(n: number) {
+  return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDisplayValue(value: number): string {
@@ -195,6 +194,8 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
       setRows(accounts.map(fromApi));
     }
     setUnlockedIds(new Set());
+    setStatus("idle");
+    setStatusMsg("");
   }
 
   async function handleDateChange(newISO: string) {
@@ -239,6 +240,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
     setUnlockedIds((prev) => new Set(prev).add(localId));
     updateRow(localId, { isReadOnly: false });
     setStatus("idle");
+    setStatusMsg("");
   }
 
   function relockRow(localId: string) {
@@ -253,6 +255,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
       ));
     }
     setStatus("idle");
+    setStatusMsg("");
   }
 
   function toggleDueCal(localId: string, open: boolean) {
@@ -276,12 +279,38 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
 
-    const toSave = rows.filter((r) => {
-      if (r.isReadOnly) return false;
-      return r.description.trim() && r.amount > 0;
+    // Separate updates from new records
+    const updates: Array<{ id: number; data: AccountPayload }> = [];
+    const newRecords: AccountPayload[] = [];
+
+    rows.forEach((row) => {
+      // Only process rows that are editable (not readOnly)
+      if (row.isReadOnly) return;
+      
+      // Validate required fields
+      if (!row.description.trim() || row.amount <= 0) return;
+
+      const payload: AccountPayload = {
+        description: row.description.trim(),
+        type: row.type,
+        amount: row.amount,
+        due_date: row.due_date,
+        notes: row.notes.trim() || null,
+      };
+
+      // If it has an ID, it's an update
+      if (row.id && row.id > 0) {
+        updates.push({
+          id: row.id,
+          data: payload,
+        });
+      } else {
+        // Otherwise it's a new record
+        newRecords.push(payload);
+      }
     });
 
-    if (toSave.length === 0) {
+    if (updates.length === 0 && newRecords.length === 0) {
       setStatus("error");
       setStatusMsg("Please fill in a description and amount, or unlock a saved entry to update it.");
       return;
@@ -289,27 +318,41 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
 
     setIsSaving(true);
     try {
-      await Promise.all(toSave.map((r) => {
-        const payload: AccountPayload = {
-          description: r.description.trim(),
-          type: r.type,
-          amount: r.amount,
-          due_date: r.due_date,
-          notes: r.notes.trim() || null,
-        };
-        // update if existing id, create if new
-        return r.id
-          ? accountService.update(r.id, payload)
-          : accountService.store(payload);
-      }));
+      // Handle updates
+      if (updates.length > 0) {
+        await Promise.all(
+          updates.map(update => accountService.update(update.id, update.data))
+        );
+      }
 
+      // Handle new records
+      if (newRecords.length > 0) {
+        await Promise.all(
+          newRecords.map(record => accountService.store(record))
+        );
+      }
+
+      // Clear cache and refresh
       delete cache.current[dateISO];
       await fetchForDate(dateISO);
 
+      const updateCount = updates.length;
+      const newCount = newRecords.length;
+      
+      let message = "";
+      if (updateCount > 0 && newCount > 0) {
+        message = `${updateCount} entr${updateCount === 1 ? "y" : "ies"} updated and ${newCount} new entr${newCount === 1 ? "y" : "ies"} saved`;
+      } else if (updateCount > 0) {
+        message = `${updateCount} entr${updateCount === 1 ? "y" : "ies"} updated`;
+      } else {
+        message = `${newCount} entr${newCount === 1 ? "y" : "ies"} saved`;
+      }
+      
       setStatus("success");
-      setStatusMsg(`${toSave.length} entr${toSave.length === 1 ? "y" : "ies"} saved for ${format(isoToDate(dateISO), "PPP")}.`);
+      setStatusMsg(`${message} for ${format(isoToDate(dateISO), "PPP")}.`);
       onSaved();
     } catch (err: any) {
+      console.error("Save error:", err);
       setStatus("error");
       setStatusMsg(err?.response?.data?.message ?? "Something went wrong. Please try again.");
     } finally {
@@ -415,6 +458,11 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                             editing
                           </span>
                         )}
+                        {row.id && !isUnlocked && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 font-medium">
+                            saved
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         {/* Unlock / Relock (saved entries only) */}
@@ -475,9 +523,9 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                     {/* Amount + Due date */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Amount (₱)</p>
+                        <p className="text-xs text-muted-foreground">Amount (USD)</p>
                         <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
                           <Input
                             type="text"
                             placeholder="0.00"
@@ -542,7 +590,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                     {/* Amount display when read-only */}
                     {row.isReadOnly && !isUnlocked && row.amount > 0 && (
                       <p className="text-xs text-muted-foreground text-right">
-                        Amount: <span className="font-medium text-foreground">{fmtPHP(row.amount)}</span>
+                        Amount: <span className="font-medium text-foreground">{formatUSD(row.amount)}</span>
                       </p>
                     )}
 
