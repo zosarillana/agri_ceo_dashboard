@@ -12,7 +12,7 @@ const tabs = [
   { id: "production", label: "Production" },
   { id: "procurement", label: "Procurement" },
   { id: "sales", label: "Sales" },
-  { id: "account", label: "Accounts" },
+  { id: "accounts", label: "Accounts" },
   { id: "trading", label: "Trading" },
   { id: "qc", label: "Quality Control" },
   { id: "workforce", label: "Workforce" },
