@@ -58,11 +58,11 @@ import { registerUser } from "@/services/auth.service";
 import {
   AdminUser,
   AdminUserDepartment,
-  getUsers,
   adminUpdateUser,
   adminDeleteUser,
 } from "@/services/adminuser.service";
 import { useDepartmentStore } from "@/store/department.store";
+import { useUserStore } from "@/store/user.store";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -146,7 +146,7 @@ export function Users() {
 
   useEffect(() => {
     fetchDepartments();
-  }, []);
+  }, [fetchDepartments]);
 
   // ── Register form ───────────────────────────────────────────────────────
   const [regLoading, setRegLoading] = useState(false);
@@ -159,8 +159,7 @@ export function Users() {
   });
 
   // ── Table ───────────────────────────────────────────────────────────────
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tableLoading, setTableLoading] = useState(false);
+  const { users, loading: tableLoading, fetchUsers, setUsers } = useUserStore();
   const [search, setSearch] = useState("");
 
   // ── Edit dialog ─────────────────────────────────────────────────────────
@@ -182,21 +181,9 @@ export function Users() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
 
   // ── Fetch users ─────────────────────────────────────────────────────────
-  const fetchUsers = async () => {
-    setTableLoading(true);
-    try {
-      const data = await getUsers();
-      setUsers(data);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Failed to load users.");
-    } finally {
-      setTableLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   // ── Register ────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -214,7 +201,7 @@ export function Users() {
       await registerUser(regForm);
       toast.success("User registered successfully.");
       setRegForm({ name: "", email: "", password: "", department_ids: [], role: "user" });
-      await fetchUsers();
+      await fetchUsers(true);
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to register user.");
     } finally {
@@ -425,7 +412,7 @@ export function Users() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={fetchUsers}
+            onClick={() => fetchUsers(true)}
                 disabled={tableLoading}
                 title="Refresh"
               >
