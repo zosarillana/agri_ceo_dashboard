@@ -190,7 +190,7 @@ export function AccountsCard({
           </AnimatePresence>
 
           <ExpandRow
-            id="account"
+            id="accounts"
             expanded={expanded}
             onToggle={() => setExpanded((v) => !v)}
             basePath={basePath}

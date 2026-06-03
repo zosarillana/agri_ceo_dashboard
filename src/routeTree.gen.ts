@@ -33,7 +33,7 @@ import { Route as AuthUserLayoutDashboardProductionRouteImport } from './routes/
 import { Route as AuthUserLayoutDashboardProcurementRouteImport } from './routes/auth/user/_layout/dashboard/procurement'
 import { Route as AuthUserLayoutDashboardMaintenanceRouteImport } from './routes/auth/user/_layout/dashboard/maintenance'
 import { Route as AuthUserLayoutDashboardEnergyRouteImport } from './routes/auth/user/_layout/dashboard/energy'
-import { Route as AuthUserLayoutDashboardAccountRouteImport } from './routes/auth/user/_layout/dashboard/account'
+import { Route as AuthUserLayoutDashboardAccountsRouteImport } from './routes/auth/user/_layout/dashboard/accounts'
 import { Route as AuthAdminLayoutDashboardWorkforceRouteImport } from './routes/auth/admin/_layout/dashboard/workforce'
 import { Route as AuthAdminLayoutDashboardTradingRouteImport } from './routes/auth/admin/_layout/dashboard/trading'
 import { Route as AuthAdminLayoutDashboardSalesRouteImport } from './routes/auth/admin/_layout/dashboard/sales'
@@ -178,10 +178,10 @@ const AuthUserLayoutDashboardEnergyRoute =
     path: '/energy',
     getParentRoute: () => AuthUserLayoutDashboardRoute,
   } as any)
-const AuthUserLayoutDashboardAccountRoute =
-  AuthUserLayoutDashboardAccountRouteImport.update({
-    id: '/account',
-    path: '/account',
+const AuthUserLayoutDashboardAccountsRoute =
+  AuthUserLayoutDashboardAccountsRouteImport.update({
+    id: '/accounts',
+    path: '/accounts',
     getParentRoute: () => AuthUserLayoutDashboardRoute,
   } as any)
 const AuthAdminLayoutDashboardWorkforceRoute =
@@ -277,7 +277,7 @@ export interface FileRoutesByFullPath {
   '/auth/admin/dashboard/sales': typeof AuthAdminLayoutDashboardSalesRoute
   '/auth/admin/dashboard/trading': typeof AuthAdminLayoutDashboardTradingRoute
   '/auth/admin/dashboard/workforce': typeof AuthAdminLayoutDashboardWorkforceRoute
-  '/auth/user/dashboard/account': typeof AuthUserLayoutDashboardAccountRoute
+  '/auth/user/dashboard/accounts': typeof AuthUserLayoutDashboardAccountsRoute
   '/auth/user/dashboard/energy': typeof AuthUserLayoutDashboardEnergyRoute
   '/auth/user/dashboard/maintenance': typeof AuthUserLayoutDashboardMaintenanceRoute
   '/auth/user/dashboard/procurement': typeof AuthUserLayoutDashboardProcurementRoute
@@ -310,7 +310,7 @@ export interface FileRoutesByTo {
   '/auth/admin/dashboard/sales': typeof AuthAdminLayoutDashboardSalesRoute
   '/auth/admin/dashboard/trading': typeof AuthAdminLayoutDashboardTradingRoute
   '/auth/admin/dashboard/workforce': typeof AuthAdminLayoutDashboardWorkforceRoute
-  '/auth/user/dashboard/account': typeof AuthUserLayoutDashboardAccountRoute
+  '/auth/user/dashboard/accounts': typeof AuthUserLayoutDashboardAccountsRoute
   '/auth/user/dashboard/energy': typeof AuthUserLayoutDashboardEnergyRoute
   '/auth/user/dashboard/maintenance': typeof AuthUserLayoutDashboardMaintenanceRoute
   '/auth/user/dashboard/procurement': typeof AuthUserLayoutDashboardProcurementRoute
@@ -350,7 +350,7 @@ export interface FileRoutesById {
   '/auth/admin/_layout/dashboard/sales': typeof AuthAdminLayoutDashboardSalesRoute
   '/auth/admin/_layout/dashboard/trading': typeof AuthAdminLayoutDashboardTradingRoute
   '/auth/admin/_layout/dashboard/workforce': typeof AuthAdminLayoutDashboardWorkforceRoute
-  '/auth/user/_layout/dashboard/account': typeof AuthUserLayoutDashboardAccountRoute
+  '/auth/user/_layout/dashboard/accounts': typeof AuthUserLayoutDashboardAccountsRoute
   '/auth/user/_layout/dashboard/energy': typeof AuthUserLayoutDashboardEnergyRoute
   '/auth/user/_layout/dashboard/maintenance': typeof AuthUserLayoutDashboardMaintenanceRoute
   '/auth/user/_layout/dashboard/procurement': typeof AuthUserLayoutDashboardProcurementRoute
@@ -389,7 +389,7 @@ export interface FileRouteTypes {
     | '/auth/admin/dashboard/sales'
     | '/auth/admin/dashboard/trading'
     | '/auth/admin/dashboard/workforce'
-    | '/auth/user/dashboard/account'
+    | '/auth/user/dashboard/accounts'
     | '/auth/user/dashboard/energy'
     | '/auth/user/dashboard/maintenance'
     | '/auth/user/dashboard/procurement'
@@ -422,7 +422,7 @@ export interface FileRouteTypes {
     | '/auth/admin/dashboard/sales'
     | '/auth/admin/dashboard/trading'
     | '/auth/admin/dashboard/workforce'
-    | '/auth/user/dashboard/account'
+    | '/auth/user/dashboard/accounts'
     | '/auth/user/dashboard/energy'
     | '/auth/user/dashboard/maintenance'
     | '/auth/user/dashboard/procurement'
@@ -461,7 +461,7 @@ export interface FileRouteTypes {
     | '/auth/admin/_layout/dashboard/sales'
     | '/auth/admin/_layout/dashboard/trading'
     | '/auth/admin/_layout/dashboard/workforce'
-    | '/auth/user/_layout/dashboard/account'
+    | '/auth/user/_layout/dashboard/accounts'
     | '/auth/user/_layout/dashboard/energy'
     | '/auth/user/_layout/dashboard/maintenance'
     | '/auth/user/_layout/dashboard/procurement'
@@ -658,11 +658,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthUserLayoutDashboardEnergyRouteImport
       parentRoute: typeof AuthUserLayoutDashboardRoute
     }
-    '/auth/user/_layout/dashboard/account': {
-      id: '/auth/user/_layout/dashboard/account'
-      path: '/account'
-      fullPath: '/auth/user/dashboard/account'
-      preLoaderRoute: typeof AuthUserLayoutDashboardAccountRouteImport
+    '/auth/user/_layout/dashboard/accounts': {
+      id: '/auth/user/_layout/dashboard/accounts'
+      path: '/accounts'
+      fullPath: '/auth/user/dashboard/accounts'
+      preLoaderRoute: typeof AuthUserLayoutDashboardAccountsRouteImport
       parentRoute: typeof AuthUserLayoutDashboardRoute
     }
     '/auth/admin/_layout/dashboard/workforce': {
@@ -823,7 +823,7 @@ const AuthAdminRouteWithChildren = AuthAdminRoute._addFileChildren(
 )
 
 interface AuthUserLayoutDashboardRouteChildren {
-  AuthUserLayoutDashboardAccountRoute: typeof AuthUserLayoutDashboardAccountRoute
+  AuthUserLayoutDashboardAccountsRoute: typeof AuthUserLayoutDashboardAccountsRoute
   AuthUserLayoutDashboardEnergyRoute: typeof AuthUserLayoutDashboardEnergyRoute
   AuthUserLayoutDashboardMaintenanceRoute: typeof AuthUserLayoutDashboardMaintenanceRoute
   AuthUserLayoutDashboardProcurementRoute: typeof AuthUserLayoutDashboardProcurementRoute
@@ -837,7 +837,7 @@ interface AuthUserLayoutDashboardRouteChildren {
 
 const AuthUserLayoutDashboardRouteChildren: AuthUserLayoutDashboardRouteChildren =
   {
-    AuthUserLayoutDashboardAccountRoute: AuthUserLayoutDashboardAccountRoute,
+    AuthUserLayoutDashboardAccountsRoute: AuthUserLayoutDashboardAccountsRoute,
     AuthUserLayoutDashboardEnergyRoute: AuthUserLayoutDashboardEnergyRoute,
     AuthUserLayoutDashboardMaintenanceRoute:
       AuthUserLayoutDashboardMaintenanceRoute,

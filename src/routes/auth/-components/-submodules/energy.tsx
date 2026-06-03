@@ -485,7 +485,7 @@ function EnergyView({
                   <ChartTooltipContent
                     indicator="dot"
                     labelFormatter={(v) => `Month: ${v}`}
-                    formatter={(value, name) => {
+                    formatter={(value) => {
                       return `${fmtPHP(value as number)}`;
                     }}
                   />
