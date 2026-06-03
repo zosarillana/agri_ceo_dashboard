@@ -4,13 +4,28 @@ import { updateUser } from "@/services/user.service";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
-import { User, Mail, Building2, Lock, Save, Eye, EyeOff, Loader2 } from "lucide-react";
-import { toast } from "sonner"; // or your preferred toast lib
+import {
+  User,
+  Mail,
+  Building2,
+  Lock,
+  Save,
+  Eye,
+  EyeOff,
+  Loader2,
+} from "lucide-react";
+import { toast } from "sonner";
 
 function getInitials(name: string) {
   return name
@@ -27,7 +42,9 @@ export function Settings() {
   const [profileForm, setProfileForm] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
-    department: user?.department ?? "",
+    departments: Array.isArray(user?.departments)
+      ? user.departments.map((d) => d.name).join(", ")
+      : "",
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -49,7 +66,6 @@ export function Settings() {
       const res = await updateUser({
         name: profileForm.name,
         email: profileForm.email,
-        department: profileForm.department,
       });
       setUser(res.user);
       toast.success("Profile updated successfully.");
@@ -90,7 +106,6 @@ export function Settings() {
 
   return (
     <div className="max-w-full mx-auto space-y-6">
-
       {/* ── HEADER ─────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -126,22 +141,28 @@ export function Settings() {
       >
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Profile Information</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              Profile Information
+            </CardTitle>
             <CardDescription className="text-xs">
-              Update your name, email address, and department.
+              Update your name and email address.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 px-6 pb-6">
-
             {/* Name */}
             <div className="space-y-1.5">
-              <Label htmlFor="name" className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Label
+                htmlFor="name"
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
                 <User className="h-3.5 w-3.5" /> Full Name
               </Label>
               <Input
                 id="name"
                 value={profileForm.name}
-                onChange={(e) => setProfileForm((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setProfileForm((p) => ({ ...p, name: e.target.value }))
+                }
                 placeholder="Your full name"
               />
             </div>
@@ -150,31 +171,39 @@ export function Settings() {
 
             {/* Email */}
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Label
+                htmlFor="email"
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
                 <Mail className="h-3.5 w-3.5" /> Email Address
               </Label>
               <Input
                 id="email"
                 type="email"
                 value={profileForm.email}
-                onChange={(e) => setProfileForm((p) => ({ ...p, email: e.target.value }))}
+                onChange={(e) =>
+                  setProfileForm((p) => ({ ...p, email: e.target.value }))
+                }
                 placeholder="you@example.com"
               />
             </div>
 
             <Separator />
 
-            {/* Department */}
+            {/* Department — read-only display */}
             <div className="space-y-1.5">
-              <Label htmlFor="department" className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Label
+                htmlFor="department"
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
                 <Building2 className="h-3.5 w-3.5" /> Department
               </Label>
               <Input
                 disabled
                 id="department"
-                value={profileForm.department}
-                onChange={(e) => setProfileForm((p) => ({ ...p, department: e.target.value }))}
-                placeholder="e.g. Engineering"
+                value={profileForm.departments}
+                onChange={() => {}}
+                placeholder="No department assigned"
               />
             </div>
 
@@ -184,10 +213,11 @@ export function Settings() {
                 disabled={profileLoading}
                 className="bg-[#1a9e6e] hover:bg-[#158a5e] text-white gap-2"
               >
-                {profileLoading
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <Save className="h-4 w-4" />
-                }
+                {profileLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
                 Save Changes
               </Button>
             </div>
@@ -203,16 +233,20 @@ export function Settings() {
       >
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Change Password</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              Change Password
+            </CardTitle>
             <CardDescription className="text-xs">
               Choose a strong password with at least 6 characters.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 px-6 pb-6">
-
             {/* New Password */}
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Label
+                htmlFor="password"
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
                 <Lock className="h-3.5 w-3.5" /> New Password
               </Label>
               <div className="relative">
@@ -220,7 +254,9 @@ export function Settings() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={passwordForm.password}
-                  onChange={(e) => setPasswordForm((p) => ({ ...p, password: e.target.value }))}
+                  onChange={(e) =>
+                    setPasswordForm((p) => ({ ...p, password: e.target.value }))
+                  }
                   placeholder="••••••••"
                   className="pr-10"
                 />
@@ -229,7 +265,11 @@ export function Settings() {
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -238,7 +278,10 @@ export function Settings() {
 
             {/* Confirm Password */}
             <div className="space-y-1.5">
-              <Label htmlFor="password_confirmation" className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Label
+                htmlFor="password_confirmation"
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
                 <Lock className="h-3.5 w-3.5" /> Confirm Password
               </Label>
               <div className="relative">
@@ -246,7 +289,12 @@ export function Settings() {
                   id="password_confirmation"
                   type={showConfirm ? "text" : "password"}
                   value={passwordForm.password_confirmation}
-                  onChange={(e) => setPasswordForm((p) => ({ ...p, password_confirmation: e.target.value }))}
+                  onChange={(e) =>
+                    setPasswordForm((p) => ({
+                      ...p,
+                      password_confirmation: e.target.value,
+                    }))
+                  }
                   placeholder="••••••••"
                   className="pr-10"
                 />
@@ -255,18 +303,24 @@ export function Settings() {
                   onClick={() => setShowConfirm((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirm ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Match indicator */}
             {passwordForm.password_confirmation && (
-              <p className={`text-xs ${
-                passwordForm.password === passwordForm.password_confirmation
-                  ? "text-emerald-500"
-                  : "text-destructive"
-              }`}>
+              <p
+                className={`text-xs ${
+                  passwordForm.password === passwordForm.password_confirmation
+                    ? "text-emerald-500"
+                    : "text-destructive"
+                }`}
+              >
                 {passwordForm.password === passwordForm.password_confirmation
                   ? "✓ Passwords match"
                   : "✗ Passwords do not match"}
@@ -279,17 +333,17 @@ export function Settings() {
                 disabled={passwordLoading || !passwordForm.password}
                 className="bg-[#1a9e6e] hover:bg-[#158a5e] text-white gap-2"
               >
-                {passwordLoading
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <Save className="h-4 w-4" />
-                }
+                {passwordLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
                 Update Password
               </Button>
             </div>
           </CardContent>
         </Card>
       </motion.div>
-
     </div>
   );
 }
