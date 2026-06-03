@@ -37,12 +37,11 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { procurementService } from "@/services/procurement.service";
+import { procurementService, BulkProcurementDTO } from "@/services/procurement.service";
 import { useProcurementStore } from "@/store/procurement.store";
 import {
   ProcurementRecord,
   ProcurementStatus,
-  CreateProcurementDTO,
 } from "@/types/procurement.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -166,8 +165,6 @@ export default function ProcurementInputForm({
     setFetching(true);
     try {
       const response = await procurementService.getAll(iso, iso);
-      // API returns { data: ProcurementRecord[] } wrapped by axios,
-      // so the actual array lives at response.data.data
       const records: ProcurementRecord[] =
         Array.isArray(response.data)
           ? response.data
@@ -184,7 +181,7 @@ export default function ProcurementInputForm({
   }, []);
 
   function applyData(records: ProcurementRecord[]) {
-    setRows(records.length > 0 ? records.map(recordToRow) : [emptyRow()]);
+    setRows(records.map(recordToRow));
     setUnlockedIdxs(new Set());
     setSubmissionStatus("idle");
     setStatusMsg("");
@@ -269,13 +266,31 @@ export default function ProcurementInputForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const rowsToSave = rows.filter((r, idx) => {
-      if (unlockedIdxs.has(idx)) return true;
-      if (!r.isReadOnly && r.itemName.trim()) return true;
-      return false;
+    // Prepare all records for bulk save (both new and updates)
+    const allRecordsToSave: BulkProcurementDTO[] = [];
+
+    rows.forEach((row, idx) => {
+      // Only process rows that are unlocked (edited) or new (not readOnly)
+      const shouldProcess = unlockedIdxs.has(idx) || !row.isReadOnly;
+      
+      if (!shouldProcess) return;
+
+      // Skip empty new rows (all fields empty)
+      if (!row.id && !row.itemName.trim() && !row.supplier.trim() && !row.quantity && !row.unit) {
+        return;
+      }
+
+      allRecordsToSave.push({
+        id: row.id, // Include ID if it exists (for updates)
+        item_name: row.itemName,
+        supplier: row.supplier || null,
+        status: row.status,
+        quantity: parseFloat(row.quantity.replace(/,/g, "")) || 0,
+        unit: row.unit,
+      });
     });
 
-    if (rowsToSave.length === 0) {
+    if (allRecordsToSave.length === 0) {
       setSubmissionStatus("error");
       setStatusMsg(
         "Please fill in at least one item, or unlock a saved entry to update it.",
@@ -283,30 +298,21 @@ export default function ProcurementInputForm({
       return;
     }
 
-    const payload: CreateProcurementDTO[] = rowsToSave.map((r) => ({
-      item_name: r.itemName,
-      supplier:  r.supplier || null,
-      status:    r.status,
-      quantity:  parseFloat(r.quantity.replace(/,/g, "")) || 0,
-      unit:      r.unit,
-    }));
-
     setIsSaving(true);
     try {
-      await procurementService.storeBulk(payload, dateISO);
-
+      const response = await procurementService.storeBulk(allRecordsToSave, dateISO);
+      
+      // Clear cache and refresh
       delete cache.current[dateISO];
       await fetchForDate(dateISO);
       setUnlockedIdxs(new Set());
 
-      const wasUpdate = unlockedIdxs.size > 0;
       setSubmissionStatus("success");
-      setStatusMsg(
-        `Procurement record${rowsToSave.length > 1 ? "s" : ""} ${wasUpdate ? "updated" : "saved"} for ${format(isoToDate(dateISO), "PPP")}.`,
-      );
+      setStatusMsg(response.data.message || `Records saved for ${format(isoToDate(dateISO), "PPP")}.`);
       fetchLatest();
       onSaved();
     } catch (err: any) {
+      console.error("Save error:", err);
       setSubmissionStatus("error");
       setStatusMsg(
         err?.response?.data?.message ?? "Something went wrong. Please try again.",
@@ -416,6 +422,11 @@ export default function ProcurementInputForm({
                             editing
                           </span>
                         )}
+                        {row.id && !isUnlocked && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 font-medium">
+                            saved
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         {/* Unlock / relock for saved rows */}
@@ -463,7 +474,7 @@ export default function ProcurementInputForm({
                         <p className="text-xs text-muted-foreground">Item Name</p>
                         <Input
                           placeholder="e.g. Raw coconuts"
-                          required
+                          required={!row.id} // Required only for new records
                           value={row.itemName}
                           onChange={(e) => updateRow(idx, { itemName: e.target.value })}
                           readOnly={!isEditable}
@@ -495,7 +506,7 @@ export default function ProcurementInputForm({
                         <Input
                           type="text"
                           placeholder="0.00"
-                          required
+                          required={!row.id} // Required only for new records
                           value={row.quantity}
                           onChange={(e) => updateRow(idx, { quantity: e.target.value })}
                           readOnly={!isEditable}
@@ -511,7 +522,7 @@ export default function ProcurementInputForm({
                         <p className="text-xs text-muted-foreground">Unit</p>
                         <Input
                           placeholder="e.g. Kg, Ltrs, Units"
-                          required
+                          required={!row.id} // Required only for new records
                           value={row.unit}
                           onChange={(e) => updateRow(idx, { unit: e.target.value })}
                           readOnly={!isEditable}

@@ -1,4 +1,3 @@
-// src/routes/auth/.../accounts.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -24,8 +23,8 @@ type Tab = "view" | "input";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtPHP(n: number) {
-  return "₱" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatUSD(n: number) {
+  return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function accountBadge(type: AccountType) {
@@ -51,7 +50,7 @@ function AccountTable({ accounts }: { accounts: Account[] }) {
           <TableHead>Description</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
+          <TableHead className="text-right">Amount (USD)</TableHead>
           <TableHead className="text-right">Due Date</TableHead>
         </TableRow>
       </TableHeader>
@@ -65,7 +64,7 @@ function AccountTable({ accounts }: { accounts: Account[] }) {
                 ? <Badge variant="outline" className="text-emerald-500 border-emerald-500">Paid</Badge>
                 : <Badge variant="outline" className="text-amber-500 border-amber-500">Unpaid</Badge>}
             </TableCell>
-            <TableCell className="text-right tabular-nums">{fmtPHP(a.amount)}</TableCell>
+            <TableCell className="text-right tabular-nums">{formatUSD(a.amount)}</TableCell>
             <TableCell className="text-right tabular-nums">
               {a.due_date ? format(new Date(a.due_date), "MMM dd, yyyy") : "—"}
             </TableCell>
@@ -230,7 +229,7 @@ export default function AccountsDash() {
                 ].map((s) => (
                   <Card key={s.label}><CardContent className="pt-4 pb-4">
                     <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
-                    <p className="text-2xl font-semibold">{fmtPHP(s.value)}</p>
+                    <p className="text-2xl font-semibold">{formatUSD(s.value)}</p>
                   </CardContent></Card>
                 ))}
               </div>

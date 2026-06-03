@@ -53,8 +53,12 @@ export function Profile() {
     {
       icon: Building2,
       label: "Department",
-      value: user.department ?? "Not assigned",
+      value:
+        Array.isArray(user.departments) && user.departments.length > 0
+          ? user.departments.map((d) => d.name).join(", ")
+          : "Not assigned",
     },
+
     {
       icon: Calendar,
       label: "Member Since",
@@ -100,11 +104,14 @@ export function Profile() {
               >
                 {user.role}
               </Badge>
-              {user.department && (
+              {user.departments && (
                 <>
                   <span className="text-muted-foreground">·</span>
                   <Badge variant="outline" className="text-xs font-medium">
-                    {user.department}
+                    {user.departments.length}{" "}
+                    {user.departments.length === 1
+                      ? "Department"
+                      : "Departments"}
                   </Badge>
                 </>
               )}
