@@ -22,9 +22,9 @@ interface EnergyState {
   saving: boolean;
   error: string | null;
 
-  fetchAll: () => Promise<void>;
-  fetchByMonth: (month: string) => Promise<void>;
-  fetchSummary: () => Promise<void>;
+  fetchAll: (force?: boolean) => Promise<void>;
+  fetchByMonth: (month: string, force?: boolean) => Promise<void>;
+  fetchSummary: (force?: boolean) => Promise<void>;
   saveBulk: (rows: EnergyPayload[]) => Promise<void>;
   setMonth: (month: string) => void;
 }
@@ -45,7 +45,9 @@ export const useEnergyStore = create<EnergyState>((set, get) => ({
   saving: false,
   error: null,
 
-  fetchAll: async () => {
+  fetchAll: async (force = false) => {
+    const hasData = get().data.account2.length > 0 || get().data.account3.length > 0;
+    if (get().loading || (hasData && !force)) return;
     set({ loading: true, error: null });
     try {
       const res = await energyService.getAll();
@@ -57,7 +59,9 @@ export const useEnergyStore = create<EnergyState>((set, get) => ({
     }
   },
 
-  fetchByMonth: async (month: string) => {
+  fetchByMonth: async (month: string, force = false) => {
+    const hasData = get().data.account2.length > 0 || get().data.account3.length > 0;
+    if (get().loading || (get().month === month && hasData && !force)) return;
     set({ loading: true, error: null, month });
     try {
       const res = await energyService.getByMonth(month);
@@ -69,12 +73,16 @@ export const useEnergyStore = create<EnergyState>((set, get) => ({
     }
   },
 
-  fetchSummary: async () => {
+  fetchSummary: async (force = false) => {
+    if (get().loading || (get().summary.total_billed_amount !== 0 && !force)) return;
+    set({ loading: true, error: null });
     try {
       const res = await energyService.getSummary();
       set({ summary: res.data });
     } catch (err: any) {
       set({ error: "Failed to fetch summary." });
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -86,12 +94,12 @@ export const useEnergyStore = create<EnergyState>((set, get) => ({
       // refresh after save
       const { month } = get();
       if (month) {
-        await get().fetchByMonth(month);
+        await get().fetchByMonth(month, true);
       } else {
-        await get().fetchAll();
+        await get().fetchAll(true);
       }
 
-      await get().fetchSummary();
+      await get().fetchSummary(true);
     } catch (err: any) {
       set({ error: err?.response?.data?.message ?? "Failed to save energy data." });
       throw err;

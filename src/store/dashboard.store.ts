@@ -6,7 +6,7 @@ type DashboardStore = {
   stats: DashboardStats | null;
   loading: boolean;
   error: string | null;
-  activeDate: string; // the date currently shown
+  activeDate: string;
 
   fetchStats: (date?: string) => Promise<void>;
 };
@@ -24,8 +24,9 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   fetchStats: async (date?: string) => {
     const target = date ?? getTodayISO();
 
-    // skip if same date is already loaded
-    if (get().stats !== null && get().activeDate === target) return;
+    // ✅ FIX: also guard on `loading` to prevent StrictMode double-fire
+    // and any other concurrent calls before the first one resolves.
+    if (get().loading || (get().stats !== null && get().activeDate === target)) return;
 
     set({ loading: true, error: null, activeDate: target });
     try {

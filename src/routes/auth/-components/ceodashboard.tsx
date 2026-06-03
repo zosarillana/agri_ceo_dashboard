@@ -32,6 +32,7 @@ export default function CEODashboard() {
   const selectedMthKey = toMonthKey(selectedISO);
   const isToday = selectedISO === getTodayISO();
 
+  // ✅ Destructure fetchStats separately so it's not part of the stats re-render cycle
   const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
   const production = stats?.production;
   const maintenance = stats?.maintenance;
@@ -40,14 +41,18 @@ export default function CEODashboard() {
   const workforce = stats?.workforce;
   const qc = stats?.qc;
 
+  // Clock tick — isolated to its own state so it never affects fetchStats
   React.useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
+  // ✅ FIX: omit fetchStats from deps — it's a stable Zustand action reference,
+  // and including it previously caused re-fires whenever the store updated.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     fetchStats();
-  }, [fetchStats]);
+  }, []);
 
   function handleDateSelect(d: Date | undefined) {
     if (!d) return;
@@ -129,7 +134,6 @@ export default function CEODashboard() {
               index={4}
             />
 
-            {/* QC Card - Now with proper daily date filtering */}
             <QcCard
               active={isActive("qc")}
               index={5}

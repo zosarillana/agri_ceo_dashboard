@@ -45,6 +45,15 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   error: null,
 
   fetchAll: async (from?: string, to?: string) => {
+    const targetFrom = from ?? null;
+    const targetTo = to ?? null;
+
+    if (get().loading || (
+      get().accounts.length > 0 && 
+      get().dateRange.from === targetFrom && 
+      get().dateRange.to === targetTo
+    )) return;
+
     set({ loading: true, error: null });
     try {
       const response = await accountService.getAll(from, to);
@@ -68,9 +77,11 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         to: to ?? null,
       };
 
-      set({ accounts, summary, dateRange: { from: from ?? null, to: to ?? null }, loading: false });
+      set({ accounts, summary, dateRange: { from: targetFrom, to: targetTo } });
     } catch (err: any) {
-      set({ error: err?.response?.data?.message ?? "Failed to fetch accounts.", loading: false });
+      set({ error: err?.response?.data?.message ?? "Failed to fetch accounts." });
+    } finally {
+      set({ loading: false });
     }
   },
 

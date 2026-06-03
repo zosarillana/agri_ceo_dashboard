@@ -14,7 +14,7 @@ type PlantStore = {
   fetchSummary: () => Promise<void>;
 };
 
-export const usePlantStore = create<PlantStore>((set) => ({
+export const usePlantStore = create<PlantStore>((set, get) => ({
   plants: [],
   summary: [],
   loading: false,
@@ -25,6 +25,7 @@ export const usePlantStore = create<PlantStore>((set) => ({
    * This is what the maintenance dashboard calls on mount.
    */
   fetchPlants: async () => {
+    if (get().loading || get().plants.length > 0) return;
     set({ loading: true, error: null });
     try {
       const data = await plantService.getAll();
@@ -57,6 +58,7 @@ export const usePlantStore = create<PlantStore>((set) => ({
    * Status counts per plant — operational / maintenance / down / standby.
    */
   fetchSummary: async () => {
+    if (get().loading || get().summary.length > 0) return;
     set({ loading: true, error: null });
     try {
       const data = await plantService.getSummary();

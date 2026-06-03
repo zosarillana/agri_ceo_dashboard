@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useEnergyStore } from "@/store/energy.store";
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { format } from "date-fns";
 
 import {
   Card,
@@ -30,12 +32,24 @@ import {
 } from "@/components/ui/chart";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 
-import { TrendingUp, TrendingDown, BarChart2, PlusCircle } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  BarChart2,
+  PlusCircle,
+  CalendarIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import EnergyInputForm from "../-forms/energy-input-form";
-import { energyService } from "@/services/energy.service";
-import { EnergyRecord } from "@/types/energy.types";
 
 /* ─────────────────────────────────────────────
    HELPERS
@@ -193,35 +207,26 @@ function TableSkeleton() {
    VIEW TAB
 ───────────────────────────────────────────── */
 
-function EnergyView({ refreshKey }: { refreshKey: number }) {
-  const [account2, setAccount2] = useState<EnergyRecord[]>([]);
-  const [account3, setAccount3] = useState<EnergyRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+function EnergyView({
+  refreshKey,
+  selectedMonth,
+}: {
+  refreshKey: number;
+  selectedMonth?: Date;
+}) {
+  const { data, loading, fetchAll } = useEnergyStore();
+  const { account2, account3 } = data;
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-
-      try {
-        const res = await energyService.getAll();
-
-        setAccount2(res.data.account2 ?? []);
-        setAccount3(res.data.account3 ?? []);
-      } catch (error) {
-        console.error("Failed loading energy data", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, [refreshKey]);
+    // If refreshKey > 0, it means we just saved data, so force a refresh
+    fetchAll(refreshKey > 0);
+  }, [fetchAll, refreshKey]);
 
   /* ─────────────────────────────────────────
      MERGE DATA BY MONTH
   ───────────────────────────────────────── */
 
-  const monthlyRows = useMemo<MonthlyRow[]>(() => {
+  const allMonthlyRows = useMemo<MonthlyRow[]>(() => {
     const map = new Map<string, MonthlyRow>();
 
     [...account2, ...account3].forEach((record) => {
@@ -261,42 +266,69 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
     );
   }, [account2, account3]);
 
+  // Determine the focus month and its predecessor for trend calculation
+  const { latestMonth, prevMonth } = useMemo(() => {
+    const monthStr = selectedMonth ? format(selectedMonth, "yyyy-MM") : null;
+    const idx = monthStr
+      ? allMonthlyRows.findIndex((r) => r.month === monthStr)
+      : allMonthlyRows.length - 1;
+
+    return {
+      latestMonth: idx >= 0 ? allMonthlyRows[idx] : null,
+      prevMonth: idx > 0 ? allMonthlyRows[idx - 1] : null,
+    };
+  }, [allMonthlyRows, selectedMonth]);
+
+  // Filter rows for the chart and table (e.g., trailing 12 months up to selected)
+  const displayRows = useMemo(() => {
+    const monthStr = selectedMonth ? format(selectedMonth, "yyyy-MM") : null;
+    if (!monthStr) return allMonthlyRows;
+
+    let result = allMonthlyRows.filter((r) => r.month <= monthStr);
+    if (result.length > 12) {
+      result = result.slice(-12);
+    }
+    return result;
+  }, [allMonthlyRows, selectedMonth]);
+
   /* ─────────────────────────────────────────
      CHART DATA
   ───────────────────────────────────────── */
 
-  const chartData = monthlyRows.map((row) => ({
-    month: formatMonth(row.month),
-    account2: row.account2_billed,
-    account3: row.account3_billed,
+  const chartData = displayRows.map((row) => ({
+    month: row.month,
+    monthLabel: formatMonth(row.month),
+
+    account2: Number(row.account2_billed),
+    account3: Number(row.account3_billed),
   }));
 
   /* ─────────────────────────────────────────
-     TOTALS
+     TOTALS (Based on display rows or full history? We'll use displayRows)
   ───────────────────────────────────────── */
 
-  const totalBilled2 = monthlyRows.reduce(
+  const totalBilled2 = displayRows.reduce(
     (sum, row) => sum + row.account2_billed,
     0,
   );
 
-  const totalBilled3 = monthlyRows.reduce(
+  const totalBilled3 = displayRows.reduce(
     (sum, row) => sum + row.account3_billed,
     0,
   );
 
   const grandTotal = totalBilled2 + totalBilled3;
 
-  const totalKw2 = monthlyRows.reduce((sum, row) => sum + row.account2_kw, 0);
+  const totalKw2 = displayRows.reduce((sum, row) => sum + row.account2_kw, 0);
 
-  const totalKw3 = monthlyRows.reduce((sum, row) => sum + row.account3_kw, 0);
+  const totalKw3 = displayRows.reduce((sum, row) => sum + row.account3_kw, 0);
 
-  const totalDemand2 = monthlyRows.reduce(
+  const totalDemand2 = displayRows.reduce(
     (sum, row) => sum + row.account2_demand,
     0,
   );
 
-  const totalDemand3 = monthlyRows.reduce(
+  const totalDemand3 = displayRows.reduce(
     (sum, row) => sum + row.account3_demand,
     0,
   );
@@ -304,12 +336,6 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
   /* ─────────────────────────────────────────
      TRENDS
   ───────────────────────────────────────── */
-
-  const latestMonth =
-    monthlyRows.length > 0 ? monthlyRows[monthlyRows.length - 1] : null;
-
-  const prevMonth =
-    monthlyRows.length > 1 ? monthlyRows[monthlyRows.length - 2] : null;
 
   const accountTiles = [
     {
@@ -408,6 +434,7 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
       </div>
 
       {/* ───────────────── chart ───────────────── */}
+      {/* ───────────────── chart ───────────────── */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">
@@ -422,23 +449,34 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
         <CardContent className="px-2 pt-2 sm:px-6">
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-[220px] w-full"
+            className="aspect-auto h-[280px] w-full"
           >
-            <LineChart data={chartData}>
+            <LineChart
+              data={chartData}
+              margin={{ top: 10, right: 30, left: 60, bottom: 20 }}
+            >
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
 
               <XAxis
-                dataKey="month"
+                dataKey="monthLabel"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
+                interval="preserveStartEnd"
+                angle={-45}
+                textAnchor="end"
+                height={60}
+                tick={{ fontSize: 12 }}
               />
 
               <YAxis
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tickFormatter={(v) => `₱${fmt(v)}`}
+                tickFormatter={(v) => `₱${(v / 1000).toFixed(0)}k`}
+                width={60}
+                domain={["auto", "auto"]}
+                tick={{ fontSize: 11 }}
               />
 
               <ChartTooltip
@@ -447,6 +485,9 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
                   <ChartTooltipContent
                     indicator="dot"
                     labelFormatter={(v) => `Month: ${v}`}
+                    formatter={(value, name) => {
+                      return `${fmtPHP(value as number)}`;
+                    }}
                   />
                 }
               />
@@ -454,6 +495,7 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
               <Line
                 type="monotone"
                 dataKey="account2"
+                name="Account 2"
                 stroke="var(--color-account2)"
                 strokeWidth={2}
                 dot={{
@@ -466,6 +508,7 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
               <Line
                 type="monotone"
                 dataKey="account3"
+                name="Account 3"
                 stroke="var(--color-account3)"
                 strokeWidth={2}
                 dot={{
@@ -475,12 +518,16 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
                 activeDot={{ r: 6 }}
               />
 
-              <ChartLegend content={<ChartLegendContent />} />
+              <ChartLegend
+                content={<ChartLegendContent />}
+                verticalAlign="top"
+                height={36}
+              />
             </LineChart>
           </ChartContainer>
         </CardContent>
       </Card>
-
+      
       {/* ───────────────── table ───────────────── */}
       <Card>
         <CardHeader className="pb-2">
@@ -529,7 +576,7 @@ function EnergyView({ refreshKey }: { refreshKey: number }) {
             </TableHeader>
 
             <TableBody>
-              {monthlyRows.map((row) => {
+              {displayRows.map((row) => {
                 const total = row.account2_billed + row.account3_billed;
                 return (
                   <TableRow key={row.month}>
@@ -612,6 +659,10 @@ export default function EnergyDash() {
   const [tab, setTab] = useState<Tab>("view");
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const [selectedMonth, setSelectedMonth] = useState<Date | undefined>(
+    () => new Date(),
+  );
+
   function handleSaved() {
     setRefreshKey((k) => k + 1);
     setTab("view");
@@ -647,7 +698,42 @@ export default function EnergyDash() {
       </div>
 
       {/* ───────────────── content ───────────────── */}
-      {tab === "view" && <EnergyView refreshKey={refreshKey} />}
+      {tab === "view" && (
+        <div className="space-y-4">
+          <div className="flex items-end gap-2">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Select Month</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal h-9",
+                      !selectedMonth && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedMonth
+                      ? format(selectedMonth, "MMMM yyyy")
+                      : "Pick a month"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedMonth}
+                    onSelect={setSelectedMonth}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <EnergyView refreshKey={refreshKey} selectedMonth={selectedMonth} />
+        </div>
+      )}
 
       {tab === "input" && <EnergyInputForm onSaved={handleSaved} />}
     </div>

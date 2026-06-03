@@ -32,7 +32,7 @@ interface DepartmentState {
   clearError: () => void;
 }
 
-export const useDepartmentStore = create<DepartmentState>((set) => ({
+export const useDepartmentStore = create<DepartmentState>((set, get) => ({
   departments: [],
   selectedDepartment: null,
   departmentUsers: [],
@@ -40,6 +40,7 @@ export const useDepartmentStore = create<DepartmentState>((set) => ({
   error: null,
 
   fetchDepartments: async () => {
+    if (get().isLoading || get().departments.length > 0) return;
     set({ isLoading: true, error: null });
     try {
       const departments = await getDepartments();
@@ -52,6 +53,7 @@ export const useDepartmentStore = create<DepartmentState>((set) => ({
   },
 
   fetchDepartment: async (id: number) => {
+    if (get().isLoading || get().selectedDepartment?.id === id) return;
     set({ isLoading: true, error: null });
     try {
       const department = await getDepartment(id);
