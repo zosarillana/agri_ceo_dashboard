@@ -16,18 +16,19 @@ import {
   Pencil, X, Plus, Trash2, TrendingUp, TrendingDown, Building, Wrench,
 } from "lucide-react";
 import { accountService } from "@/services/accounts.service";
-import { AccountType, AccountPayload } from "@/types/accounts.types";
+import { AccountType, AccountStatus, AccountPayload } from "@/types/accounts.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AccountRow {
-  id: number | null;       // null = new (not yet saved)
-  localId: string;         // stable React key
+  id: number | null;
+  localId: string;
   description: string;
   type: AccountType;
   amount: number;
   due_date: string | null;
   notes: string;
+  status: AccountStatus;
   displayAmount: string;
   isReadOnly: boolean;
 }
@@ -36,16 +37,50 @@ interface AccountInputFormProps {
   onSaved: () => void;
 }
 
+// ─── Status config per type ───────────────────────────────────────────────────
+
+const STATUS_OPTIONS: Record<AccountType, { value: AccountStatus; label: string; color: string }[]> = {
+  receivable: [
+    { value: "received", label: "Received", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+    { value: "delayed",  label: "Delayed",  color: "bg-amber-500/10 text-amber-600 border-amber-500/30"     },
+  ],
+  revenue: [
+    { value: "received", label: "Received", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+    { value: "delayed",  label: "Delayed",  color: "bg-amber-500/10 text-amber-600 border-amber-500/30"     },
+  ],
+  payable: [
+    { value: "unpaid", label: "Unpaid", color: "bg-rose-500/10 text-rose-600 border-rose-500/30"         },
+    { value: "paid",   label: "Paid",   color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+  ],
+  expense: [
+    { value: "unpaid", label: "Unpaid", color: "bg-rose-500/10 text-rose-600 border-rose-500/30"         },
+    { value: "paid",   label: "Paid",   color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+  ],
+  capex: [
+    { value: "unpaid",  label: "Unpaid",  color: "bg-rose-500/10 text-rose-600 border-rose-500/30"         },
+    { value: "pending", label: "Pending", color: "bg-amber-500/10 text-amber-600 border-amber-500/30"      },
+    { value: "paid",    label: "Paid",    color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+  ],
+  opex: [
+    { value: "unpaid",  label: "Unpaid",  color: "bg-rose-500/10 text-rose-600 border-rose-500/30"         },
+    { value: "pending", label: "Pending", color: "bg-amber-500/10 text-amber-600 border-amber-500/30"      },
+    { value: "paid",    label: "Paid",    color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+  ],
+};
+
+function defaultStatus(type: AccountType): AccountStatus {
+  if (type === "receivable" || type === "revenue") return "received";
+  if (type === "capex" || type === "opex") return "pending";
+  return "unpaid"; // payable and expense
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function uid() { return Math.random().toString(36).slice(2); }
-
 function getTodayISO() { return new Date().toLocaleDateString("en-CA"); }
-
 function dateToISO(d: Date) { return d.toLocaleDateString("en-CA"); }
 
 function isoToDate(iso: string) {
-  // ✅ Always take only the date part, ignore any time suffix
   const [y, m, d] = iso.split("T")[0].split("-").map(Number);
   return new Date(y, m - 1, d);
 }
@@ -70,6 +105,7 @@ function emptyRow(): AccountRow {
     amount: 0,
     due_date: getTodayISO(),
     notes: "",
+    status: "received",
     displayAmount: "",
     isReadOnly: false,
   };
@@ -82,15 +118,15 @@ function fromApi(a: any): AccountRow {
     description: a.description,
     type: a.type,
     amount: parseFloat(a.amount),
-    // ✅ Strip time portion — isoToDate expects "yyyy-MM-dd" only
     due_date: a.due_date ? a.due_date.split("T")[0] : null,
     notes: a.notes ?? "",
+    status: a.status ?? defaultStatus(a.type),
     displayAmount: formatDisplayValue(parseFloat(a.amount)),
     isReadOnly: true,
   };
 }
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+// ─── Type config ──────────────────────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<AccountType, { label: string; icon: React.ElementType; color: string }> = {
   receivable: { label: "Receivable", icon: TrendingUp,   color: "text-emerald-600" },
@@ -140,33 +176,68 @@ function ErrorBanner({ message }: { message: string }) {
   );
 }
 
+// ─── Status toggle (inline pill buttons) ─────────────────────────────────────
+
+function StatusToggle({
+  type,
+  value,
+  disabled,
+  onChange,
+}: {
+  type: AccountType;
+  value: AccountStatus;
+  disabled: boolean;
+  onChange: (s: AccountStatus) => void;
+}) {
+  const options = STATUS_OPTIONS[type];
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          disabled={disabled}
+          onClick={() => !disabled && onChange(opt.value)}
+          className={`
+            text-[11px] font-medium px-2 py-0.5 rounded-full border transition-all
+            ${value === opt.value
+              ? opt.color + " opacity-100"
+              : "bg-transparent text-muted-foreground border-muted-foreground/20 hover:border-muted-foreground/50"
+            }
+            ${disabled ? "cursor-default opacity-60" : "cursor-pointer"}
+          `}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
   const today = getTodayISO();
 
-  // ── Date state ────────────────────────────────────────────────────────────
   const [dateISO, setDateISO] = useState(today);
   const [calOpen, setCalOpen] = useState(false);
 
-  // ── Row state ─────────────────────────────────────────────────────────────
   const [rows, setRows] = useState<AccountRow[]>([emptyRow()]);
   const [fetchingRows, setFetchingRows] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [unlockedIds, setUnlockedIds] = useState<Set<string>>(new Set());
   const [openDueCals, setOpenDueCals] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  // ── Status ────────────────────────────────────────────────────────────────
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusMsg, setStatusMsg] = useState("");
 
-  // Cache per date
   const cache = useRef<Record<string, any[]>>({});
 
-  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => { fetchForDate(today); }, []); // eslint-disable-line
 
-  // ── Date fetch ────────────────────────────────────────────────────────────
+  // ── Fetch ─────────────────────────────────────────────────────────────────
 
   async function fetchForDate(iso: string) {
     if (cache.current[iso] !== undefined) {
@@ -188,12 +259,9 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
   }
 
   function applyRows(accounts: any[]) {
-    if (accounts.length === 0) {
-      setRows([emptyRow()]);
-    } else {
-      setRows(accounts.map(fromApi));
-    }
+    setRows(accounts.length === 0 ? [emptyRow()] : accounts.map(fromApi));
     setUnlockedIds(new Set());
+    setConfirmDeleteId(null);
     setStatus("idle");
     setStatusMsg("");
   }
@@ -228,15 +296,19 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
     if (row) updateRow(localId, { displayAmount: row.amount ? row.amount.toString() : "" });
   }
 
-  function addRow() {
-    setRows((prev) => [...prev, emptyRow()]);
+  function handleTypeChange(localId: string, newType: AccountType) {
+    const newStatus = defaultStatus(newType);
+    updateRow(localId, { type: newType, status: newStatus });
   }
+
+  function addRow() { setRows((prev) => [...prev, emptyRow()]); }
 
   function removeRow(localId: string) {
     setRows((prev) => prev.filter((r) => r.localId !== localId));
   }
 
   function unlockRow(localId: string) {
+    setConfirmDeleteId(null);
     setUnlockedIds((prev) => new Set(prev).add(localId));
     updateRow(localId, { isReadOnly: false });
     setStatus("idle");
@@ -244,11 +316,11 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
   }
 
   function relockRow(localId: string) {
+    setConfirmDeleteId(null);
     setUnlockedIds((prev) => { const n = new Set(prev); n.delete(localId); return n; });
-    // Restore from cache
     const cached = cache.current[dateISO] ?? [];
     const row = rows.find((r) => r.localId === localId);
-    const original = cached.find((a) => a.id === row?.id);
+    const original = cached.find((a: any) => a.id === row?.id);
     if (original) {
       setRows((prev) => prev.map((r) =>
         r.localId === localId ? { ...fromApi(original), localId } : r
@@ -270,8 +342,29 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
       setRows([emptyRow()]);
       setUnlockedIds(new Set());
     }
+    setConfirmDeleteId(null);
     setStatus("idle");
     setStatusMsg("");
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+
+  async function handleDelete(_localId: string, id: number) {
+    setIsDeleting(true);
+    try {
+      await accountService.delete(id);
+      delete cache.current[dateISO];
+      await fetchForDate(dateISO);
+      setStatus("success");
+      setStatusMsg("Entry deleted successfully.");
+      onSaved();
+    } catch (err: any) {
+      setStatus("error");
+      setStatusMsg(err?.response?.data?.message ?? "Failed to delete entry. Please try again.");
+      setConfirmDeleteId(null);
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   // ── Save ─────────────────────────────────────────────────────────────────
@@ -279,15 +372,11 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
 
-    // Separate updates from new records
-    const updates: Array<{ id: number; data: AccountPayload }> = [];
-    const newRecords: AccountPayload[] = [];
+    const updates: Array<{ id: number; data: AccountPayload; description: string }> = [];
+    const newRecords: Array<{ data: AccountPayload }> = [];
 
     rows.forEach((row) => {
-      // Only process rows that are editable (not readOnly)
       if (row.isReadOnly) return;
-      
-      // Validate required fields
       if (!row.description.trim() || row.amount <= 0) return;
 
       const payload: AccountPayload = {
@@ -296,17 +385,13 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
         amount: row.amount,
         due_date: row.due_date,
         notes: row.notes.trim() || null,
+        status: row.status,
       };
 
-      // If it has an ID, it's an update
       if (row.id && row.id > 0) {
-        updates.push({
-          id: row.id,
-          data: payload,
-        });
+        updates.push({ id: row.id, data: payload, description: row.description.trim() });
       } else {
-        // Otherwise it's a new record
-        newRecords.push(payload);
+        newRecords.push({ data: payload });
       }
     });
 
@@ -318,41 +403,33 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
 
     setIsSaving(true);
     try {
-      // Handle updates
       if (updates.length > 0) {
-        await Promise.all(
-          updates.map(update => accountService.update(update.id, update.data))
-        );
+        await Promise.all(updates.map((u) => accountService.update(u.id, u.data)));
       }
-
-      // Handle new records
       if (newRecords.length > 0) {
-        await Promise.all(
-          newRecords.map(record => accountService.store(record))
-        );
+        await Promise.all(newRecords.map((r) => accountService.store(r.data)));
       }
 
-      // Clear cache and refresh
       delete cache.current[dateISO];
       await fetchForDate(dateISO);
 
-      const updateCount = updates.length;
-      const newCount = newRecords.length;
-      
+      // Rich success message
+      const updatedDescs = updates.map((u) => `"${u.description}"`).join(", ");
+      const newDescs = newRecords.map((r) => `"${r.data.description}"`).join(", ");
+
       let message = "";
-      if (updateCount > 0 && newCount > 0) {
-        message = `${updateCount} entr${updateCount === 1 ? "y" : "ies"} updated and ${newCount} new entr${newCount === 1 ? "y" : "ies"} saved`;
-      } else if (updateCount > 0) {
-        message = `${updateCount} entr${updateCount === 1 ? "y" : "ies"} updated`;
+      if (updates.length > 0 && newRecords.length > 0) {
+        message = `Updated ${updatedDescs} and saved ${newDescs}`;
+      } else if (updates.length > 0) {
+        message = `Updated ${updatedDescs}`;
       } else {
-        message = `${newCount} entr${newCount === 1 ? "y" : "ies"} saved`;
+        message = `Saved ${newDescs}`;
       }
-      
+
       setStatus("success");
       setStatusMsg(`${message} for ${format(isoToDate(dateISO), "PPP")}.`);
       onSaved();
     } catch (err: any) {
-      console.error("Save error:", err);
       setStatus("error");
       setStatusMsg(err?.response?.data?.message ?? "Something went wrong. Please try again.");
     } finally {
@@ -366,6 +443,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
   const hasEditable = rows.some((r) => !r.isReadOnly && r.description.trim() && r.amount > 0);
   const hasUnlocked = unlockedIds.size > 0;
   const showActions = (hasEditable || hasUnlocked) && !fetchingRows;
+  const isBusy = isSaving || isDeleting;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -386,7 +464,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  disabled={fetchingRows || isSaving}
+                  disabled={fetchingRows || isBusy}
                   className="w-[240px] justify-start gap-2 text-left font-normal"
                 >
                   <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -407,7 +485,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
             {allReadOnly && !fetchingRows && unlockedIds.size === 0 && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All entries saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update
+                All entries saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to edit or delete
               </span>
             )}
 
@@ -434,54 +512,101 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
               const Icon = cfg.icon;
               const isEditable = !row.isReadOnly;
               const isUnlocked = unlockedIds.has(row.localId);
+              const isPendingDelete = confirmDeleteId === row.localId;
+              const currentStatusOpt = STATUS_OPTIONS[row.type].find((o) => o.value === row.status);
 
               return (
                 <Card
                   key={row.localId}
                   className={
-                    row.isReadOnly && !isUnlocked
-                      ? "opacity-70"
-                      : isUnlocked
-                        ? "border-amber-500/50 dark:border-amber-500/30"
-                        : undefined
+                    isPendingDelete
+                      ? "border-rose-500/50 dark:border-rose-500/30"
+                      : row.isReadOnly && !isUnlocked
+                        ? "opacity-70"
+                        : isUnlocked
+                          ? "border-amber-500/50 dark:border-amber-500/30"
+                          : undefined
                   }
                 >
                   <CardContent className="pt-4 pb-4 space-y-3">
 
-                    {/* Header */}
+                    {/* ── Header ── */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <Icon className={`h-3.5 w-3.5 ${cfg.color}`} />
                         <p className="text-sm font-medium">{cfg.label}</p>
-                        {isUnlocked && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
-                            editing
+
+                        {/* State badges */}
+                        {isUnlocked && !isPendingDelete && (
+                          isSaving ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium flex items-center gap-1">
+                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                              updating…
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
+                              editing
+                            </span>
+                          )
+                        )}
+                        {isPendingDelete && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 font-medium">
+                            deleting
                           </span>
                         )}
-                        {row.id && !isUnlocked && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 font-medium">
-                            saved
+                        {/* Status pill — shown when read-only */}
+                        {row.id && !isUnlocked && currentStatusOpt && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${currentStatusOpt.color}`}>
+                            {currentStatusOpt.label}
                           </span>
                         )}
                       </div>
+
                       <div className="flex items-center gap-1.5">
-                        {/* Unlock / Relock (saved entries only) */}
                         {row.id && (
                           isUnlocked ? (
-                            <button type="button" onClick={() => relockRow(row.localId)} disabled={isSaving}
-                              className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              {/* Relock */}
+                              <button type="button" onClick={() => relockRow(row.localId)} disabled={isBusy}
+                                title="Cancel editing"
+                                className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+
+                              {/* Delete with confirm */}
+                              {isPendingDelete ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-[10px] text-rose-600 font-medium">Sure?</span>
+                                  <button type="button" onClick={() => handleDelete(row.localId, row.id!)}
+                                    disabled={isBusy}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500 text-white hover:bg-rose-600 font-medium transition-colors disabled:opacity-50">
+                                    {isDeleting ? "…" : "Yes"}
+                                  </button>
+                                  <button type="button" onClick={() => setConfirmDeleteId(null)}
+                                    disabled={isBusy}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground font-medium transition-colors disabled:opacity-50">
+                                    No
+                                  </button>
+                                </span>
+                              ) : (
+                                <button type="button" onClick={() => setConfirmDeleteId(row.localId)}
+                                  disabled={isBusy} title="Delete entry"
+                                  className="p-0.5 rounded text-muted-foreground hover:text-rose-500 transition-colors disabled:opacity-50">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           ) : (
-                            <button type="button" onClick={() => unlockRow(row.localId)} disabled={isSaving}
+                            <button type="button" onClick={() => unlockRow(row.localId)}
+                              disabled={isBusy} title="Edit entry"
                               className="p-0.5 rounded text-muted-foreground hover:text-amber-600 transition-colors disabled:opacity-50">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           )
                         )}
-                        {/* Remove (new entries only) */}
+
                         {!row.id && rows.length > 1 && (
-                          <button type="button" onClick={() => removeRow(row.localId)} disabled={isSaving}
+                          <button type="button" onClick={() => removeRow(row.localId)} disabled={isBusy}
                             className="p-0.5 rounded text-muted-foreground hover:text-rose-500 transition-colors disabled:opacity-50">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -489,12 +614,12 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                       </div>
                     </div>
 
-                    {/* Type toggle */}
+                    {/* ── Type toggle ── */}
                     <div className="flex flex-wrap gap-1.5">
                       {ALL_TYPES.map((t) => (
                         <button key={t} type="button"
-                          onClick={() => isEditable && updateRow(row.localId, { type: t })}
-                          disabled={!isEditable || isSaving}
+                          onClick={() => isEditable && handleTypeChange(row.localId, t)}
+                          disabled={!isEditable || isBusy}
                         >
                           <Badge
                             variant={row.type === t ? "default" : "outline"}
@@ -506,7 +631,18 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                       ))}
                     </div>
 
-                    {/* Description */}
+                    {/* ── Status toggle ── */}
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      <StatusToggle
+                        type={row.type}
+                        value={row.status}
+                        disabled={!isEditable || isBusy}
+                        onChange={(s) => updateRow(row.localId, { status: s })}
+                      />
+                    </div>
+
+                    {/* ── Description ── */}
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Description</p>
                       <Input
@@ -515,12 +651,12 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                         className={`h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                         value={row.description}
                         readOnly={!isEditable}
-                        disabled={isSaving || !isEditable}
+                        disabled={isBusy || !isEditable}
                         onChange={(e) => updateRow(row.localId, { description: e.target.value })}
                       />
                     </div>
 
-                    {/* Amount + Due date */}
+                    {/* ── Amount + Due date ── */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Amount (USD)</p>
@@ -532,7 +668,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                             className={`pl-5 h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                             value={row.displayAmount}
                             readOnly={!isEditable}
-                            disabled={isSaving || !isEditable}
+                            disabled={isBusy || !isEditable}
                             onChange={(e) => setAmount(row.localId, e.target.value)}
                             onFocus={() => handleAmountFocus(row.localId)}
                             onBlur={() => handleAmountBlur(row.localId)}
@@ -547,10 +683,8 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                           onOpenChange={(o) => isEditable && toggleDueCal(row.localId, o)}
                         >
                           <PopoverTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              disabled={isSaving || !isEditable}
+                            <Button type="button" variant="outline"
+                              disabled={isBusy || !isEditable}
                               className={`w-full justify-start gap-2 text-left font-normal h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                             >
                               <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -574,7 +708,7 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                       </div>
                     </div>
 
-                    {/* Notes */}
+                    {/* ── Notes ── */}
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Notes (optional)</p>
                       <Textarea
@@ -582,12 +716,12 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
                         className={`text-sm resize-none min-h-[60px] ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                         value={row.notes}
                         readOnly={!isEditable}
-                        disabled={isSaving || !isEditable}
+                        disabled={isBusy || !isEditable}
                         onChange={(e) => updateRow(row.localId, { notes: e.target.value })}
                       />
                     </div>
 
-                    {/* Amount display when read-only */}
+                    {/* ── Amount footer (read-only) ── */}
                     {row.isReadOnly && !isUnlocked && row.amount > 0 && (
                       <p className="text-xs text-muted-foreground text-right">
                         Amount: <span className="font-medium text-foreground">{formatUSD(row.amount)}</span>
@@ -600,12 +734,9 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
             })}
           </div>
 
-          {/* Add row — only show when not all cards are locked */}
+          {/* Add row */}
           {!allReadOnly && (
-            <button
-              type="button"
-              onClick={addRow}
-              disabled={isSaving}
+            <button type="button" onClick={addRow} disabled={isBusy}
               className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/30 py-3 text-sm text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground transition-colors disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
@@ -616,14 +747,14 @@ export default function AccountInputForm({ onSaved }: AccountInputFormProps) {
           {/* Save / Reset */}
           {showActions && (
             <div className="flex items-center gap-3 mt-4">
-              <Button type="submit" disabled={isSaving} className="flex-1">
+              <Button type="submit" disabled={isBusy} className="flex-1">
                 {isSaving
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
                   : hasUnlocked
                     ? `Update ${unlockedIds.size} entr${unlockedIds.size === 1 ? "y" : "ies"}`
                     : "Save Entries"}
               </Button>
-              <Button type="button" variant="outline" onClick={handleReset} disabled={isSaving}>
+              <Button type="button" variant="outline" onClick={handleReset} disabled={isBusy}>
                 Reset
               </Button>
             </div>
