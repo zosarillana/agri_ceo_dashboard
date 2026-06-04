@@ -68,19 +68,21 @@ function fmtUSD(n: number) {
   return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Helper function to format numbers with commas for display
-function formatDisplayValue(value: number | string): string {
-  if (value === "" || value === null || value === undefined) return "";
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return String(value);
-  if (Number.isInteger(num)) {
-    return num.toLocaleString();
-  } else {
-    return num.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  }
+// Format a committed/saved number for display (with commas + decimals)
+function formatCommitted(value: number): string {
+  if (!value) return "";
+  if (Number.isInteger(value)) return value.toLocaleString();
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// Parse a raw input string (may contain commas, partial decimal) to a number
+function parseRaw(raw: string): number {
+  const cleaned = raw.replace(/,/g, "");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
 }
 
 function emptyRows(products: Product[]): Record<number, SaleRow> {
@@ -177,16 +179,18 @@ export default function SalesInputForm({
   const [calOpen, setCalOpen] = useState(false);
 
   // ── Row + fetch state ─────────────────────────────────────────────────────
-  const [rows, setRows]               = useState<Record<number, SaleRow>>({});
+  const [rows, setRows]                 = useState<Record<number, SaleRow>>({});
   const [fetchingRows, setFetchingRows] = useState(false);
-  const [isSaving, setIsSaving]       = useState(false);
+  const [isSaving, setIsSaving]         = useState(false);
   const [isAllReadOnly, setIsAllReadOnly] = useState(false);
 
   // Track which product IDs have been manually unlocked for editing
   const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set());
 
-  // Display values for formatted numbers
-  const [displayValues, setDisplayValues] = useState<Record<number, { aspPerKg: string; quantityKg: string }>>({});
+  // ── Raw input strings (what the user is actively typing) ──────────────────
+  // Key: `${productId}-aspPerKg` | `${productId}-quantityKg`
+  // Value: the raw string while focused; undefined when blurred (use formatted)
+  const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
 
   // ── Status banners ────────────────────────────────────────────────────────
   const [status, setStatus]       = useState<"idle" | "success" | "error">("idle");
@@ -194,18 +198,6 @@ export default function SalesInputForm({
 
   // Cache fetched sales per date so we don't re-fetch on tab switch
   const cache = useRef<Record<string, Sale[]>>({});
-
-  // Initialize display values when rows change
-  useEffect(() => {
-    const newDisplay: Record<number, { aspPerKg: string; quantityKg: string }> = {};
-    Object.entries(rows).forEach(([id, row]) => {
-      newDisplay[Number(id)] = {
-        aspPerKg: row.aspPerKg ? formatDisplayValue(row.aspPerKg) : "",
-        quantityKg: row.quantityKg ? formatDisplayValue(row.quantityKg) : ""
-      };
-    });
-    setDisplayValues(newDisplay);
-  }, [rows]);
 
   // ── Seed rows when products load ─────────────────────────────────────────
   useEffect(() => {
@@ -221,10 +213,8 @@ export default function SalesInputForm({
       applyRows(products, cache.current[iso]);
       return;
     }
-
     setFetchingRows(true);
     try {
-      // Fetch sales for this specific day only
       const { data } = await salesService.getLatest(iso, iso);
       cache.current[iso] = data;
       applyRows(products, data);
@@ -243,8 +233,8 @@ export default function SalesInputForm({
     setRows(populated);
     const allReadOnly = prods.every((p) => populated[p.id]?.isReadOnly);
     setIsAllReadOnly(allReadOnly);
-    // Reset unlocked IDs when loading new data
     setUnlockedIds(new Set());
+    setRawInputs({});
   }
 
   async function handleDateChange(newISO: string) {
@@ -252,78 +242,75 @@ export default function SalesInputForm({
     setCalOpen(false);
     setStatus("idle");
     setStatusMsg("");
+    setRawInputs({});
     await fetchForDate(newISO);
   }
 
   // ── Row helpers ───────────────────────────────────────────────────────────
 
   function setMarket(id: number, market: Market) {
-    // Only allow market change if row is editable (unlocked or not read-only)
     if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
     setRows((r) => ({ ...r, [id]: { ...r[id], market } }));
     setStatus("idle");
   }
 
-  function setNumeric(id: number, field: "aspPerKg" | "quantityKg", formattedValue: string) {
-    // Only allow numeric changes if row is editable (unlocked or not read-only)
+  // Called on every keystroke — keeps raw string alive, updates numeric state
+  function handleChange(id: number, field: "aspPerKg" | "quantityKg", raw: string) {
     if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
-    
-    // Remove commas to get raw number
-    const rawValue = formattedValue.replace(/,/g, '');
-    const val = parseFloat(rawValue) || 0;
-    
+
+    // Allow: digits, one dot, one leading minus (no minus needed here but safe)
+    // Strip anything that isn't a digit, dot, or comma
+    const sanitized = raw.replace(/[^0-9.,]/g, "");
+
+    // Prevent more than one decimal point
+    const dotCount = (sanitized.match(/\./g) || []).length;
+    if (dotCount > 1) return;
+
+    const key = `${id}-${field}`;
+    setRawInputs((prev) => ({ ...prev, [key]: sanitized }));
+
+    const numeric = parseRaw(sanitized);
     setRows((r) => {
-      const updated = { ...r[id], [field]: val };
+      const updated = { ...r[id], [field]: numeric };
       updated.totalSalesUSD = updated.aspPerKg * updated.quantityKg;
       return { ...r, [id]: updated };
     });
-    
-    // Update display value with formatted version
-    setDisplayValues(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        [field]: formattedValue
-      }
-    }));
-    
+
     setStatus("idle");
   }
 
-  function handleBlur(id: number, field: "aspPerKg" | "quantityKg") {
-    const row = rows[id];
-    if (row) {
-      const value = field === "aspPerKg" ? row.aspPerKg : row.quantityKg;
-      const formatted = formatDisplayValue(value);
-      setDisplayValues(prev => ({
-        ...prev,
-        [id]: {
-          ...prev[id],
-          [field]: formatted
-        }
-      }));
-    }
-  }
-
+  // On focus: switch to raw string so user can edit freely
   function handleFocus(id: number, field: "aspPerKg" | "quantityKg") {
-    const row = rows[id];
-    if (row) {
-      const rawValue = field === "aspPerKg" ? row.aspPerKg : row.quantityKg;
-      setDisplayValues(prev => ({
-        ...prev,
-        [id]: {
-          ...prev[id],
-          [field]: rawValue.toString()
-        }
-      }));
-    }
+    if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
+    const key = `${id}-${field}`;
+    const numeric = field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
+    // Show plain number (no commas) so cursor position is predictable
+    const raw = numeric ? String(numeric) : "";
+    setRawInputs((prev) => ({ ...prev, [key]: raw }));
   }
 
-  // ── Unlock / Relock functions (UPDATE TRIGGER) ───────────────────────────
-  
+  // On blur: remove raw string so display switches to formatted committed value
+  function handleBlur(id: number, field: "aspPerKg" | "quantityKg") {
+    const key = `${id}-${field}`;
+    setRawInputs((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  // Returns the string to show in the input at any moment
+  function getDisplayValue(id: number, field: "aspPerKg" | "quantityKg"): string {
+    const key = `${id}-${field}`;
+    if (key in rawInputs) return rawInputs[key]; // user is typing
+    const numeric = field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
+    return numeric ? formatCommitted(numeric) : "";
+  }
+
+  // ── Unlock / Relock ───────────────────────────────────────────────────────
+
   function unlockProduct(productId: number) {
     setUnlockedIds((prev) => new Set(prev).add(productId));
-    // Make the row editable in UI
     setRows((prev) => ({
       ...prev,
       [productId]: { ...prev[productId], isReadOnly: false },
@@ -338,8 +325,13 @@ export default function SalesInputForm({
       next.delete(productId);
       return next;
     });
-    
-    // Restore original values from cache and re-lock
+    // Clear any active raw inputs for this product
+    setRawInputs((prev) => {
+      const next = { ...prev };
+      delete next[`${productId}-aspPerKg`];
+      delete next[`${productId}-quantityKg`];
+      return next;
+    });
     const cachedSales = cache.current[dateISO];
     if (cachedSales) {
       const originalSale = cachedSales.find((s) => s.product_id === productId);
@@ -348,23 +340,22 @@ export default function SalesInputForm({
           ...prev,
           [productId]: {
             ...prev[productId],
-            market: originalSale.market,
-            aspPerKg: Number(originalSale.asp_per_kg),
-            quantityKg: Number(originalSale.quantity_kg),
+            market:        originalSale.market,
+            aspPerKg:      Number(originalSale.asp_per_kg),
+            quantityKg:    Number(originalSale.quantity_kg),
             totalSalesUSD: Number(originalSale.total_sales_usd),
-            isReadOnly: true,
+            isReadOnly:    true,
           },
         }));
       } else {
-        // If no original sale, reset to empty state
         setRows((prev) => ({
           ...prev,
           [productId]: {
             ...prev[productId],
-            aspPerKg: 0,
-            quantityKg: 0,
+            aspPerKg:      0,
+            quantityKg:    0,
             totalSalesUSD: 0,
-            isReadOnly: false,
+            isReadOnly:    false,
           },
         }));
       }
@@ -380,18 +371,16 @@ export default function SalesInputForm({
       setRows(emptyRows(products));
     }
     setUnlockedIds(new Set());
+    setRawInputs({});
     setStatus("idle");
     setStatusMsg("");
   }
 
-  // ── Save (supports both create and update) ─────────────────────────────────
+  // ── Save ──────────────────────────────────────────────────────────────────
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
 
-    // Determine which rows to save:
-    // 1. Any unlocked row (even if values are zero)
-    // 2. Any editable row that has values > 0
     const rowsToSave = Object.values(rows).filter((r) => {
       if (unlockedIds.has(r.product_id)) return true;
       if (!r.isReadOnly && r.aspPerKg > 0 && r.quantityKg > 0) return true;
@@ -413,19 +402,14 @@ export default function SalesInputForm({
 
     setIsSaving(true);
     try {
-      // Pass the selected date to the service - this will UPSERT (update or insert)
       await salesService.storeBulk(payload, dateISO);
-
-      // Invalidate cache for this date and re-fetch so read-only state is accurate
       delete cache.current[dateISO];
       await fetchForDate(dateISO);
-
-      // Clear unlocked IDs since everything is now saved
       setUnlockedIds(new Set());
-
+      setRawInputs({});
       setStatus("success");
-      setStatusMsg(`Sales ${rowsToSave.some(r => rows[r.product_id]?.isReadOnly) ? 'updated' : 'saved'} for ${format(isoToDate(dateISO), "PPP")}.`);
-      onSaved(); // notify parent to re-fetch view tab
+      setStatusMsg(`Sales ${rowsToSave.some(r => rows[r.product_id]?.isReadOnly) ? "updated" : "saved"} for ${format(isoToDate(dateISO), "PPP")}.`);
+      onSaved();
     } catch (err: any) {
       setStatus("error");
       setStatusMsg(err?.response?.data?.message ?? "Something went wrong. Please try again.");
@@ -446,10 +430,10 @@ export default function SalesInputForm({
     );
   }
 
-  const selectedDate        = isoToDate(dateISO);
-  const hasEditableRows     = Object.values(rows).some((r) => !r.isReadOnly);
-  const hasUnlockedRows     = unlockedIds.size > 0;
-  const showActionButtons   = (hasEditableRows || hasUnlockedRows) && !fetchingRows;
+  const selectedDate      = isoToDate(dateISO);
+  const hasEditableRows   = Object.values(rows).some((r) => !r.isReadOnly);
+  const hasUnlockedRows   = unlockedIds.size > 0;
+  const showActionButtons = (hasEditableRows || hasUnlockedRows) && !fetchingRows;
 
   return (
     <div className="space-y-4">
@@ -480,7 +464,7 @@ export default function SalesInputForm({
                   mode="single"
                   selected={selectedDate}
                   onSelect={(d) => d && handleDateChange(dateToISO(d))}
-                  disabled={(d) => d > new Date()} // Can't select future dates
+                  disabled={(d) => d > new Date()}
                   initialFocus
                 />
               </PopoverContent>
@@ -492,11 +476,11 @@ export default function SalesInputForm({
                 All sales saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update
               </span>
             )}
-            
+
             {unlockedIds.size > 0 && (
               <span className="flex items-center gap-1.5 text-xs text-amber-600">
                 <Pencil className="h-3 w-3 shrink-0" />
-                {unlockedIds.size} product{unlockedIds.size === 1 ? '' : 's'} unlocked for editing
+                {unlockedIds.size} product{unlockedIds.size === 1 ? "" : "s"} unlocked for editing
               </span>
             )}
           </div>
@@ -518,14 +502,13 @@ export default function SalesInputForm({
               const isReadOnly = row?.isReadOnly ?? false;
               const isUnlocked = unlockedIds.has(p.id);
               const isEditable = !isReadOnly || isUnlocked;
-              const displayRow = displayValues[p.id];
 
               return (
-                <Card 
-                  key={p.id} 
+                <Card
+                  key={p.id}
                   className={
                     isReadOnly && !isUnlocked
-                      ? "opacity-70" 
+                      ? "opacity-70"
                       : isUnlocked
                         ? "border-amber-500/50 dark:border-amber-500/30"
                         : undefined
@@ -545,7 +528,6 @@ export default function SalesInputForm({
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{p.unit ?? "—"}</span>
-                        {/* Unlock / relock button — only for saved entries */}
                         {(isReadOnly || isUnlocked) && (
                           isUnlocked ? (
                             <button
@@ -608,14 +590,13 @@ export default function SalesInputForm({
                           </span>
                           <Input
                             type="text"
-                            min={0}
-                            step="0.01"
+                            inputMode="decimal"
                             placeholder="0.00"
                             className={`pl-5 h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
-                            value={displayRow?.aspPerKg ?? (row?.aspPerKg ? formatDisplayValue(row.aspPerKg) : "")}
+                            value={getDisplayValue(p.id, "aspPerKg")}
                             readOnly={!isEditable}
                             disabled={isSaving || !isEditable}
-                            onChange={(e) => setNumeric(p.id, "aspPerKg", e.target.value)}
+                            onChange={(e) => handleChange(p.id, "aspPerKg", e.target.value)}
                             onFocus={() => handleFocus(p.id, "aspPerKg")}
                             onBlur={() => handleBlur(p.id, "aspPerKg")}
                           />
@@ -626,14 +607,13 @@ export default function SalesInputForm({
                         <p className="text-xs text-muted-foreground">Quantity (Kg)</p>
                         <Input
                           type="text"
-                          min={0}
-                          step="0.01"
+                          inputMode="decimal"
                           placeholder="0"
                           className={`h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
-                          value={displayRow?.quantityKg ?? (row?.quantityKg ? formatDisplayValue(row.quantityKg) : "")}
+                          value={getDisplayValue(p.id, "quantityKg")}
                           readOnly={!isEditable}
                           disabled={isSaving || !isEditable}
-                          onChange={(e) => setNumeric(p.id, "quantityKg", e.target.value)}
+                          onChange={(e) => handleChange(p.id, "quantityKg", e.target.value)}
                           onFocus={() => handleFocus(p.id, "quantityKg")}
                           onBlur={() => handleBlur(p.id, "quantityKg")}
                         />
@@ -663,7 +643,7 @@ export default function SalesInputForm({
                 {isSaving
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
                   : hasUnlockedRows
-                    ? `Update ${unlockedIds.size} sale${unlockedIds.size === 1 ? '' : 's'}`
+                    ? `Update ${unlockedIds.size} sale${unlockedIds.size === 1 ? "" : "s"}`
                     : "Save Sales"
                 }
               </Button>
