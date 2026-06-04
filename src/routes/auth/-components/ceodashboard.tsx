@@ -3,18 +3,29 @@ import { format } from "date-fns";
 import { useLocation } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 import { useDashboardStore } from "@/store/dashboard.store";
-import { toMonthKey, getTodayISO, toISO, fmtDate, relativeTime, currentMonthKey } from "@/lib/dashboard-utils";
+import {
+  toMonthKey,
+  getTodayISO,
+  toISO,
+  fmtDate,
+  relativeTime,
+  currentMonthKey,
+} from "@/lib/dashboard-utils";
 import { ProductionCard } from "./-dashboard-tiles/production-card";
 import { QcCard } from "./-dashboard-tiles/qc-card";
 import { WorkforceCard } from "./-dashboard-tiles/workforce-card";
 import { SalesCard } from "./-dashboard-tiles/sales-card";
 import { EnergyCard } from "./-dashboard-tiles/energy-card";
 import { MaintenanceCard } from "./-dashboard-tiles/maintenance-card";
-import { AccountsCard }from "./-dashboard-tiles/accounts-card";
+import { AccountsCard } from "./-dashboard-tiles/accounts-card";
 import { ProcurementCard } from "./-dashboard-tiles/procurement-card";
 import { TradesCard } from "./-dashboard-tiles/trades-card";
 
@@ -28,7 +39,9 @@ export default function CEODashboard() {
     location.pathname === `/auth/admin/dashboard/${id}`;
 
   const [time, setTime] = React.useState(() => new Date());
-  const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = React.useState<Date>(
+    () => new Date(),
+  );
 
   const selectedISO = toISO(selectedDate);
   const selectedMthKey = toMonthKey(selectedISO);
@@ -42,7 +55,8 @@ export default function CEODashboard() {
   const energy = stats?.energy;
   const workforce = stats?.workforce;
   const qc = stats?.qc;
-  const trades = stats?.trades;
+  // const trades = stats?.trades;
+
   const procurement = stats?.procurement;
   const accounts = stats?.accounts;
 
@@ -117,8 +131,22 @@ export default function CEODashboard() {
             <SalesCard
               active={isActive("sales")}
               index={2}
-              thisMonth={sales?.this_month ?? { total_usd: 0, total_kg: 0, entry_count: 0, export_count: 0, local_count: 0 }}
-              lastMonth={sales?.last_month ?? { total_usd: 0, total_kg: 0, entry_count: 0 }}
+              thisMonth={
+                sales?.this_month ?? {
+                  total_usd: 0,
+                  total_kg: 0,
+                  entry_count: 0,
+                  export_count: 0,
+                  local_count: 0,
+                }
+              }
+              lastMonth={
+                sales?.last_month ?? {
+                  total_usd: 0,
+                  total_kg: 0,
+                  entry_count: 0,
+                }
+              }
               momChangePct={sales?.mom_change_pct ?? null}
               monthlyBreakdown={sales?.monthly_breakdown ?? []}
               timeLabel={
@@ -192,8 +220,23 @@ export default function CEODashboard() {
             <EnergyCard
               active={isActive("energy")}
               index={2}
-              currentMonth={energy?.current_month ?? { month: currentMonthKey(), total_billed: 0, total_kw: 0, account2_billed: 0, account3_billed: 0, has_data: false }}
-              previousMonth={energy?.previous_month ?? { month: "", total_billed: 0, has_data: false }}
+              currentMonth={
+                energy?.current_month ?? {
+                  month: currentMonthKey(),
+                  total_billed: 0,
+                  total_kw: 0,
+                  account2_billed: 0,
+                  account3_billed: 0,
+                  has_data: false,
+                }
+              }
+              previousMonth={
+                energy?.previous_month ?? {
+                  month: "",
+                  total_billed: 0,
+                  has_data: false,
+                }
+              }
               momChangePct={energy?.mom_change_pct ?? null}
               ytdTotal={energy?.ytd_summary?.total_billed_amount ?? 0}
               timeLabel={
@@ -226,10 +269,26 @@ export default function CEODashboard() {
               }
             />
 
+            {/* <TradesCard
+              active={isActive("trading")}
+              index={4}
+              trades={trades ?? undefined}
+              timeLabel={
+                sales?.last_updated_at
+                  ? relativeTime(new Date(sales.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                sales?.last_updated_at
+                  ? fmtDate(new Date(sales.last_updated_at))
+                  : "—"
+              }
+            /> */}
+
+            {/* Mock Trades */}
             <TradesCard
               active={isActive("trading")}
               index={4}
-              trades={trades}
               timeLabel={
                 sales?.last_updated_at
                   ? relativeTime(new Date(sales.last_updated_at))
