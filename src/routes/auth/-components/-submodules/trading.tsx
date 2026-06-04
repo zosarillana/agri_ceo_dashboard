@@ -1,40 +1,28 @@
-// src/routes/auth/.../trading.tsx
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { format } from "date-fns";
 import {
-  BarChart2, CalendarIcon, PlusCircle, TrendingUp, TrendingDown,
+  BarChart2, PlusCircle, TrendingUp, TrendingDown,
   DollarSign, Package, Truck, Globe,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { useProductsStore } from "@/store/products.store";
 import { useTradingStore } from "@/store/trading.store";
 import TradingInputForm from "../-forms/trading-input-form";
+import { mockData } from "@/routes/auth/-data/-mock-data";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = "view" | "input";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function fmt(n: number) {
   return n.toLocaleString();
-}
-
-function fmtUSD(n: number) {
-  return "$" + n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function fmtNumber(n: number, decimals: number = 2) {
@@ -44,41 +32,39 @@ function fmtNumber(n: number, decimals: number = 2) {
   });
 }
 
-function ViewSkeleton() {
-  return (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="pt-4 pb-4 space-y-2">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-7 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Card>
-        <CardContent className="pt-4 space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </CardContent>
-      </Card>
-    </>
+function getMarketBadge(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes("local")) return <Badge variant="outline">Local</Badge>;
+  if (lower.includes("cwc") || lower.includes("dc on-trade")) return (
+    <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">CWC</Badge>
   );
+  return <Badge variant="default">Export</Badge>;
 }
 
-// ✅ Fixed: now actually returns the Export badge
-function getMarketBadge(market: string) {
-  if (market === "Export") {
-    return <Badge variant="default">Export</Badge>;
-  }
-  return <Badge variant="outline">Local</Badge>;
+// ── Derived mock summary from mockData.trading ────────────────────────────────
+
+function computeSummary(items: typeof mockData.trading) {
+  const total_volume_in = items.reduce((s, t) => s + t.volumeIn, 0);
+  const total_volume_out = items.reduce((s, t) => s + t.volumeOut, 0);
+  const total_orders = items.length;
+  const export_orders = items.filter((t) => {
+    const n = t.name.toLowerCase();
+    return !n.includes("local") && !n.includes("cwc") && !n.includes("dc on-trade");
+  }).length;
+  const local_orders = items.filter((t) => t.name.toLowerCase().includes("local")).length;
+  const cwc_orders = items.filter((t) => {
+    const n = t.name.toLowerCase();
+    return n.includes("cwc") || n.includes("dc on-trade");
+  }).length;
+  return { total_volume_in, total_volume_out, total_orders, export_orders, local_orders, cwc_orders };
 }
+
+// ── Main component ───────────────────────────────────────────────────────────
 
 export default function TradingDash() {
   const [tab, setTab] = useState<Tab>("view");
 
+  // Input tab still uses the real store for products + saving
   const { products, loading: productsLoading, fetchProducts } = useProductsStore();
   const productsFetched = useRef(false);
   useEffect(() => {
@@ -88,87 +74,63 @@ export default function TradingDash() {
     }
   }, [fetchProducts]);
 
-  const {
-    trades, summary, dateRange, loading: tradesLoading,
-    fetchLatest, setDateRange, clearDateRange,
-  } = useTradingStore();
+  const { dateRange, fetchLatest } = useTradingStore();
 
-  const tradesFetched = useRef(false);
-  useEffect(() => {
-    if (!tradesFetched.current) {
-      tradesFetched.current = true;
-      fetchLatest();
-    }
-  }, [fetchLatest]);
+  // View tab: client-side name filter over mock trading data
+  const [search, ] = useState("");
 
-  const [from, setFrom] = useState<Date | undefined>(
-    dateRange.from ? new Date(dateRange.from) : undefined,
-  );
-  const [to, setTo] = useState<Date | undefined>(
-    dateRange.to ? new Date(dateRange.to) : undefined,
-  );
+  const visibleTrades = search.trim()
+    ? mockData.trading.filter((t) =>
+        t.name.toLowerCase().includes(search.toLowerCase()) ||
+        t.input.toLowerCase().includes(search.toLowerCase()) ||
+        t.output.toLowerCase().includes(search.toLowerCase())
+      )
+    : mockData.trading;
 
-  useEffect(() => {
-    setFrom(dateRange.from ? new Date(dateRange.from) : undefined);
-    setTo(dateRange.to ? new Date(dateRange.to) : undefined);
-  }, [dateRange.from, dateRange.to]);
-
-  function handleFilter() {
-    const fromStr = from ? format(from, "yyyy-MM-dd") : null;
-    const toStr = to ? format(to, "yyyy-MM-dd") : null;
-    setDateRange({ from: fromStr, to: toStr });
-  }
-
-  function handleClearFilter() {
-    setFrom(undefined);
-    setTo(undefined);
-    clearDateRange();
-  }
-
-  const loading = productsLoading || tradesLoading;
+  const summary = computeSummary(visibleTrades);
 
   const stats = [
     {
-      label: "Total Volume (MT)",
-      value: fmtNumber(summary.total_volume / 1000, 2),
-      icon: Package,
-      trend: "neutral",
-      sub: `${fmtNumber(summary.total_volume)} kg`,
-    },
-    {
-      label: "Total Value",
-      value: fmtUSD(summary.total_value),
-      icon: DollarSign,
-      trend: "positive",
-      sub: "FOB value",
-    },
-    {
-      label: "Avg Price",
-      value: fmtUSD(summary.avg_price),
-      icon: TrendingUp,
-      trend: "positive",
-      sub: "per kg",
-    },
-    {
-      label: "Total Orders",
+      label: "Total Entries",
       value: fmt(summary.total_orders),
       icon: Truck,
       trend: "neutral",
       sub: "transactions",
     },
     {
-      label: "Export Orders",
+      label: "Volume In",
+      value: fmtNumber(summary.total_volume_in / 1000, 2) + " MT",
+      icon: Package,
+      trend: "neutral",
+      sub: `${fmt(summary.total_volume_in)} kg`,
+    },
+    {
+      label: "Volume Out",
+      value: fmtNumber(summary.total_volume_out / 1000, 2) + " MT",
+      icon: TrendingUp,
+      trend: "positive",
+      sub: `${fmt(summary.total_volume_out)} kg`,
+    },
+    {
+      label: "Export",
       value: fmt(summary.export_orders),
       icon: Globe,
       trend: "positive",
       sub: "international",
     },
     {
-      label: "Local Orders",
+      label: "Local",
       value: fmt(summary.local_orders),
       icon: TrendingDown,
       trend: "neutral",
       sub: "domestic",
+    },
+    {
+      label: "CWC",
+      value: fmt(summary.cwc_orders),
+      icon: DollarSign,
+      trend: "neutral",
+      sub: "on-trade / tolling",
     },
   ];
 
@@ -193,193 +155,110 @@ export default function TradingDash() {
         ))}
       </div>
 
-      {/* ── VIEW TAB ── */}
+      {/* ── VIEW TAB — mockData.trading ── */}
       {tab === "view" && (
         <div className="space-y-4">
-          {/* Date range filter */}
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">From</p>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal h-9",
-                      !from && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {from ? format(from, "PPP") : "Select start date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={from} onSelect={setFrom} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
 
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">To</p>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal h-9",
-                      !to && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {to ? format(to, "PPP") : "Select end date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={to}
-                    onSelect={setTo}
-                    disabled={from ? { before: from } : undefined}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <Button size="sm" onClick={handleFilter} className="h-9">
-              Filter
-            </Button>
-
-            {(dateRange.from || dateRange.to) && (
-              <Button size="sm" variant="outline" onClick={handleClearFilter} className="h-9">
-                Clear
-              </Button>
-            )}
-          </div>
-
-          {loading ? (
-            <ViewSkeleton />
-          ) : (
-            <>
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {stats.map((stat) => {
-                  const Icon = stat.icon;
-                  return (
-                    <Card key={stat.label}>
-                      <CardContent className="pt-4 pb-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
-                            <p className="text-lg font-semibold">{stat.value}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
-                          </div>
-                          <div className={`p-2 rounded-md ${
-                            stat.trend === "positive"
-                              ? "bg-emerald-500/10 text-emerald-500"
-                              : stat.trend === "negative"
-                                ? "bg-rose-500/10 text-rose-500"
-                                : "bg-muted text-muted-foreground"
-                          }`}>
-                            <Icon className="h-4 w-4" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              {/* Table */}
-              {trades.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    {dateRange.from || dateRange.to
-                      ? "No trades found for the selected date range."
-                      : "No trades recorded yet. Use the Input tab to add trades."}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="hover:bg-transparent">
-                            <TableHead className="font-semibold">Date</TableHead>
-                            <TableHead className="font-semibold">Product</TableHead>
-                            <TableHead className="font-semibold">Market</TableHead>
-                            <TableHead className="font-semibold">Counterparty</TableHead>
-                            <TableHead className="text-right font-semibold">Price $/Kg</TableHead>
-                            <TableHead className="text-right font-semibold">Quantity (Kg)</TableHead>
-                            <TableHead className="text-right font-semibold">Quantity (MT)</TableHead>
-                            <TableHead className="text-right font-semibold">Total Value</TableHead>
-                          </TableRow>
-                        </TableHeader>
-
-                        <TableBody>
-                          {trades.map((trade) => (
-                            <TableRow key={trade.id}>
-                              <TableCell className="font-mono text-sm">
-                                {format(new Date(trade.trade_date), "MMM dd, yyyy")}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {trade.product?.name ?? `Product #${trade.product_id}`}
-                              </TableCell>
-                              <TableCell>{getMarketBadge(trade.market)}</TableCell>
-                              <TableCell className="max-w-[150px] truncate">
-                                {trade.counterparty || "—"}
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {fmtUSD(trade.price_per_kg)}
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {fmt(trade.quantity_kg)}
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {fmtNumber(trade.quantity_kg / 1000, 2)}
-                              </TableCell>
-                              <TableCell className="text-right font-medium tabular-nums">
-                                {fmtUSD(trade.total_value)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-
-                          {/* Totals row */}
-                          <TableRow className="border-t-2 bg-muted/30">
-                            <TableCell colSpan={4} className="font-semibold">Total</TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {fmtUSD(summary.avg_price)}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {fmt(summary.total_volume)}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {fmtNumber(summary.total_volume / 1000, 2)}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">
-                              {fmtUSD(summary.total_value)}
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <Card key={stat.label}>
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
+                        <p className="text-lg font-semibold">{stat.value}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
+                      </div>
+                      <div className={`p-2 rounded-md ${
+                        stat.trend === "positive"
+                          ? "bg-emerald-500/10 text-emerald-500"
+                          : stat.trend === "negative"
+                            ? "bg-rose-500/10 text-rose-500"
+                            : "bg-muted text-muted-foreground"
+                      }`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
-            </>
-          )}
+              );
+            })}
+          </div>
+
+          {/* Table */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold">Trade Name</TableHead>
+                      <TableHead className="font-semibold">Input</TableHead>
+                      <TableHead className="font-semibold">Output</TableHead>
+                      <TableHead className="font-semibold">Market</TableHead>
+                      <TableHead className="text-right font-semibold">Vol In (kg)</TableHead>
+                      <TableHead className="text-right font-semibold">Vol In (MT)</TableHead>
+                      <TableHead className="text-right font-semibold">Vol Out (kg)</TableHead>
+                      <TableHead className="text-right font-semibold">Vol Out (MT)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {visibleTrades.map((trade) => (
+                      <TableRow key={trade.name}>
+                        <TableCell className="font-medium">{trade.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{trade.input}</TableCell>
+                        <TableCell className="text-muted-foreground">{trade.output}</TableCell>
+                        <TableCell>{getMarketBadge(trade.name)}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {trade.volumeIn > 0 ? fmt(trade.volumeIn) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {trade.volumeIn > 0 ? fmtNumber(trade.volumeIn / 1000, 2) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {trade.volumeOut > 0 ? fmt(trade.volumeOut) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {trade.volumeOut > 0 ? fmtNumber(trade.volumeOut / 1000, 2) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+                    {/* Totals row */}
+                    <TableRow className="border-t-2 bg-muted/30">
+                      <TableCell colSpan={4} className="font-semibold">Total</TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {fmt(summary.total_volume_in)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {fmtNumber(summary.total_volume_in / 1000, 2)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {fmt(summary.total_volume_out)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {fmtNumber(summary.total_volume_out / 1000, 2)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* ── INPUT TAB ── */}
+      {/* ── INPUT TAB — real store ── */}
       {tab === "input" && (
         <TradingInputForm
           products={products.filter((p) => p.is_active)}
           loading={productsLoading}
           onSaved={() => {
-            const { from, to } = dateRange;
-            fetchLatest(from ?? undefined, to ?? undefined);
+            fetchLatest(dateRange.from ?? undefined, dateRange.to ?? undefined);
             setTab("view");
           }}
         />
