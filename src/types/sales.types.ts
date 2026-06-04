@@ -33,4 +33,12 @@ export interface SalesSummary {
   local_count: number;
   from: string | null;
   to: string | null;
+  detailed_summary: {
+    product_id: number;
+    product_name: string;
+    total_sales_usd: number;
+    total_quantity_kg: number;
+    export_count: number;
+    local_count: number;
+  }[];
 }

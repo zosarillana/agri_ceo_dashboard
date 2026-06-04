@@ -181,7 +181,12 @@ export default function ProcurementInputForm({
   }, []);
 
   function applyData(records: ProcurementRecord[]) {
-    setRows(records.map(recordToRow));
+    if (records.length === 0) {
+      // If no records exist, show one empty row for new entry
+      setRows([emptyRow()]);
+    } else {
+      setRows(records.map(recordToRow));
+    }
     setUnlockedIdxs(new Set());
     setSubmissionStatus("idle");
     setStatusMsg("");
@@ -328,7 +333,6 @@ export default function ProcurementInputForm({
   const allReadOnly     = rows.length > 0 && rows.every((r) => r.isReadOnly) && unlockedIdxs.size === 0;
   const hasEditableRows = rows.some((r, idx) => !r.isReadOnly || unlockedIdxs.has(idx));
   const showActions     = hasEditableRows && !fetching;
-  const hasNewRows      = rows.some((r) => !r.isReadOnly);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -565,15 +569,15 @@ export default function ProcurementInputForm({
               );
             })}
 
-            {/* Add row — only shown when there are new unsaved rows */}
-            {hasNewRows && (
+            {/* ADD NEW ITEM BUTTON - Always visible when not fetching */}
+            {!fetching && (
               <button
                 type="button"
                 onClick={addRow}
                 disabled={isSaving}
                 className="w-full py-2 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
               >
-                + Add another item
+                + Add New Item
               </button>
             )}
           </div>
