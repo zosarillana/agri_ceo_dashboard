@@ -13,7 +13,14 @@ import {
 
 import { dashboardService } from "@/services/dashboard.service";
 import type { DashboardStats } from "@/types/dashboard.types";
-import { getTodayISO, toISO, toMonthKey, fmtDate, relativeTime, currentMonthKey } from "@/lib/dashboard-utils";
+import {
+  getTodayISO,
+  toISO,
+  toMonthKey,
+  fmtDate,
+  relativeTime,
+  currentMonthKey,
+} from "@/lib/dashboard-utils";
 
 // Import your existing card components
 import { ProductionCard } from "@/routes/auth/-components/-dashboard-tiles/production-card";
@@ -32,7 +39,9 @@ import { TradesCard } from "@/routes/auth/-components/-dashboard-tiles/trades-ca
 
 export function LandingDashboard() {
   const [time, setTime] = React.useState(() => new Date());
-  const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = React.useState<Date>(
+    () => new Date(),
+  );
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [loadingStats, setLoadingStats] = React.useState(true);
   const cache = React.useRef<Record<string, DashboardStats>>({});
@@ -84,7 +93,7 @@ export function LandingDashboard() {
   const energy = stats?.energy;
   const workforce = stats?.workforce;
   const qc = stats?.qc;
-  const trades = stats?.trades;
+  // const trades = stats?.trades;
   const procurement = stats?.procurement;
   const accounts = stats?.accounts;
 
@@ -177,8 +186,16 @@ export function LandingDashboard() {
               active={false}
               index={2}
               accounts={accounts}
-              timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
-              dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "—"}
+              timeLabel={
+                sales?.last_updated_at
+                  ? relativeTime(new Date(sales.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                sales?.last_updated_at
+                  ? fmtDate(new Date(sales.last_updated_at))
+                  : "—"
+              }
             />
 
             {/* QC Card */}
@@ -263,16 +280,39 @@ export function LandingDashboard() {
               active={false}
               index={2}
               procurement={procurement}
-              timeLabel={maintenance?.last_updated_at ? relativeTime(new Date(maintenance.last_updated_at)) : "—"}
-              dateLabel={maintenance?.last_updated_at ? fmtDate(new Date(maintenance.last_updated_at)) : "—"}
+              timeLabel={
+                maintenance?.last_updated_at
+                  ? relativeTime(new Date(maintenance.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                maintenance?.last_updated_at
+                  ? fmtDate(new Date(maintenance.last_updated_at))
+                  : "—"
+              }
             />
 
-            <TradesCard
+            {/* <TradesCard
               active={false}
               index={3}
               trades={trades}
               timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
               dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "—"}
+            /> */}
+            {/* Mock Trades */}
+            <TradesCard
+              active={false}
+              index={4}
+              timeLabel={
+                sales?.last_updated_at
+                  ? relativeTime(new Date(sales.last_updated_at))
+                  : "—"
+              }
+              dateLabel={
+                sales?.last_updated_at
+                  ? fmtDate(new Date(sales.last_updated_at))
+                  : "—"
+              }
             />
 
             {/* Workforce Card */}
