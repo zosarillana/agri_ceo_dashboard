@@ -2,11 +2,7 @@
 
 import { create } from "zustand";
 import { accountService } from "@/services/accounts.service";
-import {
-  Account,
-  AccountPayload,
-  AccountSummary,
-} from "@/types/accounts.types";
+import { Account, AccountPayload, AccountStatus, AccountSummary } from "@/types/accounts.types";
 
 interface DateRange {
   from: string | null;
@@ -25,12 +21,9 @@ interface AccountStore {
   setDateRange: (range: DateRange) => void;
   clearDateRange: () => void;
   saveAccount: (payload: AccountPayload) => Promise<void>;
-  updateAccount: (
-    id: number,
-    payload: Partial<AccountPayload>,
-  ) => Promise<void>;
+  updateAccount: (id: number, payload: Partial<AccountPayload>) => Promise<void>;
   deleteAccount: (id: number) => Promise<void>;
-  markPaid: (id: number) => Promise<void>;
+  updateStatus: (id: number, status: AccountStatus) => Promise<void>;
   clearError: () => void;
 }
 
@@ -51,8 +44,8 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   saving: false,
   error: null,
 
-  fetchAll: async (from?: string, to?: string) => {
-    if (get().loading) return; // ✅ only this
+  fetchAll: async (from?, to?) => {
+    if (get().loading) return;
     const targetFrom = from ?? null;
     const targetTo = to ?? null;
 
@@ -61,7 +54,6 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
       const response = await accountService.getAll(from, to);
       const accounts = response.data;
 
-      // Compute summary client-side
       const summary: AccountSummary = {
         total_receivable: accounts
           .filter((a) => a.type === "receivable" || a.type === "revenue")
@@ -69,21 +61,15 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         total_payable: accounts
           .filter((a) => a.type === "payable" || a.type === "expense")
           .reduce((s, a) => s + a.amount, 0),
-        total_capex: accounts
-          .filter((a) => a.type === "capex")
-          .reduce((s, a) => s + a.amount, 0),
-        total_opex: accounts
-          .filter((a) => a.type === "opex")
-          .reduce((s, a) => s + a.amount, 0),
+        total_capex: accounts.filter((a) => a.type === "capex").reduce((s, a) => s + a.amount, 0),
+        total_opex:  accounts.filter((a) => a.type === "opex").reduce((s, a) => s + a.amount, 0),
         from: from ?? null,
         to: to ?? null,
       };
 
       set({ accounts, summary, dateRange: { from: targetFrom, to: targetTo } });
     } catch (err: any) {
-      set({
-        error: err?.response?.data?.message ?? "Failed to fetch accounts.",
-      });
+      set({ error: err?.response?.data?.message ?? "Failed to fetch accounts." });
     } finally {
       set({ loading: false });
     }
@@ -120,9 +106,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
       const { from, to } = get().dateRange;
       await get().fetchAll(from ?? undefined, to ?? undefined);
     } catch (err: any) {
-      set({
-        error: err?.response?.data?.message ?? "Failed to update account.",
-      });
+      set({ error: err?.response?.data?.message ?? "Failed to update account." });
       throw err;
     } finally {
       set({ saving: false });
@@ -136,23 +120,21 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
       const { from, to } = get().dateRange;
       await get().fetchAll(from ?? undefined, to ?? undefined);
     } catch (err: any) {
-      set({
-        error: err?.response?.data?.message ?? "Failed to delete account.",
-      });
+      set({ error: err?.response?.data?.message ?? "Failed to delete account." });
       throw err;
     } finally {
       set({ saving: false });
     }
   },
 
-  markPaid: async (id) => {
+  updateStatus: async (id, status) => {
     set({ saving: true, error: null });
     try {
-      await accountService.markPaid(id);
+      await accountService.updateStatus(id, status);
       const { from, to } = get().dateRange;
       await get().fetchAll(from ?? undefined, to ?? undefined);
     } catch (err: any) {
-      set({ error: err?.response?.data?.message ?? "Failed to mark as paid." });
+      set({ error: err?.response?.data?.message ?? "Failed to update status." });
       throw err;
     } finally {
       set({ saving: false });

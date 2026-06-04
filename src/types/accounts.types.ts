@@ -1,6 +1,12 @@
-// src/types/account.types.ts
+// src/types/accounts.types.ts
 
 export type AccountType = "receivable" | "revenue" | "payable" | "expense" | "capex" | "opex";
+
+// Status is scoped by type:
+//   receivable/revenue → "received" | "delayed"
+//   payable/expense    → "unpaid"   | "paid"
+//   capex/opex         → "unpaid"   | "pending" | "paid"
+export type AccountStatus = "received" | "delayed" | "unpaid" | "pending" | "paid";
 
 export interface Account {
   id: number;
@@ -9,7 +15,7 @@ export interface Account {
   amount: number;
   due_date: string | null;
   notes: string | null;
-  is_paid: boolean;
+  status: AccountStatus;
   created_at: string;
   updated_at: string;
 }
@@ -20,7 +26,7 @@ export interface AccountPayload {
   amount: number;
   due_date: string | null;
   notes: string | null;
-  is_paid?: boolean;
+  status?: AccountStatus;
 }
 
 export interface AccountSummary {

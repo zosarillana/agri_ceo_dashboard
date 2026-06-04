@@ -1,7 +1,8 @@
-// src/services/account.service.ts
+// src/services/accounts.service.ts
 
 import api from "@/lib/api";
-import { Account, AccountPayload } from "@/types/accounts.types";
+import { Account, AccountPayload, AccountStatus } from "@/types/accounts.types";
+
 class AccountService {
   private readonly baseUrl = "api/accounts";
 
@@ -42,8 +43,8 @@ class AccountService {
     await api.delete(`${this.baseUrl}/${id}`);
   }
 
-  async markPaid(id: number): Promise<{ data: Account }> {
-    const response = await api.patch(`${this.baseUrl}/${id}/paid`);
+  async updateStatus(id: number, status: AccountStatus): Promise<{ data: Account }> {
+    const response = await api.patch(`${this.baseUrl}/${id}/status`, { status });
     return { data: response.data.data };
   }
 }
