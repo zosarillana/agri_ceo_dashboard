@@ -80,6 +80,18 @@ function ViewSkeleton() {
   );
 }
 
+// ─── Helper function to get current month range ───────────────────────────────
+function getCurrentMonthRange() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  
+  return {
+    from: format(from, "yyyy-MM-dd"),
+    to: format(to, "yyyy-MM-dd")
+  };
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function SalesDash() {
@@ -115,9 +127,13 @@ export default function SalesDash() {
   useEffect(() => {
     if (!salesFetched.current) {
       salesFetched.current = true;
-      fetchLatest();
+      
+      // FIX: Set default date range to current month on initial load
+      const currentMonthRange = getCurrentMonthRange();
+      setDateRange(currentMonthRange);
+      fetchLatest(currentMonthRange.from, currentMonthRange.to);
     }
-  }, [fetchLatest]);
+  }, [fetchLatest, setDateRange]);
 
   // ── Date range filter state ─────────────────────────────────────────────────
   const [from, setFrom] = useState<Date | undefined>(
@@ -137,12 +153,17 @@ export default function SalesDash() {
     const fromStr = from ? format(from, "yyyy-MM-dd") : null;
     const toStr = to ? format(to, "yyyy-MM-dd") : null;
     setDateRange({ from: fromStr, to: toStr });
+    fetchLatest(fromStr ?? undefined, toStr ?? undefined);
   }
 
   function handleClearFilter() {
     setFrom(undefined);
     setTo(undefined);
     clearDateRange();
+    // FIX: Reset to current month after clearing
+    const currentMonthRange = getCurrentMonthRange();
+    setDateRange(currentMonthRange);
+    fetchLatest(currentMonthRange.from, currentMonthRange.to);
   }
 
   // ── Local form rows (keyed by product_id) ───────────────────────────────────
@@ -272,6 +293,13 @@ export default function SalesDash() {
             )}
           </div>
 
+          {/* Show current filter info */}
+          {dateRange.from && dateRange.to && (
+            <div className="text-xs text-muted-foreground">
+              Showing data from {format(new Date(dateRange.from), "PPP")} to {format(new Date(dateRange.to), "PPP")}
+            </div>
+          )}
+
           {loading ? (
             <ViewSkeleton />
           ) : (
@@ -324,7 +352,7 @@ export default function SalesDash() {
                 <Card>
                   <CardContent className="py-12 text-center text-sm text-muted-foreground">
                     {dateRange.from || dateRange.to
-                      ? "No sales found for the selected date range."
+                      ? `No sales found for the selected date range (${dateRange.from} to ${dateRange.to}).`
                       : "No sales recorded yet. Use the Input tab to add sales."}
                   </CardContent>
                 </Card>

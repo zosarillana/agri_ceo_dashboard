@@ -8,7 +8,7 @@ import {
   AnimatedCard,
   ExpandRow,
 } from "./shared-dashboard-ui";
-import { fmtPHP, fmtMonthLabel, currentMonthKey } from "@/lib/dashboard-utils";
+import { fmtUSD, fmtMonthLabel, currentMonthKey } from "@/lib/dashboard-utils";
 import { DashboardStats } from "@/types/dashboard.types";
 
 function AccountsExpanded({ accounts }: { accounts: DashboardStats["accounts"] }) {
@@ -28,12 +28,12 @@ function AccountsExpanded({ accounts }: { accounts: DashboardStats["accounts"] }
         <div className="flex flex-col items-center p-2 rounded-md bg-emerald-500/5 border border-emerald-500/10">
           <TrendingUp className="h-3.5 w-3.5 text-emerald-500 mb-1" />
           <p className="text-[10px] text-muted-foreground uppercase font-medium">Receivables</p>
-          <p className="text-sm font-bold">{fmtPHP(accounts.total_receivable)}</p>
+          <p className="text-sm font-bold">{fmtUSD(accounts.total_receivable)}</p>
         </div>
         <div className="flex flex-col items-center p-2 rounded-md bg-rose-500/5 border border-rose-500/10">
           <TrendingDown className="h-3.5 w-3.5 text-rose-500 mb-1" />
           <p className="text-[10px] text-muted-foreground uppercase font-medium">Payables</p>
-          <p className="text-sm font-bold">{fmtPHP(accounts.total_payable)}</p>
+          <p className="text-sm font-bold">{fmtUSD(accounts.total_payable)}</p>
         </div>
         <div
           className={`flex flex-col items-center p-2 rounded-md border ${
@@ -53,7 +53,7 @@ function AccountsExpanded({ accounts }: { accounts: DashboardStats["accounts"] }
                 : "text-amber-700 dark:text-amber-400"
             }`}
           >
-            {fmtPHP(Math.abs(netPosition))}
+            {fmtUSD(Math.abs(netPosition))}
           </p>
         </div>
       </div>
@@ -82,7 +82,7 @@ function AccountsExpanded({ accounts }: { accounts: DashboardStats["accounts"] }
               CAPEX
             </p>
             <p className="text-sm font-semibold">
-              {accounts.total_capex != null ? fmtPHP(accounts.total_capex) : "—"}
+              {accounts.total_capex != null ? fmtUSD(accounts.total_capex) : "—"}
             </p>
           </div>
           <div className="space-y-1">
@@ -90,7 +90,7 @@ function AccountsExpanded({ accounts }: { accounts: DashboardStats["accounts"] }
               OPEX
             </p>
             <p className="text-sm font-semibold">
-              {accounts.total_opex != null ? fmtPHP(accounts.total_opex) : "—"}
+              {accounts.total_opex != null ? fmtUSD(accounts.total_opex) : "—"}
             </p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export function AccountsCard({
                     : "text-rose-600 dark:text-rose-400"
                 }`}
               >
-                {fmtPHP(Math.abs(netPosition))}
+                {fmtUSD(Math.abs(netPosition))}
               </p>
               <p className="text-xs text-muted-foreground">net cash position</p>
               <CardTimestamp timeLabel={timeLabel} dateLabel={dateLabel} />
