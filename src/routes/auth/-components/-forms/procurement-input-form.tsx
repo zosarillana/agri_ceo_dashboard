@@ -1,4 +1,3 @@
-"use client";
 
 import * as React from "react";
 import { format } from "date-fns";
@@ -11,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
   X,
+  Trash2,
 } from "lucide-react";
 import {
   Card,
@@ -149,7 +149,9 @@ export default function ProcurementInputForm({
   const [rows, setRows]                         = React.useState<ProcurementRow[]>([emptyRow()]);
   const [fetching, setFetching]                 = React.useState<boolean>(false);
   const [isSaving, setIsSaving]                 = React.useState<boolean>(false);
+  const [isDeleting, setIsDeleting]             = React.useState<boolean>(false);
   const [unlockedIdxs, setUnlockedIdxs]         = React.useState<Set<number>>(new Set());
+  const [confirmDeleteIdx, setConfirmDeleteIdx] = React.useState<number | null>(null);
   const [submissionStatus, setSubmissionStatus] = React.useState<"idle" | "success" | "error">("idle");
   const [statusMsg, setStatusMsg]               = React.useState<string>("");
 
@@ -181,13 +183,9 @@ export default function ProcurementInputForm({
   }, []);
 
   function applyData(records: ProcurementRecord[]) {
-    if (records.length === 0) {
-      // If no records exist, show one empty row for new entry
-      setRows([emptyRow()]);
-    } else {
-      setRows(records.map(recordToRow));
-    }
+    setRows(records.length === 0 ? [emptyRow()] : records.map(recordToRow));
     setUnlockedIdxs(new Set());
+    setConfirmDeleteIdx(null);
     setSubmissionStatus("idle");
     setStatusMsg("");
   }
@@ -232,11 +230,13 @@ export default function ProcurementInputForm({
       });
       return next;
     });
+    if (confirmDeleteIdx === idx) setConfirmDeleteIdx(null);
   }
 
   // ── Unlock / Relock ────────────────────────────────────────────────────────
 
   function unlockRow(idx: number) {
+    setConfirmDeleteIdx(null);
     setUnlockedIdxs((prev) => new Set(prev).add(idx));
     setRows((prev) =>
       prev.map((r, i) => (i === idx ? { ...r, isReadOnly: false } : r)),
@@ -246,6 +246,7 @@ export default function ProcurementInputForm({
   }
 
   function relockRow(idx: number) {
+    setConfirmDeleteIdx(null);
     setUnlockedIdxs((prev) => {
       const next = new Set(prev);
       next.delete(idx);
@@ -266,58 +267,68 @@ export default function ProcurementInputForm({
     applyData(cache.current[dateISO] ?? []);
   }
 
+  // ── Delete ────────────────────────────────────────────────────────────────
+
+  async function handleDelete(idx: number, id: number) {
+    setIsDeleting(true);
+    try {
+      await procurementService.delete(id);
+      delete cache.current[dateISO];
+      await fetchForDate(dateISO);
+      setSubmissionStatus("success");
+      setStatusMsg("Record deleted successfully.");
+      fetchLatest();
+      onSaved();
+    } catch (err: any) {
+      setSubmissionStatus("error");
+      setStatusMsg(
+        err?.response?.data?.message ?? "Failed to delete record. Please try again.",
+      );
+      setConfirmDeleteIdx(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   // ── Save ───────────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Prepare all records for bulk save (both new and updates)
     const allRecordsToSave: BulkProcurementDTO[] = [];
 
     rows.forEach((row, idx) => {
-      // Only process rows that are unlocked (edited) or new (not readOnly)
       const shouldProcess = unlockedIdxs.has(idx) || !row.isReadOnly;
-      
       if (!shouldProcess) return;
-
-      // Skip empty new rows (all fields empty)
-      if (!row.id && !row.itemName.trim() && !row.supplier.trim() && !row.quantity && !row.unit) {
-        return;
-      }
+      if (!row.id && !row.itemName.trim() && !row.supplier.trim() && !row.quantity && !row.unit) return;
 
       allRecordsToSave.push({
-        id: row.id, // Include ID if it exists (for updates)
+        id:        row.id,
         item_name: row.itemName,
-        supplier: row.supplier || null,
-        status: row.status,
-        quantity: parseFloat(row.quantity.replace(/,/g, "")) || 0,
-        unit: row.unit,
+        supplier:  row.supplier || null,
+        status:    row.status,
+        quantity:  parseFloat(row.quantity.replace(/,/g, "")) || 0,
+        unit:      row.unit,
       });
     });
 
     if (allRecordsToSave.length === 0) {
       setSubmissionStatus("error");
-      setStatusMsg(
-        "Please fill in at least one item, or unlock a saved entry to update it.",
-      );
+      setStatusMsg("Please fill in at least one item, or unlock a saved entry to update it.");
       return;
     }
 
     setIsSaving(true);
     try {
       const response = await procurementService.storeBulk(allRecordsToSave, dateISO);
-      
-      // Clear cache and refresh
       delete cache.current[dateISO];
       await fetchForDate(dateISO);
       setUnlockedIdxs(new Set());
-
       setSubmissionStatus("success");
       setStatusMsg(response.data.message || `Records saved for ${format(isoToDate(dateISO), "PPP")}.`);
       fetchLatest();
       onSaved();
     } catch (err: any) {
-      console.error("Save error:", err);
       setSubmissionStatus("error");
       setStatusMsg(
         err?.response?.data?.message ?? "Something went wrong. Please try again.",
@@ -329,7 +340,7 @@ export default function ProcurementInputForm({
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const selectedDate    = isoToDate(dateISO);
+  const isBusy          = isSaving || isDeleting;
   const allReadOnly     = rows.length > 0 && rows.every((r) => r.isReadOnly) && unlockedIdxs.size === 0;
   const hasEditableRows = rows.some((r, idx) => !r.isReadOnly || unlockedIdxs.has(idx));
   const showActions     = hasEditableRows && !fetching;
@@ -353,17 +364,17 @@ export default function ProcurementInputForm({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  disabled={fetching || isSaving}
+                  disabled={fetching || isBusy}
                   className="w-[240px] justify-start gap-2 text-left font-normal"
                 >
                   <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                  {format(selectedDate, "PPP")}
+                  {format(isoToDate(dateISO), "PPP")}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={selectedDate}
+                  selected={isoToDate(dateISO)}
                   onSelect={handleDateChange}
                   disabled={(d) => d > new Date()}
                   initialFocus
@@ -374,7 +385,7 @@ export default function ProcurementInputForm({
             {allReadOnly && !fetching && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All records saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update
+                All records saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update or delete
               </span>
             )}
 
@@ -399,18 +410,21 @@ export default function ProcurementInputForm({
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-3">
             {rows.map((row, idx) => {
-              const isUnlocked = unlockedIdxs.has(idx);
-              const isEditable = !row.isReadOnly || isUnlocked;
+              const isUnlocked      = unlockedIdxs.has(idx);
+              const isEditable      = !row.isReadOnly || isUnlocked;
+              const isPendingDelete = confirmDeleteIdx === idx;
 
               return (
                 <Card
                   key={idx}
                   className={
-                    row.isReadOnly && !isUnlocked
-                      ? "opacity-70"
-                      : isUnlocked
-                        ? "border-amber-500/50 dark:border-amber-500/30"
-                        : undefined
+                    isPendingDelete
+                      ? "border-rose-500/50 dark:border-rose-500/30"
+                      : row.isReadOnly && !isUnlocked
+                        ? "opacity-70"
+                        : isUnlocked
+                          ? "border-amber-500/50 dark:border-amber-500/30"
+                          : undefined
                   }
                 >
                   <CardContent className="pt-4 pb-4 space-y-3">
@@ -421,9 +435,21 @@ export default function ProcurementInputForm({
                         <p className="text-sm font-medium">
                           {rows.length > 1 ? `Item ${idx + 1}` : "Item Details"}
                         </p>
-                        {isUnlocked && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
-                            editing
+                        {isUnlocked && !isPendingDelete && (
+                          isSaving ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium flex items-center gap-1">
+                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                              updating…
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
+                              editing
+                            </span>
+                          )
+                        )}
+                        {isPendingDelete && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 font-medium">
+                            deleting
                           </span>
                         )}
                         {row.id && !isUnlocked && (
@@ -432,24 +458,64 @@ export default function ProcurementInputForm({
                           </span>
                         )}
                       </div>
+
                       <div className="flex items-center gap-1.5">
-                        {/* Unlock / relock for saved rows */}
-                        {(row.isReadOnly || isUnlocked) && (
+                        {/* Saved row controls */}
+                        {(row.isReadOnly || isUnlocked) && row.id && (
                           isUnlocked ? (
-                            <button
-                              type="button"
-                              onClick={() => relockRow(idx)}
-                              disabled={isSaving}
-                              className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                              aria-label="Cancel edit"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              {/* Relock / cancel */}
+                              <button
+                                type="button"
+                                onClick={() => relockRow(idx)}
+                                disabled={isBusy}
+                                title="Cancel editing"
+                                className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                aria-label="Cancel edit"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+
+                              {/* Delete with inline confirm */}
+                              {isPendingDelete ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-[10px] text-rose-600 font-medium">Sure?</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(idx, row.id!)}
+                                    disabled={isBusy}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500 text-white hover:bg-rose-600 font-medium transition-colors disabled:opacity-50"
+                                  >
+                                    {isDeleting ? "…" : "Yes"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteIdx(null)}
+                                    disabled={isBusy}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground font-medium transition-colors disabled:opacity-50"
+                                  >
+                                    No
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteIdx(idx)}
+                                  disabled={isBusy}
+                                  title="Delete record"
+                                  className="p-0.5 rounded text-muted-foreground hover:text-rose-500 transition-colors disabled:opacity-50"
+                                  aria-label="Delete record"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           ) : (
                             <button
                               type="button"
                               onClick={() => unlockRow(idx)}
-                              disabled={isSaving}
+                              disabled={isBusy}
+                              title="Edit record"
                               className="p-0.5 rounded text-muted-foreground hover:text-amber-600 transition-colors disabled:opacity-50"
                               aria-label="Edit record"
                             >
@@ -457,13 +523,14 @@ export default function ProcurementInputForm({
                             </button>
                           )
                         )}
-                        {/* Remove button for new unsaved rows (not the only row) */}
+
+                        {/* Remove button for new unsaved rows */}
                         {!row.isReadOnly && !isUnlocked && rows.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeRow(idx)}
-                            disabled={isSaving}
-                            className="p-0.5 rounded text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-50"
+                            disabled={isBusy}
+                            className="p-0.5 rounded text-muted-foreground hover:text-rose-500 transition-colors disabled:opacity-50"
                             aria-label="Remove row"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -478,11 +545,11 @@ export default function ProcurementInputForm({
                         <p className="text-xs text-muted-foreground">Item Name</p>
                         <Input
                           placeholder="e.g. Raw coconuts"
-                          required={!row.id} // Required only for new records
+                          required={!row.id}
                           value={row.itemName}
                           onChange={(e) => updateRow(idx, { itemName: e.target.value })}
                           readOnly={!isEditable}
-                          disabled={isSaving}
+                          disabled={isBusy}
                           className={cn(
                             "h-9 text-sm",
                             !isEditable && "bg-muted cursor-default pointer-events-none",
@@ -497,7 +564,7 @@ export default function ProcurementInputForm({
                           value={row.supplier}
                           onChange={(e) => updateRow(idx, { supplier: e.target.value })}
                           readOnly={!isEditable}
-                          disabled={isSaving}
+                          disabled={isBusy}
                           className={cn(
                             "h-9 text-sm",
                             !isEditable && "bg-muted cursor-default pointer-events-none",
@@ -509,12 +576,13 @@ export default function ProcurementInputForm({
                         <p className="text-xs text-muted-foreground">Quantity</p>
                         <Input
                           type="text"
+                          inputMode="decimal"
                           placeholder="0.00"
-                          required={!row.id} // Required only for new records
+                          required={!row.id}
                           value={row.quantity}
                           onChange={(e) => updateRow(idx, { quantity: e.target.value })}
                           readOnly={!isEditable}
-                          disabled={isSaving}
+                          disabled={isBusy}
                           className={cn(
                             "h-9 text-sm",
                             !isEditable && "bg-muted cursor-default pointer-events-none",
@@ -526,11 +594,11 @@ export default function ProcurementInputForm({
                         <p className="text-xs text-muted-foreground">Unit</p>
                         <Input
                           placeholder="e.g. Kg, Ltrs, Units"
-                          required={!row.id} // Required only for new records
+                          required={!row.id}
                           value={row.unit}
                           onChange={(e) => updateRow(idx, { unit: e.target.value })}
                           readOnly={!isEditable}
-                          disabled={isSaving}
+                          disabled={isBusy}
                           className={cn(
                             "h-9 text-sm",
                             !isEditable && "bg-muted cursor-default pointer-events-none",
@@ -545,7 +613,7 @@ export default function ProcurementInputForm({
                           onValueChange={(v) =>
                             isEditable && updateRow(idx, { status: v as ProcurementStatus })
                           }
-                          disabled={!isEditable || isSaving}
+                          disabled={!isEditable || isBusy}
                         >
                           <SelectTrigger
                             className={cn(
@@ -569,12 +637,12 @@ export default function ProcurementInputForm({
               );
             })}
 
-            {/* ADD NEW ITEM BUTTON - Always visible when not fetching */}
+            {/* Add new item */}
             {!fetching && (
               <button
                 type="button"
                 onClick={addRow}
-                disabled={isSaving}
+                disabled={isBusy}
                 className="w-full py-2 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
               >
                 + Add New Item
@@ -584,7 +652,7 @@ export default function ProcurementInputForm({
 
           {showActions && (
             <div className="flex items-center gap-3 mt-4">
-              <Button type="submit" disabled={isSaving} className="flex-1">
+              <Button type="submit" disabled={isBusy} className="flex-1">
                 {isSaving ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
                 ) : unlockedIdxs.size > 0 ? (
@@ -597,7 +665,7 @@ export default function ProcurementInputForm({
                 type="button"
                 variant="outline"
                 onClick={handleReset}
-                disabled={isSaving}
+                disabled={isBusy}
               >
                 Reset
               </Button>
