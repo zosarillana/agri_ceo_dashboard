@@ -19,4 +19,8 @@ export const procurementService = {
       rows, 
       procurement_date: date 
     }),
+
+  // Add the delete method
+  delete: (id: number) =>
+    api.delete<{ message: string }>(`api/procurement/${id}`),
 };
