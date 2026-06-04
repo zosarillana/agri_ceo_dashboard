@@ -1,6 +1,6 @@
 // services/sales.service.ts
 import api from "@/lib/api";
-import { Sale, SalesSummary } from "@/types/sales.types";
+import { Sale } from "@/types/sales.types";
 
 export const salesService = {
   storeBulk: async (
