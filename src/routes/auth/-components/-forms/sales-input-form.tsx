@@ -22,6 +22,7 @@ import {
   Loader2,
   Pencil,
   X,
+  Trash2,
 } from "lucide-react";
 import { Market, Sale } from "@/types/sales.types";
 import { salesService } from "@/services/sales.service";
@@ -68,7 +69,6 @@ function fmtUSD(n: number) {
   return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Format a committed/saved number for display (with commas + decimals)
 function formatCommitted(value: number): string {
   if (!value) return "";
   if (Number.isInteger(value)) return value.toLocaleString();
@@ -78,7 +78,6 @@ function formatCommitted(value: number): string {
   });
 }
 
-// Parse a raw input string (may contain commas, partial decimal) to a number
 function parseRaw(raw: string): number {
   const cleaned = raw.replace(/,/g, "");
   const n = parseFloat(cleaned);
@@ -174,39 +173,28 @@ export default function SalesInputForm({
 }: SalesInputFormProps) {
   const today = getTodayISO();
 
-  // ── Date state ────────────────────────────────────────────────────────────
-  const [dateISO, setDateISO] = useState(today);
-  const [calOpen, setCalOpen] = useState(false);
+  const [dateISO, setDateISO]               = useState(today);
+  const [calOpen, setCalOpen]               = useState(false);
+  const [rows, setRows]                     = useState<Record<number, SaleRow>>({});
+  const [fetchingRows, setFetchingRows]     = useState(false);
+  const [isSaving, setIsSaving]             = useState(false);
+  const [isDeleting, setIsDeleting]         = useState(false);
+  const [isAllReadOnly, setIsAllReadOnly]   = useState(false);
+  const [unlockedIds, setUnlockedIds]       = useState<Set<number>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [rawInputs, setRawInputs]           = useState<Record<string, string>>({});
+  const [status, setStatus]                 = useState<"idle" | "success" | "error">("idle");
+  const [statusMsg, setStatusMsg]           = useState("");
 
-  // ── Row + fetch state ─────────────────────────────────────────────────────
-  const [rows, setRows]                 = useState<Record<number, SaleRow>>({});
-  const [fetchingRows, setFetchingRows] = useState(false);
-  const [isSaving, setIsSaving]         = useState(false);
-  const [isAllReadOnly, setIsAllReadOnly] = useState(false);
-
-  // Track which product IDs have been manually unlocked for editing
-  const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set());
-
-  // ── Raw input strings (what the user is actively typing) ──────────────────
-  // Key: `${productId}-aspPerKg` | `${productId}-quantityKg`
-  // Value: the raw string while focused; undefined when blurred (use formatted)
-  const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
-
-  // ── Status banners ────────────────────────────────────────────────────────
-  const [status, setStatus]       = useState<"idle" | "success" | "error">("idle");
-  const [statusMsg, setStatusMsg] = useState("");
-
-  // Cache fetched sales per date so we don't re-fetch on tab switch
   const cache = useRef<Record<string, Sale[]>>({});
 
-  // ── Seed rows when products load ─────────────────────────────────────────
   useEffect(() => {
     if (products.length === 0) return;
     fetchForDate(today);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
-  // ── Date fetch ────────────────────────────────────────────────────────────
+  // ── Fetch ─────────────────────────────────────────────────────────────────
 
   async function fetchForDate(iso: string) {
     if (cache.current[iso] !== undefined) {
@@ -234,6 +222,7 @@ export default function SalesInputForm({
     const allReadOnly = prods.every((p) => populated[p.id]?.isReadOnly);
     setIsAllReadOnly(allReadOnly);
     setUnlockedIds(new Set());
+    setConfirmDeleteId(null);
     setRawInputs({});
   }
 
@@ -254,55 +243,37 @@ export default function SalesInputForm({
     setStatus("idle");
   }
 
-  // Called on every keystroke — keeps raw string alive, updates numeric state
   function handleChange(id: number, field: "aspPerKg" | "quantityKg", raw: string) {
     if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
-
-    // Allow: digits, one dot, one leading minus (no minus needed here but safe)
-    // Strip anything that isn't a digit, dot, or comma
     const sanitized = raw.replace(/[^0-9.,]/g, "");
-
-    // Prevent more than one decimal point
     const dotCount = (sanitized.match(/\./g) || []).length;
     if (dotCount > 1) return;
-
     const key = `${id}-${field}`;
     setRawInputs((prev) => ({ ...prev, [key]: sanitized }));
-
     const numeric = parseRaw(sanitized);
     setRows((r) => {
       const updated = { ...r[id], [field]: numeric };
       updated.totalSalesUSD = updated.aspPerKg * updated.quantityKg;
       return { ...r, [id]: updated };
     });
-
     setStatus("idle");
   }
 
-  // On focus: switch to raw string so user can edit freely
   function handleFocus(id: number, field: "aspPerKg" | "quantityKg") {
     if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
     const key = `${id}-${field}`;
     const numeric = field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
-    // Show plain number (no commas) so cursor position is predictable
-    const raw = numeric ? String(numeric) : "";
-    setRawInputs((prev) => ({ ...prev, [key]: raw }));
+    setRawInputs((prev) => ({ ...prev, [key]: numeric ? String(numeric) : "" }));
   }
 
-  // On blur: remove raw string so display switches to formatted committed value
   function handleBlur(id: number, field: "aspPerKg" | "quantityKg") {
     const key = `${id}-${field}`;
-    setRawInputs((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
+    setRawInputs((prev) => { const next = { ...prev }; delete next[key]; return next; });
   }
 
-  // Returns the string to show in the input at any moment
   function getDisplayValue(id: number, field: "aspPerKg" | "quantityKg"): string {
     const key = `${id}-${field}`;
-    if (key in rawInputs) return rawInputs[key]; // user is typing
+    if (key in rawInputs) return rawInputs[key];
     const numeric = field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
     return numeric ? formatCommitted(numeric) : "";
   }
@@ -310,22 +281,16 @@ export default function SalesInputForm({
   // ── Unlock / Relock ───────────────────────────────────────────────────────
 
   function unlockProduct(productId: number) {
+    setConfirmDeleteId(null);
     setUnlockedIds((prev) => new Set(prev).add(productId));
-    setRows((prev) => ({
-      ...prev,
-      [productId]: { ...prev[productId], isReadOnly: false },
-    }));
+    setRows((prev) => ({ ...prev, [productId]: { ...prev[productId], isReadOnly: false } }));
     setStatus("idle");
     setStatusMsg("");
   }
 
   function relockProduct(productId: number) {
-    setUnlockedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(productId);
-      return next;
-    });
-    // Clear any active raw inputs for this product
+    setConfirmDeleteId(null);
+    setUnlockedIds((prev) => { const next = new Set(prev); next.delete(productId); return next; });
     setRawInputs((prev) => {
       const next = { ...prev };
       delete next[`${productId}-aspPerKg`];
@@ -350,13 +315,7 @@ export default function SalesInputForm({
       } else {
         setRows((prev) => ({
           ...prev,
-          [productId]: {
-            ...prev[productId],
-            aspPerKg:      0,
-            quantityKg:    0,
-            totalSalesUSD: 0,
-            isReadOnly:    false,
-          },
+          [productId]: { ...prev[productId], aspPerKg: 0, quantityKg: 0, totalSalesUSD: 0, isReadOnly: false },
         }));
       }
     }
@@ -371,9 +330,30 @@ export default function SalesInputForm({
       setRows(emptyRows(products));
     }
     setUnlockedIds(new Set());
+    setConfirmDeleteId(null);
     setRawInputs({});
     setStatus("idle");
     setStatusMsg("");
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+
+  async function handleDelete(productId: number) {
+    setIsDeleting(true);
+    try {
+      await salesService.delete(productId, dateISO);
+      delete cache.current[dateISO];
+      await fetchForDate(dateISO);
+      setStatus("success");
+      setStatusMsg("Sale entry deleted successfully.");
+      onSaved();
+    } catch (err: any) {
+      setStatus("error");
+      setStatusMsg(err?.response?.data?.message ?? "Failed to delete entry. Please try again.");
+      setConfirmDeleteId(null);
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -430,6 +410,7 @@ export default function SalesInputForm({
     );
   }
 
+  const isBusy            = isSaving || isDeleting;
   const selectedDate      = isoToDate(dateISO);
   const hasEditableRows   = Object.values(rows).some((r) => !r.isReadOnly);
   const hasUnlockedRows   = unlockedIds.size > 0;
@@ -452,7 +433,7 @@ export default function SalesInputForm({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  disabled={fetchingRows || isSaving}
+                  disabled={fetchingRows || isBusy}
                   className="w-[240px] justify-start gap-2 text-left font-normal"
                 >
                   <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -473,7 +454,7 @@ export default function SalesInputForm({
             {isAllReadOnly && !fetchingRows && unlockedIds.size === 0 && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All sales saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update
+                All sales saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update or delete
               </span>
             )}
 
@@ -498,20 +479,23 @@ export default function SalesInputForm({
         <form onSubmit={handleSave} noValidate>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {products.map((p) => {
-              const row        = rows[p.id];
-              const isReadOnly = row?.isReadOnly ?? false;
-              const isUnlocked = unlockedIds.has(p.id);
-              const isEditable = !isReadOnly || isUnlocked;
+              const row             = rows[p.id];
+              const isReadOnly      = row?.isReadOnly ?? false;
+              const isUnlocked      = unlockedIds.has(p.id);
+              const isEditable      = !isReadOnly || isUnlocked;
+              const isPendingDelete = confirmDeleteId === p.id;
 
               return (
                 <Card
                   key={p.id}
                   className={
-                    isReadOnly && !isUnlocked
-                      ? "opacity-70"
-                      : isUnlocked
-                        ? "border-amber-500/50 dark:border-amber-500/30"
-                        : undefined
+                    isPendingDelete
+                      ? "border-rose-500/50 dark:border-rose-500/30"
+                      : isReadOnly && !isUnlocked
+                        ? "opacity-70"
+                        : isUnlocked
+                          ? "border-amber-500/50 dark:border-amber-500/30"
+                          : undefined
                   }
                 >
                   <CardContent className="pt-4 pb-4 space-y-3">
@@ -520,30 +504,84 @@ export default function SalesInputForm({
                     <div className="flex items-baseline justify-between">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{p.name}</p>
-                        {isUnlocked && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
-                            editing
+                        {isUnlocked && !isPendingDelete && (
+                          isSaving ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium flex items-center gap-1">
+                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                              updating…
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
+                              editing
+                            </span>
+                          )
+                        )}
+                        {isPendingDelete && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 font-medium">
+                            deleting
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex items-center gap-1.5">
                         <span className="text-xs text-muted-foreground">{p.unit ?? "—"}</span>
+
+                        {/* Saved row controls */}
                         {(isReadOnly || isUnlocked) && (
                           isUnlocked ? (
-                            <button
-                              type="button"
-                              onClick={() => relockProduct(p.id)}
-                              disabled={isSaving}
-                              className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                              aria-label="Cancel edit"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              {/* Relock */}
+                              <button
+                                type="button"
+                                onClick={() => relockProduct(p.id)}
+                                disabled={isBusy}
+                                title="Cancel editing"
+                                className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                aria-label="Cancel edit"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+
+                              {/* Delete with inline confirm */}
+                              {isPendingDelete ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-[10px] text-rose-600 font-medium">Sure?</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(p.id)}
+                                    disabled={isBusy}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500 text-white hover:bg-rose-600 font-medium transition-colors disabled:opacity-50"
+                                  >
+                                    {isDeleting ? "…" : "Yes"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    disabled={isBusy}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground font-medium transition-colors disabled:opacity-50"
+                                  >
+                                    No
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteId(p.id)}
+                                  disabled={isBusy}
+                                  title="Delete sale entry"
+                                  className="p-0.5 rounded text-muted-foreground hover:text-rose-500 transition-colors disabled:opacity-50"
+                                  aria-label="Delete sale entry"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           ) : (
                             <button
                               type="button"
                               onClick={() => unlockProduct(p.id)}
-                              disabled={isSaving}
+                              disabled={isBusy}
+                              title="Edit sale entry"
                               className="p-0.5 rounded text-muted-foreground hover:text-amber-600 transition-colors disabled:opacity-50"
                               aria-label="Edit sales entry"
                             >
@@ -562,7 +600,7 @@ export default function SalesInputForm({
                           type="button"
                           onClick={() => isEditable && setMarket(p.id, m)}
                           className="focus:outline-none"
-                          disabled={!isEditable || isSaving}
+                          disabled={!isEditable || isBusy}
                         >
                           <Badge
                             variant={
@@ -595,7 +633,7 @@ export default function SalesInputForm({
                             className={`pl-5 h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                             value={getDisplayValue(p.id, "aspPerKg")}
                             readOnly={!isEditable}
-                            disabled={isSaving || !isEditable}
+                            disabled={isBusy || !isEditable}
                             onChange={(e) => handleChange(p.id, "aspPerKg", e.target.value)}
                             onFocus={() => handleFocus(p.id, "aspPerKg")}
                             onBlur={() => handleBlur(p.id, "aspPerKg")}
@@ -612,7 +650,7 @@ export default function SalesInputForm({
                           className={`h-9 text-sm ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
                           value={getDisplayValue(p.id, "quantityKg")}
                           readOnly={!isEditable}
-                          disabled={isSaving || !isEditable}
+                          disabled={isBusy || !isEditable}
                           onChange={(e) => handleChange(p.id, "quantityKg", e.target.value)}
                           onFocus={() => handleFocus(p.id, "quantityKg")}
                           onBlur={() => handleBlur(p.id, "quantityKg")}
@@ -639,7 +677,7 @@ export default function SalesInputForm({
           {/* Save / Reset */}
           {showActionButtons && (
             <div className="flex items-center gap-3 mt-4">
-              <Button type="submit" disabled={isSaving} className="flex-1">
+              <Button type="submit" disabled={isBusy} className="flex-1">
                 {isSaving
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
                   : hasUnlockedRows
@@ -647,7 +685,7 @@ export default function SalesInputForm({
                     : "Save Sales"
                 }
               </Button>
-              <Button type="button" variant="outline" onClick={handleReset} disabled={isSaving}>
+              <Button type="button" variant="outline" onClick={handleReset} disabled={isBusy}>
                 Reset
               </Button>
             </div>

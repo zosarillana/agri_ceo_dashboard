@@ -24,7 +24,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useProductsStore } from "@/store/products.store";
 import { useSalesStore } from "@/store/sales.store";
-import { Market } from "@/types/sales.types";
+import { Market, Sale, SalesSummary } from "@/types/sales.types";
 import SalesInputForm from "../-forms/sales-input-form";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,11 +39,20 @@ interface SaleRow {
   totalSalesUSD: number;
 }
 
+interface SalesDashProps {
+  initialData?: {
+    sales: Sale[];
+    summary: SalesSummary;
+    dateRange: { from: string; to: string };
+  };
+}
+
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
   return n.toLocaleString();
 }
+
 function fmtUSD(n: number) {
   return (
     "$" +
@@ -80,22 +89,23 @@ function ViewSkeleton() {
   );
 }
 
-// ─── Helper function to get current month range ───────────────────────────────
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
 function getCurrentMonthRange() {
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
   const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  
   return {
     from: format(from, "yyyy-MM-dd"),
-    to: format(to, "yyyy-MM-dd")
+    to: format(to, "yyyy-MM-dd"),
   };
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function SalesDash() {
+export default function SalesDash({ initialData }: SalesDashProps) {
   const [tab, setTab] = useState<Tab>("view");
+  const [, setRows] = useState<Record<number, SaleRow>>({});
 
   // ── Products store ──────────────────────────────────────────────────────────
   const {
@@ -104,38 +114,18 @@ export default function SalesDash() {
     fetchProducts,
   } = useProductsStore();
 
-  const productsFetched = useRef(false);
-  useEffect(() => {
-    if (!productsFetched.current) {
-      productsFetched.current = true;
-      fetchProducts();
-    }
-  }, [fetchProducts]);
-
   // ── Sales store ─────────────────────────────────────────────────────────────
   const {
     sales,
     summary,
     dateRange,
     loading: salesLoading,
-    fetchLatest,
+    fetchAll,
     setDateRange,
-    clearDateRange,
+    setSalesData,
   } = useSalesStore();
 
-  const salesFetched = useRef(false);
-  useEffect(() => {
-    if (!salesFetched.current) {
-      salesFetched.current = true;
-      
-      // FIX: Set default date range to current month on initial load
-      const currentMonthRange = getCurrentMonthRange();
-      setDateRange(currentMonthRange);
-      fetchLatest(currentMonthRange.from, currentMonthRange.to);
-    }
-  }, [fetchLatest, setDateRange]);
-
-  // ── Date range filter state ─────────────────────────────────────────────────
+  // ── Date range local state (calendar pickers) ───────────────────────────────
   const [from, setFrom] = useState<Date | undefined>(
     dateRange.from ? new Date(dateRange.from) : undefined,
   );
@@ -143,34 +133,34 @@ export default function SalesDash() {
     dateRange.to ? new Date(dateRange.to) : undefined,
   );
 
-  // Sync local state with store dateRange
+  // ── Sync local picker state when store dateRange changes ────────────────────
   useEffect(() => {
     setFrom(dateRange.from ? new Date(dateRange.from) : undefined);
     setTo(dateRange.to ? new Date(dateRange.to) : undefined);
   }, [dateRange.from, dateRange.to]);
 
-  function handleFilter() {
-    const fromStr = from ? format(from, "yyyy-MM-dd") : null;
-    const toStr = to ? format(to, "yyyy-MM-dd") : null;
-    setDateRange({ from: fromStr, to: toStr });
-    fetchLatest(fromStr ?? undefined, toStr ?? undefined);
-  }
+  // ── Hydrate from loader data, or fetch on mount ─────────────────────────────
+  const initDone = useRef(false);
+  useEffect(() => {
+    if (initDone.current) return;
+    initDone.current = true;
 
-  function handleClearFilter() {
-    setFrom(undefined);
-    setTo(undefined);
-    clearDateRange();
-    // FIX: Reset to current month after clearing
-    const currentMonthRange = getCurrentMonthRange();
-    setDateRange(currentMonthRange);
-    fetchLatest(currentMonthRange.from, currentMonthRange.to);
-  }
+    if (initialData) {
+      setSalesData(initialData.sales, initialData.summary, initialData.dateRange);
+    } else {
+      setDateRange(getCurrentMonthRange()); // store calls fetchAll internally
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Local form rows (keyed by product_id) ───────────────────────────────────
-  const [, setRows] = useState<Record<number, SaleRow>>({});
-  const [] = useState(false);
+  // ── Fetch products once ─────────────────────────────────────────────────────
+  const productsFetched = useRef(false);
+  useEffect(() => {
+    if (productsFetched.current) return;
+    productsFetched.current = true;
+    fetchProducts();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Seed rows from products — pre-fill from latest sale if available
+  // ── Seed form rows from products ────────────────────────────────────────────
   useEffect(() => {
     if (products.length === 0) return;
     setRows((prev) => {
@@ -191,9 +181,23 @@ export default function SalesDash() {
     });
   }, [products, sales]);
 
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  function handleFilter() {
+    const fromStr = from ? format(from, "yyyy-MM-dd") : null;
+    const toStr = to ? format(to, "yyyy-MM-dd") : null;
+    setDateRange({ from: fromStr, to: toStr }); // calls fetchAll internally
+  }
+
+  function handleClearFilter() {
+    setFrom(undefined);
+    setTo(undefined);
+    setDateRange(getCurrentMonthRange()); // calls fetchAll internally
+  }
+
   // ── Derived ─────────────────────────────────────────────────────────────────
-  const { total_sales_usd, total_quantity_kg, export_count, local_count } =
-    summary;
+
+  const { total_sales_usd, total_quantity_kg, export_count, local_count } = summary;
   const loading = productsLoading || salesLoading;
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -222,7 +226,7 @@ export default function SalesDash() {
       {/* ── VIEW TAB ── */}
       {tab === "view" && (
         <div className="space-y-4">
-          {/* Date range filter with shadcn date pickers */}
+          {/* Date range filter */}
           <div className="flex flex-wrap items-end gap-2">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">From</p>
@@ -293,10 +297,11 @@ export default function SalesDash() {
             )}
           </div>
 
-          {/* Show current filter info */}
+          {/* Active filter label */}
           {dateRange.from && dateRange.to && (
             <div className="text-xs text-muted-foreground">
-              Showing data from {format(new Date(dateRange.from), "PPP")} to {format(new Date(dateRange.to), "PPP")}
+              Showing data from {format(new Date(dateRange.from), "PPP")} to{" "}
+              {format(new Date(dateRange.to), "PPP")}
             </div>
           )}
 
@@ -308,40 +313,25 @@ export default function SalesDash() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Card>
                   <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Total Sales (USD)
-                    </p>
-                    <p className="text-xl font-semibold">
-                      {fmtUSD(total_sales_usd)}
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-1">Total Sales (USD)</p>
+                    <p className="text-xl font-semibold">{fmtUSD(total_sales_usd)}</p>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Total Volume (Kg)
-                    </p>
-                    <p className="text-2xl font-semibold">
-                      {fmt(total_quantity_kg)}
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-1">Total Volume (Kg)</p>
+                    <p className="text-2xl font-semibold">{fmt(total_quantity_kg)}</p>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Export lines
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-1">Export lines</p>
                     <p className="text-2xl font-semibold">{export_count}</p>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Local lines
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-1">Local lines</p>
                     <p className="text-2xl font-semibold">{local_count}</p>
                   </CardContent>
                 </Card>
@@ -362,24 +352,13 @@ export default function SalesDash() {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="font-semibold">
-                            Product
-                          </TableHead>
-                          <TableHead className="font-semibold">
-                            Market
-                          </TableHead>
-                          <TableHead className="text-right font-semibold">
-                            ASP $/Kg
-                          </TableHead>
-                          <TableHead className="text-right font-semibold">
-                            Quantity (Kg)
-                          </TableHead>
-                          <TableHead className="text-right font-semibold">
-                            Total Sales ($)
-                          </TableHead>
+                          <TableHead className="font-semibold">Product</TableHead>
+                          <TableHead className="font-semibold">Market</TableHead>
+                          <TableHead className="text-right font-semibold">ASP $/Kg</TableHead>
+                          <TableHead className="text-right font-semibold">Quantity (Kg)</TableHead>
+                          <TableHead className="text-right font-semibold">Total Sales ($)</TableHead>
                         </TableRow>
                       </TableHeader>
-
                       <TableBody>
                         {sales.map((s) => (
                           <TableRow key={s.id}>
@@ -387,11 +366,7 @@ export default function SalesDash() {
                               {s.product?.name ?? `Product #${s.product_id}`}
                             </TableCell>
                             <TableCell>
-                              <Badge
-                                variant={
-                                  s.market === "Export" ? "default" : "outline"
-                                }
-                              >
+                              <Badge variant={s.market === "Export" ? "default" : "outline"}>
                                 {s.market}
                               </Badge>
                             </TableCell>
@@ -406,12 +381,8 @@ export default function SalesDash() {
                             </TableCell>
                           </TableRow>
                         ))}
-
-                        {/* Totals row */}
                         <TableRow className="border-t-2">
-                          <TableCell colSpan={3} className="font-semibold">
-                            Total
-                          </TableCell>
+                          <TableCell colSpan={3} className="font-semibold">Total</TableCell>
                           <TableCell className="text-right font-semibold tabular-nums">
                             {fmt(total_quantity_kg)}
                           </TableCell>
@@ -435,9 +406,8 @@ export default function SalesDash() {
           products={products}
           loading={productsLoading}
           onSaved={() => {
-            // Re-fetch with current date range after save
             const { from, to } = dateRange;
-            fetchLatest(from ?? undefined, to ?? undefined);
+            fetchAll(from ?? undefined, to ?? undefined);
           }}
         />
       )}

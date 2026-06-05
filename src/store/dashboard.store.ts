@@ -8,6 +8,7 @@ type DashboardStore = {
   error: string | null;
   activeDate: string;
 
+  setStats: (stats: DashboardStats) => void;
   fetchStats: (date?: string) => Promise<void>;
 };
 
@@ -21,11 +22,13 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   error: null,
   activeDate: getTodayISO(),
 
+  // Hydrate from loader data without triggering a network call
+  setStats: (stats) => set({ stats }),
+
   fetchStats: async (date?: string) => {
     const target = date ?? getTodayISO();
 
-    // ✅ FIX: also guard on `loading` to prevent StrictMode double-fire
-    // and any other concurrent calls before the first one resolves.
+    // Guard against concurrent calls and redundant fetches for the same date
     if (get().loading || (get().stats !== null && get().activeDate === target)) return;
 
     set({ loading: true, error: null, activeDate: target });

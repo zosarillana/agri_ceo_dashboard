@@ -11,6 +11,7 @@ import {
 import { Calendar as CalendarIcon } from "lucide-react";
 
 import { useDashboardStore } from "@/store/dashboard.store";
+import type { DashboardStats } from "@/types/dashboard.types";
 import {
   toMonthKey,
   getTodayISO,
@@ -33,7 +34,11 @@ import { TradesCard } from "./-dashboard-tiles/trades-card";
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 
-export default function CEODashboard() {
+interface CEODashboardProps {
+  initialStats?: DashboardStats;
+}
+
+export default function CEODashboard({ initialStats }: CEODashboardProps) {
   const location = useLocation();
   const isActive = (id: string) =>
     location.pathname === `/auth/admin/dashboard/${id}`;
@@ -47,30 +52,31 @@ export default function CEODashboard() {
   const selectedMthKey = toMonthKey(selectedISO);
   const isToday = selectedISO === getTodayISO();
 
-  // ✅ Destructure fetchStats separately so it's not part of the stats re-render cycle
-  const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
+  const { stats, loading: loadingStats, fetchStats, setStats } = useDashboardStore();
   const production = stats?.production;
   const maintenance = stats?.maintenance;
   const sales = stats?.sales;
   const energy = stats?.energy;
   const workforce = stats?.workforce;
   const qc = stats?.qc;
-  // const trades = stats?.trades;
 
   const procurement = stats?.procurement;
   const accounts = stats?.accounts;
+
+  // Hydrate store with loader data — skips the initial network call
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (initialStats) {
+      setStats(initialStats);
+    } else {
+      fetchStats();
+    }
+  }, []);
 
   // Clock tick — isolated to its own state so it never affects fetchStats
   React.useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
-  }, []);
-
-  // ✅ FIX: omit fetchStats from deps — it's a stable Zustand action reference,
-  // and including it previously caused re-fires whenever the store updated.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  React.useEffect(() => {
-    fetchStats();
   }, []);
 
   function handleDateSelect(d: Date | undefined) {
@@ -268,22 +274,6 @@ export default function CEODashboard() {
                   : "—"
               }
             />
-
-            {/* <TradesCard
-              active={isActive("trading")}
-              index={4}
-              trades={trades ?? undefined}
-              timeLabel={
-                sales?.last_updated_at
-                  ? relativeTime(new Date(sales.last_updated_at))
-                  : "—"
-              }
-              dateLabel={
-                sales?.last_updated_at
-                  ? fmtDate(new Date(sales.last_updated_at))
-                  : "—"
-              }
-            /> */}
 
             {/* Mock Trades */}
             <TradesCard
