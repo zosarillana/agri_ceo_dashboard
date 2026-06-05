@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +72,13 @@ function isoToDate(iso: string) {
 }
 
 function fmtUSD(n: number) {
-  return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (
+    "$" +
+    n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
 function formatCommitted(value: number): string {
@@ -89,35 +101,40 @@ function emptyRows(products: Product[]): Record<number, SaleRow> {
     products.map((p) => [
       p.id,
       {
-        product_id:    p.id,
-        market:        "Export" as Market,
-        aspPerKg:      0,
-        quantityKg:    0,
+        product_id: p.id,
+        market: "Export" as Market,
+        aspPerKg: 0,
+        quantityKg: 0,
         totalSalesUSD: 0,
-        isReadOnly:    false,
+        isReadOnly: false,
       },
-    ])
+    ]),
   );
 }
 
-function populateRows(products: Product[], sales: Sale[]): Record<number, SaleRow> {
+function populateRows(
+  products: Product[],
+  sales: Sale[],
+): Record<number, SaleRow> {
   const salesMap = new Map(sales.map((s) => [s.product_id, s]));
   return Object.fromEntries(
     products.map((p) => {
       const existing = salesMap.get(p.id);
-      const hasData  = existing && (Number(existing.asp_per_kg) > 0 || Number(existing.quantity_kg) > 0);
+      const hasData =
+        existing &&
+        (Number(existing.asp_per_kg) > 0 || Number(existing.quantity_kg) > 0);
       return [
         p.id,
         {
-          product_id:    p.id,
-          market:        existing?.market ?? "Export",
-          aspPerKg:      existing ? Number(existing.asp_per_kg)      : 0,
-          quantityKg:    existing ? Number(existing.quantity_kg)     : 0,
+          product_id: p.id,
+          market: existing?.market ?? "Export",
+          aspPerKg: existing ? Number(existing.asp_per_kg) : 0,
+          quantityKg: existing ? Number(existing.quantity_kg) : 0,
           totalSalesUSD: existing ? Number(existing.total_sales_usd) : 0,
-          isReadOnly:    !!hasData,
+          isReadOnly: !!hasData,
         },
       ];
-    })
+    }),
   );
 }
 
@@ -173,26 +190,30 @@ export default function SalesInputForm({
 }: SalesInputFormProps) {
   const today = getTodayISO();
 
-  const [dateISO, setDateISO]               = useState(today);
-  const [calOpen, setCalOpen]               = useState(false);
-  const [rows, setRows]                     = useState<Record<number, SaleRow>>({});
-  const [fetchingRows, setFetchingRows]     = useState(false);
-  const [isSaving, setIsSaving]             = useState(false);
-  const [isDeleting, setIsDeleting]         = useState(false);
-  const [isAllReadOnly, setIsAllReadOnly]   = useState(false);
-  const [unlockedIds, setUnlockedIds]       = useState<Set<number>>(new Set());
+  const [dateISO, setDateISO] = useState(today);
+  const [calOpen, setCalOpen] = useState(false);
+  const [rows, setRows] = useState<Record<number, SaleRow>>({});
+  const [fetchingRows, setFetchingRows] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAllReadOnly, setIsAllReadOnly] = useState(false);
+  const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const [rawInputs, setRawInputs]           = useState<Record<string, string>>({});
-  const [status, setStatus]                 = useState<"idle" | "success" | "error">("idle");
-  const [statusMsg, setStatusMsg]           = useState("");
+  const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [statusMsg, setStatusMsg] = useState("");
 
   const cache = useRef<Record<string, Sale[]>>({});
 
+  const hydratedRef = useRef(false);
+
   useEffect(() => {
+    if (hydratedRef.current) return;
     if (products.length === 0) return;
+
+    hydratedRef.current = true;
     fetchForDate(today);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products]);
+  }, [products, today]);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -243,7 +264,11 @@ export default function SalesInputForm({
     setStatus("idle");
   }
 
-  function handleChange(id: number, field: "aspPerKg" | "quantityKg", raw: string) {
+  function handleChange(
+    id: number,
+    field: "aspPerKg" | "quantityKg",
+    raw: string,
+  ) {
     if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
     const sanitized = raw.replace(/[^0-9.,]/g, "");
     const dotCount = (sanitized.match(/\./g) || []).length;
@@ -262,19 +287,31 @@ export default function SalesInputForm({
   function handleFocus(id: number, field: "aspPerKg" | "quantityKg") {
     if (rows[id]?.isReadOnly && !unlockedIds.has(id)) return;
     const key = `${id}-${field}`;
-    const numeric = field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
-    setRawInputs((prev) => ({ ...prev, [key]: numeric ? String(numeric) : "" }));
+    const numeric =
+      field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
+    setRawInputs((prev) => ({
+      ...prev,
+      [key]: numeric ? String(numeric) : "",
+    }));
   }
 
   function handleBlur(id: number, field: "aspPerKg" | "quantityKg") {
     const key = `${id}-${field}`;
-    setRawInputs((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    setRawInputs((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }
 
-  function getDisplayValue(id: number, field: "aspPerKg" | "quantityKg"): string {
+  function getDisplayValue(
+    id: number,
+    field: "aspPerKg" | "quantityKg",
+  ): string {
     const key = `${id}-${field}`;
     if (key in rawInputs) return rawInputs[key];
-    const numeric = field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
+    const numeric =
+      field === "aspPerKg" ? rows[id]?.aspPerKg : rows[id]?.quantityKg;
     return numeric ? formatCommitted(numeric) : "";
   }
 
@@ -283,14 +320,21 @@ export default function SalesInputForm({
   function unlockProduct(productId: number) {
     setConfirmDeleteId(null);
     setUnlockedIds((prev) => new Set(prev).add(productId));
-    setRows((prev) => ({ ...prev, [productId]: { ...prev[productId], isReadOnly: false } }));
+    setRows((prev) => ({
+      ...prev,
+      [productId]: { ...prev[productId], isReadOnly: false },
+    }));
     setStatus("idle");
     setStatusMsg("");
   }
 
   function relockProduct(productId: number) {
     setConfirmDeleteId(null);
-    setUnlockedIds((prev) => { const next = new Set(prev); next.delete(productId); return next; });
+    setUnlockedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(productId);
+      return next;
+    });
     setRawInputs((prev) => {
       const next = { ...prev };
       delete next[`${productId}-aspPerKg`];
@@ -305,17 +349,23 @@ export default function SalesInputForm({
           ...prev,
           [productId]: {
             ...prev[productId],
-            market:        originalSale.market,
-            aspPerKg:      Number(originalSale.asp_per_kg),
-            quantityKg:    Number(originalSale.quantity_kg),
+            market: originalSale.market,
+            aspPerKg: Number(originalSale.asp_per_kg),
+            quantityKg: Number(originalSale.quantity_kg),
             totalSalesUSD: Number(originalSale.total_sales_usd),
-            isReadOnly:    true,
+            isReadOnly: true,
           },
         }));
       } else {
         setRows((prev) => ({
           ...prev,
-          [productId]: { ...prev[productId], aspPerKg: 0, quantityKg: 0, totalSalesUSD: 0, isReadOnly: false },
+          [productId]: {
+            ...prev[productId],
+            aspPerKg: 0,
+            quantityKg: 0,
+            totalSalesUSD: 0,
+            isReadOnly: false,
+          },
         }));
       }
     }
@@ -349,7 +399,10 @@ export default function SalesInputForm({
       onSaved();
     } catch (err: any) {
       setStatus("error");
-      setStatusMsg(err?.response?.data?.message ?? "Failed to delete entry. Please try again.");
+      setStatusMsg(
+        err?.response?.data?.message ??
+          "Failed to delete entry. Please try again.",
+      );
       setConfirmDeleteId(null);
     } finally {
       setIsDeleting(false);
@@ -369,14 +422,16 @@ export default function SalesInputForm({
 
     if (rowsToSave.length === 0) {
       setStatus("error");
-      setStatusMsg("Please enter ASP and quantity for at least one product, or unlock a saved entry to update it.");
+      setStatusMsg(
+        "Please enter ASP and quantity for at least one product, or unlock a saved entry to update it.",
+      );
       return;
     }
 
     const payload = rowsToSave.map((r) => ({
-      product_id:  r.product_id,
-      market:      r.market,
-      asp_per_kg:  r.aspPerKg,
+      product_id: r.product_id,
+      market: r.market,
+      asp_per_kg: r.aspPerKg,
       quantity_kg: r.quantityKg,
     }));
 
@@ -388,11 +443,16 @@ export default function SalesInputForm({
       setUnlockedIds(new Set());
       setRawInputs({});
       setStatus("success");
-      setStatusMsg(`Sales ${rowsToSave.some(r => rows[r.product_id]?.isReadOnly) ? "updated" : "saved"} for ${format(isoToDate(dateISO), "PPP")}.`);
+      setStatusMsg(
+        `Sales ${rowsToSave.some((r) => rows[r.product_id]?.isReadOnly) ? "updated" : "saved"} for ${format(isoToDate(dateISO), "PPP")}.`,
+      );
       onSaved();
     } catch (err: any) {
       setStatus("error");
-      setStatusMsg(err?.response?.data?.message ?? "Something went wrong. Please try again.");
+      setStatusMsg(
+        err?.response?.data?.message ??
+          "Something went wrong. Please try again.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -410,20 +470,22 @@ export default function SalesInputForm({
     );
   }
 
-  const isBusy            = isSaving || isDeleting;
-  const selectedDate      = isoToDate(dateISO);
-  const hasEditableRows   = Object.values(rows).some((r) => !r.isReadOnly);
-  const hasUnlockedRows   = unlockedIds.size > 0;
-  const showActionButtons = (hasEditableRows || hasUnlockedRows) && !fetchingRows;
+  const isBusy = isSaving || isDeleting;
+  const selectedDate = isoToDate(dateISO);
+  const hasEditableRows = Object.values(rows).some((r) => !r.isReadOnly);
+  const hasUnlockedRows = unlockedIds.size > 0;
+  const showActionButtons =
+    (hasEditableRows || hasUnlockedRows) && !fetchingRows;
 
   return (
     <div className="space-y-4">
-
       {/* ── Date picker card ── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">Sales Entry</CardTitle>
-          <CardDescription>Enter ASP and quantity for each product line</CardDescription>
+          <CardDescription>
+            Enter ASP and quantity for each product line
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 flex-wrap">
@@ -454,14 +516,16 @@ export default function SalesInputForm({
             {isAllReadOnly && !fetchingRows && unlockedIds.size === 0 && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All sales saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update or delete
+                All sales saved — click{" "}
+                <Pencil className="h-3 w-3 inline mx-0.5" /> to update or delete
               </span>
             )}
 
             {unlockedIds.size > 0 && (
               <span className="flex items-center gap-1.5 text-xs text-amber-600">
                 <Pencil className="h-3 w-3 shrink-0" />
-                {unlockedIds.size} product{unlockedIds.size === 1 ? "" : "s"} unlocked for editing
+                {unlockedIds.size} product{unlockedIds.size === 1 ? "" : "s"}{" "}
+                unlocked for editing
               </span>
             )}
           </div>
@@ -470,7 +534,7 @@ export default function SalesInputForm({
 
       {/* ── Status banners ── */}
       {status === "success" && <SuccessBanner message={statusMsg} />}
-      {status === "error"   && <ErrorBanner   message={statusMsg} />}
+      {status === "error" && <ErrorBanner message={statusMsg} />}
 
       {/* ── Product tiles ── */}
       {loading || fetchingRows ? (
@@ -479,10 +543,10 @@ export default function SalesInputForm({
         <form onSubmit={handleSave} noValidate>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {products.map((p) => {
-              const row             = rows[p.id];
-              const isReadOnly      = row?.isReadOnly ?? false;
-              const isUnlocked      = unlockedIds.has(p.id);
-              const isEditable      = !isReadOnly || isUnlocked;
+              const row = rows[p.id];
+              const isReadOnly = row?.isReadOnly ?? false;
+              const isUnlocked = unlockedIds.has(p.id);
+              const isEditable = !isReadOnly || isUnlocked;
               const isPendingDelete = confirmDeleteId === p.id;
 
               return (
@@ -499,13 +563,13 @@ export default function SalesInputForm({
                   }
                 >
                   <CardContent className="pt-4 pb-4 space-y-3">
-
                     {/* Header */}
                     <div className="flex items-baseline justify-between">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{p.name}</p>
-                        {isUnlocked && !isPendingDelete && (
-                          isSaving ? (
+                        {isUnlocked &&
+                          !isPendingDelete &&
+                          (isSaving ? (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium flex items-center gap-1">
                               <Loader2 className="h-2.5 w-2.5 animate-spin" />
                               updating…
@@ -514,8 +578,7 @@ export default function SalesInputForm({
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
                               editing
                             </span>
-                          )
-                        )}
+                          ))}
                         {isPendingDelete && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 font-medium">
                             deleting
@@ -524,11 +587,13 @@ export default function SalesInputForm({
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">{p.unit ?? "—"}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {p.unit ?? "—"}
+                        </span>
 
                         {/* Saved row controls */}
-                        {(isReadOnly || isUnlocked) && (
-                          isUnlocked ? (
+                        {(isReadOnly || isUnlocked) &&
+                          (isUnlocked ? (
                             <div className="flex items-center gap-1">
                               {/* Relock */}
                               <button
@@ -545,7 +610,9 @@ export default function SalesInputForm({
                               {/* Delete with inline confirm */}
                               {isPendingDelete ? (
                                 <span className="flex items-center gap-1">
-                                  <span className="text-[10px] text-rose-600 font-medium">Sure?</span>
+                                  <span className="text-[10px] text-rose-600 font-medium">
+                                    Sure?
+                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => handleDelete(p.id)}
@@ -587,8 +654,7 @@ export default function SalesInputForm({
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
-                          )
-                        )}
+                          ))}
                       </div>
                     </div>
 
@@ -605,7 +671,9 @@ export default function SalesInputForm({
                           <Badge
                             variant={
                               row?.market === m
-                                ? m === "Export" ? "default" : "secondary"
+                                ? m === "Export"
+                                  ? "default"
+                                  : "secondary"
                                 : "outline"
                             }
                             className={`px-3 py-0.5 text-xs select-none transition-all ${
@@ -621,7 +689,9 @@ export default function SalesInputForm({
                     {/* ASP + Quantity */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">ASP ($/Kg)</p>
+                        <p className="text-xs text-muted-foreground">
+                          ASP ($/Kg)
+                        </p>
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
                             $
@@ -634,7 +704,9 @@ export default function SalesInputForm({
                             value={getDisplayValue(p.id, "aspPerKg")}
                             readOnly={!isEditable}
                             disabled={isBusy || !isEditable}
-                            onChange={(e) => handleChange(p.id, "aspPerKg", e.target.value)}
+                            onChange={(e) =>
+                              handleChange(p.id, "aspPerKg", e.target.value)
+                            }
                             onFocus={() => handleFocus(p.id, "aspPerKg")}
                             onBlur={() => handleBlur(p.id, "aspPerKg")}
                           />
@@ -642,7 +714,9 @@ export default function SalesInputForm({
                       </div>
 
                       <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Quantity (Kg)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Quantity (Kg)
+                        </p>
                         <Input
                           type="text"
                           inputMode="decimal"
@@ -651,7 +725,9 @@ export default function SalesInputForm({
                           value={getDisplayValue(p.id, "quantityKg")}
                           readOnly={!isEditable}
                           disabled={isBusy || !isEditable}
-                          onChange={(e) => handleChange(p.id, "quantityKg", e.target.value)}
+                          onChange={(e) =>
+                            handleChange(p.id, "quantityKg", e.target.value)
+                          }
                           onFocus={() => handleFocus(p.id, "quantityKg")}
                           onBlur={() => handleBlur(p.id, "quantityKg")}
                         />
@@ -667,7 +743,6 @@ export default function SalesInputForm({
                         </span>
                       </p>
                     )}
-
                   </CardContent>
                 </Card>
               );
@@ -678,14 +753,23 @@ export default function SalesInputForm({
           {showActionButtons && (
             <div className="flex items-center gap-3 mt-4">
               <Button type="submit" disabled={isBusy} className="flex-1">
-                {isSaving
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
-                  : hasUnlockedRows
-                    ? `Update ${unlockedIds.size} sale${unlockedIds.size === 1 ? "" : "s"}`
-                    : "Save Sales"
-                }
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : hasUnlockedRows ? (
+                  `Update ${unlockedIds.size} sale${unlockedIds.size === 1 ? "" : "s"}`
+                ) : (
+                  "Save Sales"
+                )}
               </Button>
-              <Button type="button" variant="outline" onClick={handleReset} disabled={isBusy}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleReset}
+                disabled={isBusy}
+              >
                 Reset
               </Button>
             </div>
