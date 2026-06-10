@@ -269,7 +269,7 @@ export default function ProcurementInputForm({
 
   // ── Delete ────────────────────────────────────────────────────────────────
 
-  async function handleDelete(idx: number, id: number) {
+  async function handleDelete(_idx: number, id: number) {
     setIsDeleting(true);
     try {
       await procurementService.delete(id);
