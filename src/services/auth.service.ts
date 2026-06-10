@@ -4,7 +4,7 @@ import api from "@/lib/api";
  * LOGIN
  */
 export const login = async (email: string, password: string) => {
-  console.log("🔐 login() called");
+  // console.log("🔐 login() called");
 
   // 1. Get CSRF cookie (required by Sanctum)
   await api.get("/sanctum/csrf-cookie");
@@ -15,7 +15,7 @@ export const login = async (email: string, password: string) => {
   // 3. Immediately fetch user
   const res = await api.get("/api/user");
 
-  console.log("✅ login success:", res.data);
+  // console.log("✅ login success:", res.data);
   return res.data;
 };
 
@@ -23,25 +23,25 @@ export const login = async (email: string, password: string) => {
  * LOGOUT
  */
 export const logout = async () => {
-  console.log("🚪 logout() called");
+  // console.log("🚪 logout() called");
 
   await api.post("/api/logout");
 
-  console.log("✅ logout success");
+  // console.log("✅ logout success");
 };
 
 /**
  * GET CURRENT USER (FOR REFRESH / SESSION RESTORE)
  */
 export const getUser = async () => {
-  console.log("🔄 getUser() called");
+  // console.log("🔄 getUser() called");
 
   try {
     const res = await api.get("/api/user");
 
     return res.data;
   } catch (err: any) {
-    console.error("❌ /api/user failed", err);
+    // console.error("❌ /api/user failed", err);
     throw err;
   }
 };

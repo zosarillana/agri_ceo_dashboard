@@ -29,6 +29,8 @@ import { MaintenanceCard } from "./-dashboard-tiles/maintenance-card";
 import { AccountsCard } from "./-dashboard-tiles/accounts-card";
 import { ProcurementCard } from "./-dashboard-tiles/procurement-card";
 import { TradesCard } from "./-dashboard-tiles/trades-card";
+import useRealtimeListener from "@/hooks/useRealTimeListener";
+import { toast } from "sonner";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
@@ -52,7 +54,12 @@ export default function CEODashboard({ initialStats }: CEODashboardProps) {
   const selectedMthKey = toMonthKey(selectedISO);
   const isToday = selectedISO === getTodayISO();
 
-  const { stats, loading: loadingStats, fetchStats, setStats } = useDashboardStore();
+  const {
+    stats,
+    loading: loadingStats,
+    fetchStats,
+    setStats,
+  } = useDashboardStore();
   const production = stats?.production;
   const maintenance = stats?.maintenance;
   const sales = stats?.sales;
@@ -84,6 +91,21 @@ export default function CEODashboard({ initialStats }: CEODashboardProps) {
     setSelectedDate(d);
     fetchStats(toISO(d));
   }
+
+  useRealtimeListener(
+    "realtime",
+    ".realtime.event",
+    React.useCallback(
+      (message) => {
+        console.log("Realtime message received:", message);
+        fetchStats(getTodayISO(), true); // ← Add 'true' to force refresh
+        toast("Dashboard updated", {
+          description: "New data just came in — refreshing now.",
+        });
+      },
+      [fetchStats],
+    ),
+  );
 
   return (
     <div className="min-h-screen bg-background">

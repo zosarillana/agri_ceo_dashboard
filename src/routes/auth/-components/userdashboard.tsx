@@ -1,6 +1,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { useLocation } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -20,6 +21,7 @@ import {
   relativeTime,
   currentMonthKey,
 } from "@/lib/dashboard-utils";
+import useRealtimeListener from "@/hooks/useRealTimeListener";
 
 import { SalesCard } from "./-dashboard-tiles/sales-card";
 import { EnergyCard } from "./-dashboard-tiles/energy-card";
@@ -42,11 +44,6 @@ type DashboardSegment =
   | "maintenance"
   | "energy";
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   DEPARTMENT → ALLOWED TILES
-   Keys match department `name` values from the DB (lowercase).
-───────────────────────────────────────────────────────────────────────────── */
-
 const DEPARTMENT_TILES: Record<string, DashboardSegment[]> = {
   sales: ["sales"],
   production: ["production"],
@@ -60,10 +57,6 @@ const DEPARTMENT_TILES: Record<string, DashboardSegment[]> = {
   accounts: ["accounts"],
 };
 
-/**
- * Derive allowed tiles from the user's departments array.
- * A user with multiple departments sees the union of all their tiles.
- */
 function getAllowedTiles(
   departments: { id: number; name: string }[] | null | undefined,
 ): DashboardSegment[] {
@@ -78,15 +71,10 @@ function getAllowedTiles(
   return Array.from(tileSet);
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   MAIN COMPONENT
-───────────────────────────────────────────────────────────────────────────── */
-
 export default function UserDashboard() {
   const { user } = useAuthStore();
   const location = useLocation();
 
-  // departments is now an array from the many-to-many relationship
   const departments = user?.departments ?? [];
   const allowedTiles: DashboardSegment[] = getAllowedTiles(departments);
 
@@ -109,19 +97,30 @@ export default function UserDashboard() {
 
   const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
 
-  const production = stats?.production;
+  const production  = stats?.production;
   const maintenance = stats?.maintenance;
-  const sales = stats?.sales;
-  const energy = stats?.energy;
-  const workforce = stats?.workforce;
-  const qc = stats?.qc;
-  // const trades = stats?.trades;
+  const sales       = stats?.sales;
+  const energy      = stats?.energy;
+  const workforce   = stats?.workforce;
+  const qc          = stats?.qc;
   const procurement = stats?.procurement;
-  const accounts = stats?.accounts;
+  const accounts    = stats?.accounts;
 
   React.useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  // Realtime refresh
+  useRealtimeListener(
+    "realtime",
+    ".realtime.event",
+    React.useCallback(() => {
+      fetchStats(getTodayISO());
+      toast("Dashboard updated", {
+        description: "New data just came in — refreshing now.",
+      });
+    }, [fetchStats])
+  );
 
   function handleDateSelect(d: Date | undefined) {
     if (!d) return;
@@ -162,7 +161,6 @@ export default function UserDashboard() {
       <div className="max-w-7xl mx-auto py-0 space-y-5">
         {/* HEADER */}
         <div className="flex items-center justify-between gap-3">
-          {/* Department badges — one per department */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground">
               {departments.length === 1 ? "Department:" : "Departments:"}
@@ -406,15 +404,6 @@ export default function UserDashboard() {
           )}
 
           {allowedTiles.includes("trading") && (
-            // <TradesCard
-            //   active={isActive("trading")}
-            //   index={9}
-            //   trades={trades}
-            //   timeLabel={sales?.last_updated_at ? relativeTime(new Date(sales.last_updated_at)) : "—"}
-            //   dateLabel={sales?.last_updated_at ? fmtDate(new Date(sales.last_updated_at)) : "not available"}
-            //   basePath="/auth/user/dashboard"
-            // />
-            // Mock Trades
             <TradesCard
               active={isActive("trading")}
               index={4}

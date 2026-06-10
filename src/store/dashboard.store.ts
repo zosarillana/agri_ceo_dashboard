@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { dashboardService } from "@/services/dashboard.service";
 import type { DashboardStats } from "@/types/dashboard.types";
+import { getTodayISO } from "@/lib/dashboard-utils";
 
 type DashboardStore = {
   stats: DashboardStats | null;
@@ -9,12 +10,8 @@ type DashboardStore = {
   activeDate: string;
 
   setStats: (stats: DashboardStats) => void;
-  fetchStats: (date?: string) => Promise<void>;
+  fetchStats: (date?: string, force?: boolean) => Promise<void>; // Add force param
 };
-
-function getTodayISO() {
-  return new Date().toISOString().split("T")[0];
-}
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
   stats: null,
@@ -22,14 +19,17 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   error: null,
   activeDate: getTodayISO(),
 
-  // Hydrate from loader data without triggering a network call
   setStats: (stats) => set({ stats }),
 
-  fetchStats: async (date?: string) => {
+  fetchStats: async (date?: string, force: boolean = false) => {
     const target = date ?? getTodayISO();
 
-    // Guard against concurrent calls and redundant fetches for the same date
-    if (get().loading || (get().stats !== null && get().activeDate === target)) return;
+    // Allow force refresh to bypass the cache check
+    if (!force) {
+      if (get().loading || (get().stats !== null && get().activeDate === target)) {
+        return;
+      }
+    }
 
     set({ loading: true, error: null, activeDate: target });
     try {
