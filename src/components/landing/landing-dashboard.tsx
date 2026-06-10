@@ -11,7 +11,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { toast } from "sonner";
-
 import { dashboardService } from "@/services/dashboard.service";
 import type { DashboardStats } from "@/types/dashboard.types";
 import {
@@ -22,7 +21,7 @@ import {
   relativeTime,
   currentMonthKey,
 } from "@/lib/dashboard-utils";
-
+import useRealtimeListener from "@/hooks/useRealTimeListener";
 import { ProductionCard } from "@/routes/auth/-components/-dashboard-tiles/production-card";
 import { SalesCard } from "@/routes/auth/-components/-dashboard-tiles/sales-card";
 import { QcCard } from "@/routes/auth/-components/-dashboard-tiles/qc-card";
@@ -46,22 +45,8 @@ export function LandingDashboard() {
   const selectedMthKey = toMonthKey(selectedISO);
   const isToday = selectedISO === getTodayISO();
 
-  // ── ADD THIS helper ──────────────────────────────────────────────────────
-  function handleCardClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    toast("Login required", {
-      description: "You need to login first to view the detailed report.",
-    });
-  }
-  // ────────────────────────────────────────────────────────────────────────
-
-  React.useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  async function fetchForDate(iso: string) {
-    if (cache.current[iso]) {
+  async function fetchForDate(iso: string, bustCache = false) {
+    if (!bustCache && cache.current[iso]) {
       setStats(cache.current[iso]);
       setLoadingStats(false);
       return;
@@ -71,12 +56,33 @@ export function LandingDashboard() {
       const data = await dashboardService.getStats(iso);
       cache.current[iso] = data;
       setStats(data);
-    } catch (err) {
-      console.error("Dashboard load failed:", err);
+    } catch {
+      // silent
     } finally {
       setLoadingStats(false);
     }
   }
+
+  useRealtimeListener("realtime", ".realtime.event", (event) => {
+    console.log("🔴 [Realtime] event received:", event);
+    delete cache.current[getTodayISO()];
+    fetchForDate(getTodayISO(), true);
+    toast("Dashboard updated", {
+      description: "New data just came in — refreshing now.",
+    });
+  });
+
+  function handleCardClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    toast("Login required", {
+      description: "You need to login first to view the detailed report.",
+    });
+  }
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   React.useEffect(() => {
     fetchForDate(getTodayISO());
@@ -138,7 +144,6 @@ export function LandingDashboard() {
         <div className="flex flex-col md:flex-row gap-3 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-3 flex-1 min-w-0">
-            {/* ── wrap each card in a clickable div ── */}
             <div onClick={handleCardClick} className="cursor-pointer">
               <ProductionCard
                 active={false}
@@ -341,4 +346,4 @@ export function LandingDashboard() {
       </div>
     </div>
   );
-}
+} 

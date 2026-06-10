@@ -50,11 +50,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   initializeAuth: async () => {
     const state = useAuthStore.getState();
 
-    console.log("🚀 initializeAuth called");
-    console.log("📦 current state:", state);
+    // console.log("🚀 initializeAuth called");
+    // console.log("📦 current state:", state);
 
     if (state.initialized || state.isInitializing) {
-      console.log("⏭️ skipped initializeAuth");
+      // console.log("⏭️ skipped initializeAuth");
       return;
     }
 
@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const user = await authService.getUser();
 
-      console.log("✅ initializeAuth success", user);
+      // console.log("✅ initializeAuth success", user);
 
       set({
         user,
@@ -71,9 +71,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         initialized: true,
       });
 
-      console.log("📦 state after success:", useAuthStore.getState());
+      // console.log("📦 state after success:", useAuthStore.getState());
     } catch (err) {
-      console.log("❌ initializeAuth failed", err);
+      // console.log("❌ initializeAuth failed", err);
 
       set({
         user: null,
@@ -81,13 +81,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         initialized: true,
       });
 
-      console.log("📦 state after fail:", useAuthStore.getState());
+      // console.log("📦 state after fail:", useAuthStore.getState());
     } finally {
       set({
         isInitializing: false,
       });
 
-      console.log("🏁 initializeAuth finished");
+      // console.log("🏁 initializeAuth finished");
     }
   },
 

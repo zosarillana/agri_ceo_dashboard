@@ -20,7 +20,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
-    "laravel-echo": "^2.3.4",
+    "laravel-echo": "^2.3.7",
     "lucide-react": "^1.8.0",
     "pusher-js": "^8.5.0",
     "radix-ui": "^1.4.3",

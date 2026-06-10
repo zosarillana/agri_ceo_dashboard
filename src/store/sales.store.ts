@@ -1,5 +1,3 @@
-// src/stores/sales.store.ts
-
 import { create } from "zustand";
 import { salesService } from "@/services/sales.service";
 import { Sale, SalePayload, SalesSummary } from "@/types/sales.types";
@@ -17,12 +15,13 @@ type SalesStore = {
   saving: boolean;
   error: string | null;
 
+  setSalesData: (sales: Sale[], summary: SalesSummary, dateRange: DateRange) => void;
   fetchLatest: (from?: string, to?: string) => Promise<void>;
-  fetchSummary: (from?: string, to?: string) => Promise<void>;  // ✅ new
-  fetchAll: (from?: string, to?: string) => Promise<void>;      // ✅ new — calls both
+  fetchSummary: (from?: string, to?: string) => Promise<void>;
+  fetchAll: (from?: string, to?: string) => Promise<void>;
   setDateRange: (range: DateRange) => void;
-  saveSales: (rows: SalePayload[], saleDate?: string) => Promise<void>;
   clearDateRange: () => void;
+  saveSales: (rows: SalePayload[], saleDate?: string) => Promise<void>;
 };
 
 const defaultSummary: SalesSummary = {
@@ -30,7 +29,7 @@ const defaultSummary: SalesSummary = {
   total_quantity_kg: 0,
   export_count: 0,
   local_count: 0,
-  detailed_summary: [],  // ✅ add this to your SalesSummary type too
+  detailed_summary: [],
   from: null,
   to: null,
 };
@@ -43,30 +42,30 @@ export const useSalesStore = create<SalesStore>((set, get) => ({
   saving: false,
   error: null,
 
-  // ✅ Fetches latest-per-product (for the table rows)
+  // Hydrate from route loader — no network call
+  setSalesData: (sales, summary, dateRange) =>
+    set({ sales, summary, dateRange }),
+
+  // Raw fetchers — no loading management, fetchAll owns that
   fetchLatest: async (from?: string, to?: string) => {
-    set({ loading: true, error: null });
     try {
       const response = await salesService.getLatest(from, to);
       set({ sales: response.data });
     } catch (err: any) {
       set({ error: err?.response?.data?.message ?? "Failed to fetch sales." });
-    } finally {
-      set({ loading: false });
     }
   },
 
-  // ✅ Fetches aggregated summary from the backend (real totals)
   fetchSummary: async (from?: string, to?: string) => {
     try {
-      const response = await salesService.getSummary(from, to); // add this to your service
+      const response = await salesService.getSummary(from, to);
       set({ summary: response.data });
     } catch (err: any) {
       set({ error: err?.response?.data?.message ?? "Failed to fetch summary." });
     }
   },
 
-  // ✅ Call this everywhere instead of fetchLatest — runs both in parallel
+  // Orchestrator — the only one that touches loading
   fetchAll: async (from?: string, to?: string) => {
     set({ loading: true, error: null, dateRange: { from: from ?? null, to: to ?? null } });
     try {
@@ -79,14 +78,14 @@ export const useSalesStore = create<SalesStore>((set, get) => ({
     }
   },
 
+  // Convenience — set range and fetch in one call
   setDateRange: (range: DateRange) => {
     set({ dateRange: range });
     get().fetchAll(range.from ?? undefined, range.to ?? undefined);
   },
 
   clearDateRange: () => {
-    set({ dateRange: { from: null, to: null } });
-    get().fetchAll();
+    get().fetchAll(); // fetchAll resets dateRange to null/null internally
   },
 
   saveSales: async (rows: SalePayload[], saleDate?: string) => {
@@ -94,7 +93,7 @@ export const useSalesStore = create<SalesStore>((set, get) => ({
     try {
       await salesService.storeBulk(rows, saleDate);
       const { from, to } = get().dateRange;
-      await get().fetchAll(from ?? undefined, to ?? undefined); // ✅ refresh both
+      await get().fetchAll(from ?? undefined, to ?? undefined);
     } catch (err: any) {
       set({ error: err?.response?.data?.message ?? "Failed to save sales." });
       throw err;

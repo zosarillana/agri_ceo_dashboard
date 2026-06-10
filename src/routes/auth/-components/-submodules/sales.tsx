@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { BarChart2, CalendarIcon, PlusCircle } from "lucide-react";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
 import {
   Table,
   TableBody,
@@ -15,35 +17,40 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+
 import { useProductsStore } from "@/store/products.store";
 import { useSalesStore } from "@/store/sales.store";
-import { Market } from "@/types/sales.types";
+
+import { Market, Sale, SalesSummary } from "@/types/sales.types";
 import SalesInputForm from "../-forms/sales-input-form";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────
 
 type Tab = "view" | "input";
 
-interface SaleRow {
-  product_id: number;
-  market: Market;
-  aspPerKg: number;
-  quantityKg: number;
-  totalSalesUSD: number;
+interface SalesDashProps {
+  initialData?: {
+    sales: Sale[];
+    summary: SalesSummary;
+    dateRange: { from: string; to: string };
+  };
 }
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
+// ─── Formatters ────────────────────────────────────────
 
 function fmt(n: number) {
   return n.toLocaleString();
 }
+
 function fmtUSD(n: number) {
   return (
     "$" +
@@ -54,150 +61,115 @@ function fmtUSD(n: number) {
   );
 }
 
-// ─── Skeletons ────────────────────────────────────────────────────────────────
+// ─── Month helper ───────────────────────────────────────
 
-function ViewSkeleton() {
-  return (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="pt-4 pb-4 space-y-2">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-7 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Card>
-        <CardContent className="pt-4 space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-// ─── Helper function to get current month range ───────────────────────────────
 function getCurrentMonthRange() {
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
   const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  
+
   return {
     from: format(from, "yyyy-MM-dd"),
-    to: format(to, "yyyy-MM-dd")
+    to: format(to, "yyyy-MM-dd"),
   };
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────
 
-export default function SalesDash() {
+export default function SalesDash({ initialData }: SalesDashProps) {
   const [tab, setTab] = useState<Tab>("view");
 
-  // ── Products store ──────────────────────────────────────────────────────────
+  // ── Stores ───────────────────────────────────────────
   const {
     products,
     loading: productsLoading,
     fetchProducts,
   } = useProductsStore();
 
-  const productsFetched = useRef(false);
-  useEffect(() => {
-    if (!productsFetched.current) {
-      productsFetched.current = true;
-      fetchProducts();
-    }
-  }, [fetchProducts]);
-
-  // ── Sales store ─────────────────────────────────────────────────────────────
   const {
     sales,
     summary,
     dateRange,
     loading: salesLoading,
-    fetchLatest,
+    fetchAll,
     setDateRange,
-    clearDateRange,
+    setSalesData,
   } = useSalesStore();
 
-  const salesFetched = useRef(false);
-  useEffect(() => {
-    if (!salesFetched.current) {
-      salesFetched.current = true;
-      
-      // FIX: Set default date range to current month on initial load
-      const currentMonthRange = getCurrentMonthRange();
-      setDateRange(currentMonthRange);
-      fetchLatest(currentMonthRange.from, currentMonthRange.to);
-    }
-  }, [fetchLatest, setDateRange]);
+  // ─────────────────────────────────────────────────────
+  // 1. HYDRATION (ONLY ONCE, ONLY FROM ROUTE)
+  // ─────────────────────────────────────────────────────
+  const initDone = useRef(false);
 
-  // ── Date range filter state ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (initDone.current) return;
+    initDone.current = true;
+
+    if (initialData) {
+      setSalesData(
+        initialData.sales,
+        initialData.summary,
+        initialData.dateRange,
+      );
+    } else {
+      setDateRange(getCurrentMonthRange());
+    }
+  }, [initialData, setSalesData, setDateRange]);
+
+  // ─────────────────────────────────────────────────────
+  // 2. PRODUCTS (SINGLE SOURCE FETCH)
+  // ─────────────────────────────────────────────────────
+  const productsFetched = useRef(false);
+
+  useEffect(() => {
+    if (productsFetched.current) return;
+    productsFetched.current = true;
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // ─────────────────────────────────────────────────────
+  // 3. DATE PICKER LOCAL STATE
+  // ─────────────────────────────────────────────────────
   const [from, setFrom] = useState<Date | undefined>(
     dateRange.from ? new Date(dateRange.from) : undefined,
   );
+
   const [to, setTo] = useState<Date | undefined>(
     dateRange.to ? new Date(dateRange.to) : undefined,
   );
 
-  // Sync local state with store dateRange
   useEffect(() => {
     setFrom(dateRange.from ? new Date(dateRange.from) : undefined);
     setTo(dateRange.to ? new Date(dateRange.to) : undefined);
-  }, [dateRange.from, dateRange.to]);
+  }, [dateRange]);
 
+  // ─────────────────────────────────────────────────────
+  // 4. FILTER ACTIONS
+  // ─────────────────────────────────────────────────────
   function handleFilter() {
-    const fromStr = from ? format(from, "yyyy-MM-dd") : null;
-    const toStr = to ? format(to, "yyyy-MM-dd") : null;
-    setDateRange({ from: fromStr, to: toStr });
-    fetchLatest(fromStr ?? undefined, toStr ?? undefined);
+    setDateRange({
+      from: from ? format(from, "yyyy-MM-dd") : null,
+      to: to ? format(to, "yyyy-MM-dd") : null,
+    });
   }
 
   function handleClearFilter() {
     setFrom(undefined);
     setTo(undefined);
-    clearDateRange();
-    // FIX: Reset to current month after clearing
-    const currentMonthRange = getCurrentMonthRange();
-    setDateRange(currentMonthRange);
-    fetchLatest(currentMonthRange.from, currentMonthRange.to);
+    setDateRange(getCurrentMonthRange());
   }
 
-  // ── Local form rows (keyed by product_id) ───────────────────────────────────
-  const [, setRows] = useState<Record<number, SaleRow>>({});
-  const [] = useState(false);
-
-  // Seed rows from products — pre-fill from latest sale if available
-  useEffect(() => {
-    if (products.length === 0) return;
-    setRows((prev) => {
-      const next = { ...prev };
-      for (const p of products) {
-        if (!next[p.id]) {
-          const existing = sales.find((s) => s.product_id === p.id);
-          next[p.id] = {
-            product_id: p.id,
-            market: existing?.market ?? "Export",
-            aspPerKg: existing ? Number(existing.asp_per_kg) : 0,
-            quantityKg: existing ? Number(existing.quantity_kg) : 0,
-            totalSalesUSD: existing ? Number(existing.total_sales_usd) : 0,
-          };
-        }
-      }
-      return next;
-    });
-  }, [products, sales]);
-
-  // ── Derived ─────────────────────────────────────────────────────────────────
-  const { total_sales_usd, total_quantity_kg, export_count, local_count } =
-    summary;
+  // ─────────────────────────────────────────────────────
+  // 5. DERIVED STATE
+  // ─────────────────────────────────────────────────────
   const loading = productsLoading || salesLoading;
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const { total_sales_usd, total_quantity_kg, export_count, local_count } =
+    summary;
 
+  // ─────────────────────────────────────────────────────
+  // 6. RENDER
+  // ─────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       {/* Tabs */}
@@ -206,11 +178,12 @@ export default function SalesDash() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize",
               tab === t
                 ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
             {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
             {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
@@ -219,71 +192,58 @@ export default function SalesDash() {
         ))}
       </div>
 
-      {/* ── VIEW TAB ── */}
+      {/* ── VIEW TAB ───────────────────────────── */}
       {tab === "view" && (
         <div className="space-y-4">
-          {/* Date range filter with shadcn date pickers */}
+          {/* Date filter */}
           <div className="flex flex-wrap items-end gap-2">
-            <div className="space-y-1">
+            <div>
               <p className="text-xs text-muted-foreground">From</p>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal h-9",
-                      !from && "text-muted-foreground",
-                    )}
+                    className="w-[240px] h-9 justify-start"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {from ? format(from, "PPP") : "Select start date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={from}
-                    onSelect={setFrom}
-                    initialFocus
-                  />
+                <PopoverContent className="p-0">
+                  <Calendar mode="single" selected={from} onSelect={setFrom} />
                 </PopoverContent>
               </Popover>
             </div>
 
-            <div className="space-y-1">
+            <div>
               <p className="text-xs text-muted-foreground">To</p>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal h-9",
-                      !to && "text-muted-foreground",
-                    )}
+                    className="w-[240px] h-9 justify-start"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {to ? format(to, "PPP") : "Select end date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="p-0">
                   <Calendar
                     mode="single"
                     selected={to}
                     onSelect={setTo}
                     disabled={from ? { before: from } : undefined}
-                    initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
-            <Button size="sm" onClick={handleFilter} className="h-9">
+            <Button onClick={handleFilter} className="h-9">
               Filter
             </Button>
 
             {(dateRange.from || dateRange.to) && (
               <Button
-                size="sm"
                 variant="outline"
                 onClick={handleClearFilter}
                 className="h-9"
@@ -293,152 +253,145 @@ export default function SalesDash() {
             )}
           </div>
 
-          {/* Show current filter info */}
-          {dateRange.from && dateRange.to && (
-            <div className="text-xs text-muted-foreground">
-              Showing data from {format(new Date(dateRange.from), "PPP")} to {format(new Date(dateRange.to), "PPP")}
+          {/* Summary */}
+          {loading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Total Sales (USD)
+                  </p>
+                  <p className="text-xl font-semibold">
+                    {fmtUSD(total_sales_usd)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Total Volume (Kg)
+                  </p>
+                  <p className="text-2xl font-semibold">
+                    {fmt(total_quantity_kg)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Export lines
+                  </p>
+                  <p className="text-2xl font-semibold">{export_count}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Local lines
+                  </p>
+                  <p className="text-2xl font-semibold">{local_count}</p>
+                </CardContent>
+              </Card>
             </div>
           )}
 
-          {loading ? (
-            <ViewSkeleton />
-          ) : (
-            <>
-              {/* Summary cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Total Sales (USD)
-                    </p>
-                    <p className="text-xl font-semibold">
-                      {fmtUSD(total_sales_usd)}
-                    </p>
-                  </CardContent>
-                </Card>
+          {/* Table */}
+          <Card>
+            <CardContent className="pt-4">
+              {loading ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Market</TableHead>
+                      <TableHead className="text-right">ASP</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Total Volume (Kg)
-                    </p>
-                    <p className="text-2xl font-semibold">
-                      {fmt(total_quantity_kg)}
-                    </p>
-                  </CardContent>
-                </Card>
+                  <TableBody>
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <Skeleton className="h-4 w-32" />
+                        </TableCell>
 
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Export lines
-                    </p>
-                    <p className="text-2xl font-semibold">{export_count}</p>
-                  </CardContent>
-                </Card>
+                        <TableCell>
+                          <Skeleton className="h-5 w-16 rounded-full" />
+                        </TableCell>
 
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Local lines
-                    </p>
-                    <p className="text-2xl font-semibold">{local_count}</p>
-                  </CardContent>
-                </Card>
-              </div>
+                        <TableCell className="text-right">
+                          <Skeleton className="h-4 w-16 ml-auto" />
+                        </TableCell>
 
-              {/* Table */}
-              {sales.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    {dateRange.from || dateRange.to
-                      ? `No sales found for the selected date range (${dateRange.from} to ${dateRange.to}).`
-                      : "No sales recorded yet. Use the Input tab to add sales."}
-                  </CardContent>
-                </Card>
+                        <TableCell className="text-right">
+                          <Skeleton className="h-4 w-16 ml-auto" />
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <Skeleton className="h-4 w-20 ml-auto" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : sales.length === 0 ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  No sales found for this period.
+                </div>
               ) : (
-                <Card>
-                  <CardContent className="pt-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="font-semibold">
-                            Product
-                          </TableHead>
-                          <TableHead className="font-semibold">
-                            Market
-                          </TableHead>
-                          <TableHead className="text-right font-semibold">
-                            ASP $/Kg
-                          </TableHead>
-                          <TableHead className="text-right font-semibold">
-                            Quantity (Kg)
-                          </TableHead>
-                          <TableHead className="text-right font-semibold">
-                            Total Sales ($)
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Market</TableHead>
+                      <TableHead className="text-right">ASP</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-                      <TableBody>
-                        {sales.map((s) => (
-                          <TableRow key={s.id}>
-                            <TableCell className="font-medium">
-                              {s.product?.name ?? `Product #${s.product_id}`}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  s.market === "Export" ? "default" : "outline"
-                                }
-                              >
-                                {s.market}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {fmtUSD(Number(s.asp_per_kg))}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {fmt(Number(s.quantity_kg))}
-                            </TableCell>
-                            <TableCell className="text-right font-medium tabular-nums">
-                              {fmtUSD(Number(s.total_sales_usd))}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                  <TableBody>
+                    {sales.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell>{s.product?.name}</TableCell>
 
-                        {/* Totals row */}
-                        <TableRow className="border-t-2">
-                          <TableCell colSpan={3} className="font-semibold">
-                            Total
-                          </TableCell>
-                          <TableCell className="text-right font-semibold tabular-nums">
-                            {fmt(total_quantity_kg)}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold tabular-nums">
-                            {fmtUSD(total_sales_usd)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+                        <TableCell>
+                          <Badge>{s.market}</Badge>
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          {fmtUSD(Number(s.asp_per_kg))}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          {fmt(Number(s.quantity_kg))}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          {fmtUSD(Number(s.total_sales_usd))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </>
-          )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* ── INPUT TAB ── */}
+      {/* ── INPUT TAB ───────────────────────────── */}
       {tab === "input" && (
         <SalesInputForm
           products={products}
           loading={productsLoading}
-          onSaved={() => {
-            // Re-fetch with current date range after save
-            const { from, to } = dateRange;
-            fetchLatest(from ?? undefined, to ?? undefined);
-          }}
+          onSaved={() =>
+            fetchAll(dateRange.from ?? undefined, dateRange.to ?? undefined)
+          }
         />
       )}
     </div>

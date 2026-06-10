@@ -34,3 +34,12 @@ export interface QcSummary {
   from: string | null;
   to: string | null;
 }
+
+// Add this new type for the form rows
+export interface QCRow {
+  product_id: number;
+  label: string;
+  tested: string;
+  passed: string;
+  isReadOnly: boolean;
+}

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { dashboardService } from "@/services/dashboard.service";
 import type { DashboardStats } from "@/types/dashboard.types";
+import { getTodayISO } from "@/lib/dashboard-utils";
 
 type DashboardStore = {
   stats: DashboardStats | null;
@@ -8,12 +9,9 @@ type DashboardStore = {
   error: string | null;
   activeDate: string;
 
-  fetchStats: (date?: string) => Promise<void>;
+  setStats: (stats: DashboardStats) => void;
+  fetchStats: (date?: string, force?: boolean) => Promise<void>; // Add force param
 };
-
-function getTodayISO() {
-  return new Date().toISOString().split("T")[0];
-}
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
   stats: null,
@@ -21,12 +19,17 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   error: null,
   activeDate: getTodayISO(),
 
-  fetchStats: async (date?: string) => {
+  setStats: (stats) => set({ stats }),
+
+  fetchStats: async (date?: string, force: boolean = false) => {
     const target = date ?? getTodayISO();
 
-    // ✅ FIX: also guard on `loading` to prevent StrictMode double-fire
-    // and any other concurrent calls before the first one resolves.
-    if (get().loading || (get().stats !== null && get().activeDate === target)) return;
+    // Allow force refresh to bypass the cache check
+    if (!force) {
+      if (get().loading || (get().stats !== null && get().activeDate === target)) {
+        return;
+      }
+    }
 
     set({ loading: true, error: null, activeDate: target });
     try {

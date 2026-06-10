@@ -22,12 +22,22 @@ export const salesService = {
     return response.data;
   },
 
-  // src/services/sales.service.ts  — add this method
   getSummary: async (from?: string, to?: string) => {
     const params = new URLSearchParams();
     if (from) params.append("from", from);
     if (to) params.append("to", to);
     const res = await api.get(`api/sales/summary?${params.toString()}`);
-    return res.data; // { data: { total_sales_usd, total_quantity_kg, ... , detailed_summary: [] } }
+    return res.data; // { data: { total_sales_usd, total_quantity_kg, ..., detailed_summary: [] } }
+  },
+
+  /**
+   * Delete a sale entry by product ID and date.
+   * Calls DELETE /api/sales/{productId}?sale_date=YYYY-MM-DD
+   */
+  delete: async (productId: number, saleDate: string): Promise<{ message: string }> => {
+    const response = await api.delete(`api/sales/${productId}`, {
+      params: { sale_date: saleDate },
+    });
+    return response.data;
   },
 };
