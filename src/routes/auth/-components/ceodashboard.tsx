@@ -195,13 +195,13 @@ export default function CEODashboard({ initialStats }: CEODashboardProps) {
               index={4}
               accounts={accounts}
               timeLabel={
-                sales?.last_updated_at
-                  ? relativeTime(new Date(sales.last_updated_at))
+                accounts?.last_updated_at
+                  ? relativeTime(new Date(accounts.last_updated_at))
                   : "—"
               }
               dateLabel={
-                sales?.last_updated_at
-                  ? fmtDate(new Date(sales.last_updated_at))
+                accounts?.last_updated_at
+                  ? fmtDate(new Date(accounts.last_updated_at))
                   : "—"
               }
             />

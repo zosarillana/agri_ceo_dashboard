@@ -1,5 +1,3 @@
-// src/store/trading.store.ts
-
 import { create } from "zustand";
 import { tradingService } from "@/services/trading.service";
 import { Trade, TradePayload, TradeSummary } from "@/types/trading.types";
@@ -35,6 +33,7 @@ const defaultSummary: TradeSummary = {
   total_orders: 0,
   export_orders: 0,
   local_orders: 0,
+  cwc_orders: 0,
   from: null,
   to: null,
 };
@@ -50,18 +49,18 @@ export const useTradingStore = create<TradingStore>((set, get) => ({
 
   // Fetch trades with optional date range
   fetchLatest: async (from?: string, to?: string) => {
-    if (get().loading) return; // only guard against concurrent requests
+    if (get().loading) return;
 
     set({ loading: true, error: null });
     try {
       const response = await tradingService.getLatest(from, to);
       const trades = response.data;
 
-      // Calculate summary client-side
       const totalVolume = trades.reduce((sum, t) => sum + t.quantity_kg, 0);
       const totalValue = trades.reduce((sum, t) => sum + t.total_value, 0);
       const exportOrders = trades.filter((t) => t.market === "Export").length;
       const localOrders = trades.filter((t) => t.market === "Local").length;
+      const cwcOrders = trades.filter((t) => t.market === "CWC").length;
 
       const summary: TradeSummary = {
         total_volume: totalVolume,
@@ -70,6 +69,7 @@ export const useTradingStore = create<TradingStore>((set, get) => ({
         total_orders: trades.length,
         export_orders: exportOrders,
         local_orders: localOrders,
+        cwc_orders: cwcOrders,
         from: from ?? null,
         to: to ?? null,
       };
@@ -105,7 +105,6 @@ export const useTradingStore = create<TradingStore>((set, get) => ({
     set({ saving: true, error: null });
     try {
       await tradingService.storeBulk(payload, tradeDate);
-      // Refetch with current date range after save
       const { from, to } = get().dateRange;
       await get().fetchLatest(from ?? undefined, to ?? undefined);
     } catch (err: any) {
@@ -124,7 +123,6 @@ export const useTradingStore = create<TradingStore>((set, get) => ({
     set({ saving: true, error: null });
     try {
       await tradingService.deleteTrade(id);
-      // Refetch with current date range after delete
       const { from, to } = get().dateRange;
       await get().fetchLatest(from ?? undefined, to ?? undefined);
     } catch (err: any) {
@@ -143,7 +141,6 @@ export const useTradingStore = create<TradingStore>((set, get) => ({
     set({ saving: true, error: null });
     try {
       await tradingService.updateTrade(id, payload);
-      // Refetch with current date range after update
       const { from, to } = get().dateRange;
       await get().fetchLatest(from ?? undefined, to ?? undefined);
     } catch (err: any) {

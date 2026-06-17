@@ -1,165 +1,130 @@
+// src/routes/auth/-components/-tabs/trading-dash.tsx
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import {
   BarChart2, PlusCircle, TrendingUp, TrendingDown,
-  DollarSign, Package, Truck, Globe,
+  DollarSign, Package, Truck, Globe, Settings,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { useProductsStore } from "@/store/products.store";
 import { useTradingStore } from "@/store/trading.store";
+import { useTradeItemsStore } from "@/store/trade-items.store";
 import TradingInputForm from "../-forms/trading-input-form";
-import { mockData } from "@/routes/auth/-data/-mock-data";
+import TradingManageItemsForm from "../-forms/trading-manage-items-form";
+import { Trade, Market } from "@/types/trading.types";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = "view" | "input";
+type Tab = "view" | "input" | "manage";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
   return n.toLocaleString();
 }
 
-function fmtNumber(n: number, decimals: number = 2) {
+function fmtNumber(n: number, decimals = 2) {
   return n.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
 }
 
-function getMarketBadge(name: string) {
-  const lower = name.toLowerCase();
-  if (lower.includes("local")) return <Badge variant="outline">Local</Badge>;
-  if (lower.includes("cwc") || lower.includes("dc on-trade")) return (
+function getMarketBadge(market: Market) {
+  if (market === "Local") return <Badge variant="outline">Local</Badge>;
+  if (market === "CWC") return (
     <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">CWC</Badge>
   );
   return <Badge variant="default">Export</Badge>;
 }
 
-// ── Derived mock summary from mockData.trading ────────────────────────────────
-
-function computeSummary(items: typeof mockData.trading) {
-  const total_volume_in = items.reduce((s, t) => s + t.volumeIn, 0);
-  const total_volume_out = items.reduce((s, t) => s + t.volumeOut, 0);
-  const total_orders = items.length;
-  const export_orders = items.filter((t) => {
-    const n = t.name.toLowerCase();
-    return !n.includes("local") && !n.includes("cwc") && !n.includes("dc on-trade");
-  }).length;
-  const local_orders = items.filter((t) => t.name.toLowerCase().includes("local")).length;
-  const cwc_orders = items.filter((t) => {
-    const n = t.name.toLowerCase();
-    return n.includes("cwc") || n.includes("dc on-trade");
-  }).length;
-  return { total_volume_in, total_volume_out, total_orders, export_orders, local_orders, cwc_orders };
+function computeSummary(trades: Trade[]) {
+  const total_volume  = trades.reduce((s, t) => s + t.quantity_kg, 0);
+  const total_value   = trades.reduce((s, t) => s + t.total_value, 0);
+  const total_orders  = trades.length;
+  const export_orders = trades.filter((t) => t.market === "Export").length;
+  const local_orders  = trades.filter((t) => t.market === "Local").length;
+  const cwc_orders    = trades.filter((t) => t.market === "CWC").length;
+  const avg_price     = total_volume > 0 ? total_value / total_volume : 0;
+  return { total_volume, total_value, avg_price, total_orders, export_orders, local_orders, cwc_orders };
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function TradingDash() {
   const [tab, setTab] = useState<Tab>("view");
 
-  // Input tab still uses the real store for products + saving
-  const { products, loading: productsLoading, fetchProducts } = useProductsStore();
-  const productsFetched = useRef(false);
+  const {
+    trades, loading, saving, error, dateRange, fetchLatest, clearError,
+  } = useTradingStore();
+
+  const {
+    tradeItems, loading: tradeItemsLoading, fetchTradeItems,
+  } = useTradeItemsStore();
+
+  const fetched = useRef(false);
   useEffect(() => {
-    if (!productsFetched.current) {
-      productsFetched.current = true;
-      fetchProducts();
+    if (!fetched.current) {
+      fetched.current = true;
+      fetchLatest();
+      fetchTradeItems();
     }
-  }, [fetchProducts]);
+  }, [fetchLatest, fetchTradeItems]);
 
-  const { dateRange, fetchLatest } = useTradingStore();
-
-  // View tab: client-side name filter over mock trading data
-  const [search, ] = useState("");
-
-  const visibleTrades = search.trim()
-    ? mockData.trading.filter((t) =>
-        t.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.input.toLowerCase().includes(search.toLowerCase()) ||
-        t.output.toLowerCase().includes(search.toLowerCase())
-      )
-    : mockData.trading;
-
-  const summary = computeSummary(visibleTrades);
+  const summary = computeSummary(trades);
 
   const stats = [
-    {
-      label: "Total Entries",
-      value: fmt(summary.total_orders),
-      icon: Truck,
-      trend: "neutral",
-      sub: "transactions",
-    },
-    {
-      label: "Volume In",
-      value: fmtNumber(summary.total_volume_in / 1000, 2) + " MT",
-      icon: Package,
-      trend: "neutral",
-      sub: `${fmt(summary.total_volume_in)} kg`,
-    },
-    {
-      label: "Volume Out",
-      value: fmtNumber(summary.total_volume_out / 1000, 2) + " MT",
-      icon: TrendingUp,
-      trend: "positive",
-      sub: `${fmt(summary.total_volume_out)} kg`,
-    },
-    {
-      label: "Export",
-      value: fmt(summary.export_orders),
-      icon: Globe,
-      trend: "positive",
-      sub: "international",
-    },
-    {
-      label: "Local",
-      value: fmt(summary.local_orders),
-      icon: TrendingDown,
-      trend: "neutral",
-      sub: "domestic",
-    },
-    {
-      label: "CWC",
-      value: fmt(summary.cwc_orders),
-      icon: DollarSign,
-      trend: "neutral",
-      sub: "on-trade / tolling",
-    },
+    { label: "Total Entries", value: fmt(summary.total_orders),                          icon: Truck,       trend: "neutral",  sub: "transactions"      },
+    { label: "Total Volume",  value: fmtNumber(summary.total_volume / 1000, 2) + " MT",  icon: Package,     trend: "neutral",  sub: `${fmt(summary.total_volume)} kg` },
+    { label: "Total Value",   value: fmtNumber(summary.total_value, 2),                  icon: TrendingUp,  trend: "positive", sub: "price × qty"       },
+    { label: "Export",        value: fmt(summary.export_orders),                          icon: Globe,       trend: "positive", sub: "international"     },
+    { label: "Local",         value: fmt(summary.local_orders),                           icon: TrendingDown,trend: "neutral",  sub: "domestic"          },
+    { label: "CWC",           value: fmt(summary.cwc_orders),                             icon: DollarSign,  trend: "neutral",  sub: "on-trade / tolling"},
   ];
+
+  const tabs = [
+    { key: "view",   label: "View",   icon: BarChart2  },
+    { key: "input",  label: "Input",  icon: PlusCircle },
+    { key: "manage", label: "Manage", icon: Settings   },
+  ] as const;
 
   return (
     <div className="space-y-4">
+
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input"] as Tab[]).map((t) => (
+        {tabs.map(({ key, label, icon: Icon }) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={key}
+            onClick={() => setTab(key)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
-              tab === t
+              tab === key
                 ? "bg-background shadow-sm text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
-            {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
-            {t}
+            <Icon className="h-3.5 w-3.5" />
+            {label}
           </button>
         ))}
       </div>
 
-      {/* ── VIEW TAB — mockData.trading ── */}
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center justify-between px-4 py-2 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+          <span>{error}</span>
+          <button onClick={clearError} className="ml-4 font-medium hover:underline">Dismiss</button>
+        </div>
+      )}
+
+      {/* ── VIEW TAB ── */}
       {tab === "view" && (
         <div className="space-y-4">
-
-          {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {stats.map((stat) => {
               const Icon = stat.icon;
@@ -173,11 +138,9 @@ export default function TradingDash() {
                         <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
                       </div>
                       <div className={`p-2 rounded-md ${
-                        stat.trend === "positive"
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : stat.trend === "negative"
-                            ? "bg-rose-500/10 text-rose-500"
-                            : "bg-muted text-muted-foreground"
+                        stat.trend === "positive" ? "bg-emerald-500/10 text-emerald-500"
+                        : stat.trend === "negative" ? "bg-rose-500/10 text-rose-500"
+                        : "bg-muted text-muted-foreground"
                       }`}>
                         <Icon className="h-4 w-4" />
                       </div>
@@ -188,78 +151,79 @@ export default function TradingDash() {
             })}
           </div>
 
-          {/* Table */}
           <Card>
             <CardContent className="pt-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="font-semibold">Trade Name</TableHead>
-                      <TableHead className="font-semibold">Input</TableHead>
-                      <TableHead className="font-semibold">Output</TableHead>
-                      <TableHead className="font-semibold">Market</TableHead>
-                      <TableHead className="text-right font-semibold">Vol In (kg)</TableHead>
-                      <TableHead className="text-right font-semibold">Vol In (MT)</TableHead>
-                      <TableHead className="text-right font-semibold">Vol Out (kg)</TableHead>
-                      <TableHead className="text-right font-semibold">Vol Out (MT)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {visibleTrades.map((trade) => (
-                      <TableRow key={trade.name}>
-                        <TableCell className="font-medium">{trade.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{trade.input}</TableCell>
-                        <TableCell className="text-muted-foreground">{trade.output}</TableCell>
-                        <TableCell>{getMarketBadge(trade.name)}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {trade.volumeIn > 0 ? fmt(trade.volumeIn) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {trade.volumeIn > 0 ? fmtNumber(trade.volumeIn / 1000, 2) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {trade.volumeOut > 0 ? fmt(trade.volumeOut) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {trade.volumeOut > 0 ? fmtNumber(trade.volumeOut / 1000, 2) : "—"}
-                        </TableCell>
+              {loading ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">Loading trades…</div>
+              ) : trades.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  No trades found. Use the Input tab to add trades.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="font-semibold">Trade Name</TableHead>
+                        <TableHead className="font-semibold">Input</TableHead>
+                        <TableHead className="font-semibold">Output</TableHead>
+                        <TableHead className="font-semibold">Market</TableHead>
+                        <TableHead className="font-semibold">Counterparty</TableHead>
+                        <TableHead className="text-right font-semibold">Price / kg</TableHead>
+                        <TableHead className="text-right font-semibold">Vol (kg)</TableHead>
+                        <TableHead className="text-right font-semibold">Vol (MT)</TableHead>
+                        <TableHead className="text-right font-semibold">Total Value</TableHead>
+                        <TableHead className="font-semibold">Date</TableHead>
                       </TableRow>
-                    ))}
-
-                    {/* Totals row */}
-                    <TableRow className="border-t-2 bg-muted/30">
-                      <TableCell colSpan={4} className="font-semibold">Total</TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {fmt(summary.total_volume_in)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {fmtNumber(summary.total_volume_in / 1000, 2)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {fmt(summary.total_volume_out)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {fmtNumber(summary.total_volume_out / 1000, 2)}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {trades.map((trade) => (
+                        <TableRow key={trade.id}>
+                          <TableCell className="font-medium">{trade.trade_item?.name ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{trade.trade_item?.input ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{trade.trade_item?.output ?? "—"}</TableCell>
+                          <TableCell>{getMarketBadge(trade.market)}</TableCell>
+                          <TableCell className="text-muted-foreground">{trade.counterparty ?? "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtNumber(trade.price_per_kg, 4)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{trade.quantity_kg > 0 ? fmt(trade.quantity_kg) : "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{trade.quantity_kg > 0 ? fmtNumber(trade.quantity_kg / 1000, 2) : "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtNumber(trade.total_value, 2)}</TableCell>
+                          <TableCell className="text-muted-foreground">{trade.trade_date}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="border-t-2 bg-muted/30">
+                        <TableCell colSpan={6} className="font-semibold">Total</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{fmt(summary.total_volume)}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{fmtNumber(summary.total_volume / 1000, 2)}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{fmtNumber(summary.total_value, 2)}</TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* ── INPUT TAB — real store ── */}
+      {/* ── INPUT TAB ── */}
       {tab === "input" && (
         <TradingInputForm
-          products={products.filter((p) => p.is_active)}
-          loading={productsLoading}
+          tradeItems={tradeItems}
+          loading={tradeItemsLoading || saving}
           onSaved={() => {
             fetchLatest(dateRange.from ?? undefined, dateRange.to ?? undefined);
             setTab("view");
+          }}
+        />
+      )}
+
+      {/* ── MANAGE TAB ── */}
+      {tab === "manage" && (
+        <TradingManageItemsForm 
+          onItemsChanged={() => {
+            fetchTradeItems();
           }}
         />
       )}
