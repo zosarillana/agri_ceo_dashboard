@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { useProductsStore } from "@/store/products.store";
 import { useSalesStore } from "@/store/sales.store";
 
-import { Market, Sale, SalesSummary } from "@/types/sales.types";
+import { Sale, SalesSummary } from "@/types/sales.types";
 import SalesInputForm from "../-forms/sales-input-form";
 
 // ─── Types ─────────────────────────────────────────────
