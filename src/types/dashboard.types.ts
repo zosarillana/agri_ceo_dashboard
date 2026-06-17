@@ -127,6 +127,7 @@ export type DashboardStats = {
     to: string | null;
     month: string;
     has_data: boolean;
+    last_updated_at: string | null;
   };
 };
 

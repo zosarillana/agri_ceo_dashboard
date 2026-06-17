@@ -1,15 +1,18 @@
-// src/types/trading.types.ts
+export type Market = "Export" | "Local" | "CWC";
 
-export type Market = "Export" | "Local";
+export interface TradeItem {
+  id: number;
+  name: string;
+  code: string;
+  input: string | null;
+  output: string | null;
+  market: Market | null;
+}
 
 export interface Trade {
   id: number;
-  product_id: number;
-  product?: {
-    id: number;
-    name: string;
-    unit?: string;
-  };
+  trade_item_id: number;
+  trade_item?: TradeItem;
   trade_date: string;
   market: Market;
   counterparty: string | null;
@@ -21,7 +24,7 @@ export interface Trade {
 }
 
 export interface TradePayload {
-  product_id: number;
+  trade_item_id: number;
   market: Market;
   counterparty: string | null;
   price_per_kg: number;
@@ -35,6 +38,7 @@ export interface TradeSummary {
   total_orders: number;
   export_orders: number;
   local_orders: number;
+  cwc_orders: number;
   from: string | null;
   to: string | null;
 }
