@@ -46,6 +46,7 @@ import { Route as AuthAdminLayoutDashboardAccountsRouteImport } from './routes/a
 import { Route as AuthUserLayoutProfileSettingsIndexRouteImport } from './routes/auth/user/_layout/profile/settings/index'
 import { Route as AuthAdminLayoutProfileUsersIndexRouteImport } from './routes/auth/admin/_layout/profile/users/index'
 import { Route as AuthAdminLayoutProfileSettingsIndexRouteImport } from './routes/auth/admin/_layout/profile/settings/index'
+import { Route as AuthAdminLayoutProfileLogsIndexRouteImport } from './routes/auth/admin/_layout/profile/logs/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -256,6 +257,12 @@ const AuthAdminLayoutProfileSettingsIndexRoute =
     path: '/profile/settings/',
     getParentRoute: () => AuthAdminLayoutRoute,
   } as any)
+const AuthAdminLayoutProfileLogsIndexRoute =
+  AuthAdminLayoutProfileLogsIndexRouteImport.update({
+    id: '/profile/logs/',
+    path: '/profile/logs/',
+    getParentRoute: () => AuthAdminLayoutRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -290,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/auth/admin/profile/': typeof AuthAdminLayoutProfileIndexRoute
   '/auth/user/dashboard/': typeof AuthUserLayoutDashboardIndexRoute
   '/auth/user/profile/': typeof AuthUserLayoutProfileIndexRoute
+  '/auth/admin/profile/logs/': typeof AuthAdminLayoutProfileLogsIndexRoute
   '/auth/admin/profile/settings/': typeof AuthAdminLayoutProfileSettingsIndexRoute
   '/auth/admin/profile/users/': typeof AuthAdminLayoutProfileUsersIndexRoute
   '/auth/user/profile/settings/': typeof AuthUserLayoutProfileSettingsIndexRoute
@@ -323,6 +331,7 @@ export interface FileRoutesByTo {
   '/auth/admin/profile': typeof AuthAdminLayoutProfileIndexRoute
   '/auth/user/dashboard': typeof AuthUserLayoutDashboardIndexRoute
   '/auth/user/profile': typeof AuthUserLayoutProfileIndexRoute
+  '/auth/admin/profile/logs': typeof AuthAdminLayoutProfileLogsIndexRoute
   '/auth/admin/profile/settings': typeof AuthAdminLayoutProfileSettingsIndexRoute
   '/auth/admin/profile/users': typeof AuthAdminLayoutProfileUsersIndexRoute
   '/auth/user/profile/settings': typeof AuthUserLayoutProfileSettingsIndexRoute
@@ -363,6 +372,7 @@ export interface FileRoutesById {
   '/auth/admin/_layout/profile/': typeof AuthAdminLayoutProfileIndexRoute
   '/auth/user/_layout/dashboard/': typeof AuthUserLayoutDashboardIndexRoute
   '/auth/user/_layout/profile/': typeof AuthUserLayoutProfileIndexRoute
+  '/auth/admin/_layout/profile/logs/': typeof AuthAdminLayoutProfileLogsIndexRoute
   '/auth/admin/_layout/profile/settings/': typeof AuthAdminLayoutProfileSettingsIndexRoute
   '/auth/admin/_layout/profile/users/': typeof AuthAdminLayoutProfileUsersIndexRoute
   '/auth/user/_layout/profile/settings/': typeof AuthUserLayoutProfileSettingsIndexRoute
@@ -402,6 +412,7 @@ export interface FileRouteTypes {
     | '/auth/admin/profile/'
     | '/auth/user/dashboard/'
     | '/auth/user/profile/'
+    | '/auth/admin/profile/logs/'
     | '/auth/admin/profile/settings/'
     | '/auth/admin/profile/users/'
     | '/auth/user/profile/settings/'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/auth/admin/profile'
     | '/auth/user/dashboard'
     | '/auth/user/profile'
+    | '/auth/admin/profile/logs'
     | '/auth/admin/profile/settings'
     | '/auth/admin/profile/users'
     | '/auth/user/profile/settings'
@@ -474,6 +486,7 @@ export interface FileRouteTypes {
     | '/auth/admin/_layout/profile/'
     | '/auth/user/_layout/dashboard/'
     | '/auth/user/_layout/profile/'
+    | '/auth/admin/_layout/profile/logs/'
     | '/auth/admin/_layout/profile/settings/'
     | '/auth/admin/_layout/profile/users/'
     | '/auth/user/_layout/profile/settings/'
@@ -749,6 +762,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminLayoutProfileSettingsIndexRouteImport
       parentRoute: typeof AuthAdminLayoutRoute
     }
+    '/auth/admin/_layout/profile/logs/': {
+      id: '/auth/admin/_layout/profile/logs/'
+      path: '/profile/logs'
+      fullPath: '/auth/admin/profile/logs/'
+      preLoaderRoute: typeof AuthAdminLayoutProfileLogsIndexRouteImport
+      parentRoute: typeof AuthAdminLayoutRoute
+    }
   }
 }
 
@@ -792,6 +812,7 @@ const AuthAdminLayoutDashboardRouteWithChildren =
 interface AuthAdminLayoutRouteChildren {
   AuthAdminLayoutDashboardRoute: typeof AuthAdminLayoutDashboardRouteWithChildren
   AuthAdminLayoutProfileIndexRoute: typeof AuthAdminLayoutProfileIndexRoute
+  AuthAdminLayoutProfileLogsIndexRoute: typeof AuthAdminLayoutProfileLogsIndexRoute
   AuthAdminLayoutProfileSettingsIndexRoute: typeof AuthAdminLayoutProfileSettingsIndexRoute
   AuthAdminLayoutProfileUsersIndexRoute: typeof AuthAdminLayoutProfileUsersIndexRoute
 }
@@ -799,6 +820,7 @@ interface AuthAdminLayoutRouteChildren {
 const AuthAdminLayoutRouteChildren: AuthAdminLayoutRouteChildren = {
   AuthAdminLayoutDashboardRoute: AuthAdminLayoutDashboardRouteWithChildren,
   AuthAdminLayoutProfileIndexRoute: AuthAdminLayoutProfileIndexRoute,
+  AuthAdminLayoutProfileLogsIndexRoute: AuthAdminLayoutProfileLogsIndexRoute,
   AuthAdminLayoutProfileSettingsIndexRoute:
     AuthAdminLayoutProfileSettingsIndexRoute,
   AuthAdminLayoutProfileUsersIndexRoute: AuthAdminLayoutProfileUsersIndexRoute,
