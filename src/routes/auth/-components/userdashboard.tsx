@@ -97,17 +97,31 @@ export default function UserDashboard() {
 
   const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
 
-  const production  = stats?.production;
+  const production = stats?.production;
   const maintenance = stats?.maintenance;
-  const sales       = stats?.sales;
-  const energy      = stats?.energy;
-  const workforce   = stats?.workforce;
-  const qc          = stats?.qc;
+  const sales = stats?.sales;
+  const energy = stats?.energy;
+  const workforce = stats?.workforce;
+  const qc = stats?.qc;
+  const trades = stats?.trading;
   const procurement = stats?.procurement;
-  const accounts    = stats?.accounts;
+  const accounts = stats?.accounts;
 
   React.useEffect(() => {
     fetchStats();
+  }, [fetchStats]);
+
+  React.useEffect(() => {
+    fetchStats(getTodayISO(), true);
+  }, [location.pathname]);
+
+  React.useEffect(() => {
+    const onFocus = () => {
+      fetchStats(getTodayISO(), true);
+    };
+
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [fetchStats]);
 
   // Realtime refresh
@@ -119,7 +133,7 @@ export default function UserDashboard() {
       toast("Dashboard updated", {
         description: "New data just came in — refreshing now.",
       });
-    }, [fetchStats])
+    }, [fetchStats]),
   );
 
   function handleDateSelect(d: Date | undefined) {
@@ -407,14 +421,15 @@ export default function UserDashboard() {
             <TradesCard
               active={isActive("trading")}
               index={4}
+              trades={trades}
               timeLabel={
-                sales?.last_updated_at
-                  ? relativeTime(new Date(sales.last_updated_at))
+                trades?.last_updated_at
+                  ? relativeTime(new Date(trades.last_updated_at))
                   : "—"
               }
               dateLabel={
-                sales?.last_updated_at
-                  ? fmtDate(new Date(sales.last_updated_at))
+                trades?.last_updated_at
+                  ? fmtDate(new Date(trades.last_updated_at))
                   : "—"
               }
             />

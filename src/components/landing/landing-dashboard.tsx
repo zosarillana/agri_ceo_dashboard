@@ -100,6 +100,7 @@ export function LandingDashboard() {
   const energy = stats?.energy;
   const workforce = stats?.workforce;
   const qc = stats?.qc;
+  const trades = stats?.trading;
   const procurement = stats?.procurement;
   const accounts = stats?.accounts;
 
@@ -311,14 +312,15 @@ export function LandingDashboard() {
               <TradesCard
                 active={false}
                 index={4}
+                trades={trades}
                 timeLabel={
-                  sales?.last_updated_at
-                    ? relativeTime(new Date(sales.last_updated_at))
+                  trades?.last_updated_at
+                    ? relativeTime(new Date(trades.last_updated_at))
                     : "—"
                 }
                 dateLabel={
-                  sales?.last_updated_at
-                    ? fmtDate(new Date(sales.last_updated_at))
+                  trades?.last_updated_at
+                    ? fmtDate(new Date(trades.last_updated_at))
                     : "—"
                 }
               />
@@ -346,4 +348,4 @@ export function LandingDashboard() {
       </div>
     </div>
   );
-} 
+}

@@ -33,8 +33,8 @@ import useRealtimeListener from "@/hooks/useRealTimeListener";
 import { toast } from "sonner";
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   MAIN COMPONENT
-───────────────────────────────────────────────────────────────────────────── */
+    MAIN COMPONENT
+  ───────────────────────────────────────────────────────────────────────────── */
 
 interface CEODashboardProps {
   initialStats?: DashboardStats;
@@ -66,7 +66,7 @@ export default function CEODashboard({ initialStats }: CEODashboardProps) {
   const energy = stats?.energy;
   const workforce = stats?.workforce;
   const qc = stats?.qc;
-
+  const trades = stats?.trading;
   const procurement = stats?.procurement;
   const accounts = stats?.accounts;
 
@@ -85,6 +85,19 @@ export default function CEODashboard({ initialStats }: CEODashboardProps) {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  React.useEffect(() => {
+    fetchStats(getTodayISO(), true);
+  }, [location.pathname]);
+
+  React.useEffect(() => {
+    const onFocus = () => {
+      fetchStats(getTodayISO(), true);
+    };
+
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchStats]);
 
   function handleDateSelect(d: Date | undefined) {
     if (!d) return;
@@ -297,18 +310,18 @@ export default function CEODashboard({ initialStats }: CEODashboardProps) {
               }
             />
 
-            {/* Mock Trades */}
             <TradesCard
               active={isActive("trading")}
               index={4}
+              trades={trades}
               timeLabel={
-                sales?.last_updated_at
-                  ? relativeTime(new Date(sales.last_updated_at))
+                trades?.last_updated_at
+                  ? relativeTime(new Date(trades.last_updated_at))
                   : "—"
               }
               dateLabel={
-                sales?.last_updated_at
-                  ? fmtDate(new Date(sales.last_updated_at))
+                trades?.last_updated_at
+                  ? fmtDate(new Date(trades.last_updated_at))
                   : "—"
               }
             />

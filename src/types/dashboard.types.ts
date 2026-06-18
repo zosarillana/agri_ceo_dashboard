@@ -105,7 +105,7 @@ export type DashboardStats = {
     has_data: boolean;
   };
 
-  trades: {
+  trading: {
     total_volume: number;
     total_value: number;
     avg_price: number;
@@ -116,6 +116,7 @@ export type DashboardStats = {
     to: string | null;
     month: string;
     has_data: boolean;
+    last_updated_at: string | null;
   };
 
   accounts: {
