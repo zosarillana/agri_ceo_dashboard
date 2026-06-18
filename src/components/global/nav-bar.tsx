@@ -154,7 +154,7 @@ export function GlobalNavbar() {
 
   const usersPath = "/auth/admin/profile/users/";
   
-  const activityLogsPath = "/auth/admin/profile/logs/";
+  const activityLogsPath = "/auth/admin/profile/log/";
 
   const settingsPath =
     user?.role === "user"
@@ -285,6 +285,7 @@ export function GlobalNavbar() {
                         <span>Activity Logs</span>
                       </DropdownMenuItem>
                     )}
+
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleSignOut}
