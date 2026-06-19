@@ -154,7 +154,7 @@ export function AccountsCard({
               color="purple"
               icon={Wallet}
               label="Accounts"
-              summary={`Net ${isPositive ? "surplus" : "deficit"} · ${monthLabel}`}
+              summary={`Net ${isPositive ? "surplus" : "deficit"} · ${monthLabel} (Filtered Monthly)`}
             />
             <div className="text-right">
               <p

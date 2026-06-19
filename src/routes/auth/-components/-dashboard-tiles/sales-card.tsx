@@ -106,7 +106,7 @@ export function SalesCard({
                 color="green"
                 icon={TrendingUp}
                 label="Sales"
-                summary={`${displayEntries ?? "—"} entries · ${displayMonthLabel}`}
+                summary={`${displayEntries ?? "—"} entries · ${displayMonthLabel} (Filtered Monthly)`}
               />
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {isCurrentMonth && (
@@ -194,7 +194,7 @@ export function SalesCard({
                         Entries
                       </p>
                       <p className="text-sm font-semibold">
-                        {displayEntries ?? "—"}
+                        {displayEntries  ?? "—"}
                       </p>
                     </div>
                   </div>
