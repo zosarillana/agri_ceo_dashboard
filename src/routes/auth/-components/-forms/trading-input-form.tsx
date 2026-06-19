@@ -2,7 +2,9 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
+import { CalendarIcon, Search, Edit, Trash2, Filter } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -20,9 +22,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Globe, Building2, Package, Save, Loader2 } from "lucide-react";
 import { useTradingStore } from "@/store/trading.store";
 import { TradeItem, Market, TradePayload } from "@/types/trading.types";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +41,14 @@ interface TradeRow {
   counterparty: string;
   price_per_kg: number;
   quantity_kg: number;
+  existing_trade_id?: number;
+  is_editing?: boolean;
+  original_data?: {
+    market: Market;
+    counterparty: string;
+    price_per_kg: number;
+    quantity_kg: number;
+  };
 }
 
 interface TradingInputFormProps {
@@ -42,20 +59,17 @@ interface TradingInputFormProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getTodayISO() {
-  return new Date().toLocaleDateString("en-CA");
-}
-
 function initRows(tradeItems: TradeItem[]): Record<number, TradeRow> {
   return Object.fromEntries(
     tradeItems.map((item) => [
       item.id,
       {
         trade_item_id: item.id,
-        market:        (item.market as Market) ?? "Export",
-        counterparty:  "",
-        price_per_kg:  0,
-        quantity_kg:   0,
+        market: (item.market as Market) ?? "Export",
+        counterparty: "",
+        price_per_kg: 0,
+        quantity_kg: 0,
+        is_editing: false,
       },
     ])
   );
@@ -68,16 +82,25 @@ export default function TradingInputForm({
   loading,
   onSaved,
 }: TradingInputFormProps) {
-  const today = getTodayISO();
-
-  const [tradeDate, setTradeDate] = useState(today);
+  const [tradeDate, setTradeDate] = useState<Date>(() => new Date());
   const [rows, setRows] = useState<Record<number, TradeRow>>(() =>
     initRows(tradeItems)
   );
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [showExistingData, setShowExistingData] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentDate, setCurrentDate] = useState<string>("");
 
-  const { saveTrades, saving } = useTradingStore();
+  const { 
+    saveTrades, 
+    saving, 
+    trades, 
+    loading: tradesLoading,
+    fetchLatest,
+    deleteTrade,
+    updateTrade,
+  } = useTradingStore();
 
   // Re-init rows when tradeItems load in
   const [prevItems, setPrevItems] = useState(tradeItems);
@@ -86,14 +109,71 @@ export default function TradingInputForm({
     setRows(initRows(tradeItems));
   }
 
+  // ── Fetch trades when date changes ──────────────────────────────────────
+
+  useEffect(() => {
+    if (tradeDate) {
+      const formattedDate = format(tradeDate, "yyyy-MM-dd");
+      setCurrentDate(formattedDate);
+      fetchLatest(formattedDate, formattedDate);
+    }
+  }, [tradeDate, fetchLatest]);
+
+  // ── Populate rows with existing trade data when fetched ──────────────
+
+  useEffect(() => {
+    // Reset rows to empty state first
+    const newRows = initRows(tradeItems);
+    
+    if (trades.length > 0 && showExistingData) {
+      // Populate with existing trades
+      trades.forEach((trade) => {
+        if (newRows[trade.trade_item_id]) {
+          newRows[trade.trade_item_id] = {
+            ...newRows[trade.trade_item_id],
+            market: trade.market,
+            counterparty: trade.counterparty || "",
+            price_per_kg: trade.price_per_kg,
+            quantity_kg: trade.quantity_kg,
+            existing_trade_id: trade.id,
+            is_editing: false,
+            original_data: {
+              market: trade.market,
+              counterparty: trade.counterparty || "",
+              price_per_kg: trade.price_per_kg,
+              quantity_kg: trade.quantity_kg,
+            },
+          };
+        }
+      });
+    }
+    
+    setRows(newRows);
+  }, [trades, showExistingData, tradeItems]);
+
   // ── Row update helpers ─────────────────────────────────────────────────────
 
   function updateRow(id: number, field: keyof TradeRow, value: any) {
     setRows((prev) => ({
       ...prev,
-      [id]: { ...prev[id], [field]: value },
+      [id]: { 
+        ...prev[id], 
+        [field]: value,
+        is_editing: prev[id].existing_trade_id ? true : prev[id].is_editing
+      },
     }));
   }
+
+  // ── Filter trades based on search ────────────────────────────────────────
+
+  const filteredTradeItems = useMemo(() => {
+    if (!searchTerm) return tradeItems;
+    return tradeItems.filter(item =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.input?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.output?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [tradeItems, searchTerm]);
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
@@ -111,17 +191,35 @@ export default function TradingInputForm({
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
-    const payload: TradePayload[] = Object.values(rows)
-      .filter((r) => r.quantity_kg > 0 || r.price_per_kg > 0)
-      .map((r) => ({
+    const formattedDate = format(tradeDate, "yyyy-MM-dd");
+    
+    const newTrades: TradePayload[] = [];
+    const updateTrades: { id: number; data: TradePayload }[] = [];
+    
+    Object.values(rows).forEach((r) => {
+      if (r.quantity_kg === 0 && r.price_per_kg === 0) return;
+      
+      const tradeData = {
         trade_item_id: r.trade_item_id,
-        market:        r.market,
-        counterparty:  r.counterparty || null,
-        price_per_kg:  r.price_per_kg,
-        quantity_kg:   r.quantity_kg,
-      }));
+        market: r.market,
+        counterparty: r.counterparty || null,
+        price_per_kg: r.price_per_kg,
+        quantity_kg: r.quantity_kg,
+      };
+      
+      if (r.existing_trade_id && !r.is_editing) {
+        return;
+      } else if (r.existing_trade_id && r.is_editing) {
+        updateTrades.push({
+          id: r.existing_trade_id,
+          data: tradeData,
+        });
+      } else {
+        newTrades.push(tradeData);
+      }
+    });
 
-    if (!payload.length) {
+    if (!newTrades.length && !updateTrades.length) {
       setStatus("error");
       setErrorMsg("Please enter at least one trade with volume or price.");
       return;
@@ -130,12 +228,44 @@ export default function TradingInputForm({
     try {
       setStatus("idle");
       setErrorMsg("");
-      await saveTrades(payload, tradeDate);
+      
+      for (const update of updateTrades) {
+        await updateTrade(update.id, update.data);
+      }
+      
+      if (newTrades.length) {
+        await saveTrades(newTrades, formattedDate);
+      }
+      
       setStatus("success");
+      setErrorMsg(`Trades saved successfully for ${format(tradeDate, "PPP")}.`);
+      
       onSaved();
-    } catch {
+      await fetchLatest(formattedDate, formattedDate);
+      
+    } catch (error) {
+      console.error("Save error:", error);
       setStatus("error");
       setErrorMsg("Failed to save trades. Please try again.");
+    }
+  }
+
+  // ── Delete existing trade ─────────────────────────────────────────────────
+
+  async function handleDeleteTrade(tradeId: number, tradeItemId: number) {
+    if (!confirm("Are you sure you want to delete this trade?")) return;
+    
+    try {
+      await deleteTrade(tradeId);
+      setStatus("success");
+      setErrorMsg("Trade deleted successfully.");
+      
+      const formattedDate = format(tradeDate, "yyyy-MM-dd");
+      await fetchLatest(formattedDate, formattedDate);
+    } catch (error) {
+      console.error("Delete error:", error);
+      setStatus("error");
+      setErrorMsg("Failed to delete trade.");
     }
   }
 
@@ -154,7 +284,7 @@ export default function TradingInputForm({
   return (
     <div className="space-y-4">
 
-      {/* Header */}
+      {/* Header with Date Filter */}
       <Card>
         <CardHeader>
           <CardTitle>Trade Input</CardTitle>
@@ -163,17 +293,79 @@ export default function TradingInputForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-muted-foreground">
-              Trade Date
-            </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Trade Date
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !tradeDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {tradeDate ? format(tradeDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={tradeDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setTradeDate(date);
+                        setShowExistingData(true);
+                        // Reset status messages when changing date
+                        setStatus("idle");
+                        setErrorMsg("");
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant={showExistingData ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowExistingData(!showExistingData)}
+                className="gap-2"
+              >
+                <Filter className="h-3 w-3" />
+                {showExistingData ? "Hide Existing" : "Show Existing"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              type="date"
-              value={tradeDate}
-              onChange={(e) => setTradeDate(e.target.value)}
-              className="w-44"
+              className="pl-9"
+              placeholder="Search trade items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
+          {/* Existing trades info */}
+          {tradesLoading ? (
+            <div className="mt-2 text-sm text-muted-foreground">Loading trades...</div>
+          ) : trades.length > 0 && showExistingData ? (
+            <div className="mt-2 text-sm text-muted-foreground">
+              Found {trades.length} existing trade(s) for {format(tradeDate, "PPP")}
+            </div>
+          ) : trades.length === 0 && showExistingData && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              No existing trades found for {format(tradeDate, "PPP")}. Enter new trades below.
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -216,49 +408,123 @@ export default function TradingInputForm({
       )}
       {status === "success" && (
         <div className="px-4 py-2 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-          Trades saved successfully.
+          {errorMsg}
         </div>
       )}
 
       {/* Trade rows */}
       <Card>
         <CardContent className="p-4 space-y-3">
-          {tradeItems.length === 0 ? (
+          {filteredTradeItems.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              No trade items found. Add trade items first.
+              {searchTerm ? "No trade items match your search." : "No trade items found. Add trade items first."}
             </p>
           ) : (
-            tradeItems.map((item) => {
+            filteredTradeItems.map((item) => {
               const row = rows[item.id];
               if (!row) return null;
+
+              const hasExistingData = !!row.existing_trade_id;
+              const isEditing = row.is_editing || !hasExistingData;
+              const hasChanges = hasExistingData && isEditing;
 
               return (
                 <div
                   key={item.id}
-                  className="border rounded-lg p-3 space-y-3"
+                  className={cn(
+                    "border rounded-lg p-3 space-y-3 transition-colors",
+                    hasExistingData && !isEditing ? "bg-muted/30" : "bg-card",
+                    hasChanges && "border-primary/50"
+                  )}
                 >
                   {/* Item header */}
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-medium text-sm">{item.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{item.name}</p>
+                        {hasExistingData && !isEditing && (
+                          <Badge variant="secondary" className="text-xs">
+                            Existing
+                          </Badge>
+                        )}
+                        {hasChanges && (
+                          <Badge variant="default" className="text-xs">
+                            Editing
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {item.input ?? "—"} → {item.output ?? "—"}
                       </p>
                     </div>
-                    <Badge
-                      variant={
-                        row.market === "Export"
-                          ? "default"
-                          : row.market === "CWC"
-                          ? "secondary"
-                          : "outline"
-                      }
-                    >
-                      {row.market}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {hasExistingData && (
+                        <>
+                          {!isEditing ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setRows((prev) => ({
+                                  ...prev,
+                                  [item.id]: { ...prev[item.id], is_editing: true }
+                                }));
+                              }}
+                              className="h-7 gap-1"
+                            >
+                              <Edit className="h-3 w-3" />
+                              Edit
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const original = row.original_data;
+                                if (original) {
+                                  setRows((prev) => ({
+                                    ...prev,
+                                    [item.id]: {
+                                      ...prev[item.id],
+                                      market: original.market,
+                                      counterparty: original.counterparty,
+                                      price_per_kg: original.price_per_kg,
+                                      quantity_kg: original.quantity_kg,
+                                      is_editing: false,
+                                    }
+                                  }));
+                                }
+                              }}
+                              className="h-7 gap-1 text-red-500 hover:text-red-700"
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTrade(row.existing_trade_id!, item.id)}
+                            className="h-7 text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                      <Badge
+                        variant={
+                          row.market === "Export"
+                            ? "default"
+                            : row.market === "CWC"
+                            ? "secondary"
+                            : "outline"
+                        }
+                      >
+                        {row.market}
+                      </Badge>
+                    </div>
                   </div>
 
-                  {/* Input fields */}
+                  {/* Input fields - now always editable for new data */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">
@@ -358,7 +624,7 @@ export default function TradingInputForm({
       </Card>
 
       {/* Save button */}
-      {tradeItems.length > 0 && (
+      {filteredTradeItems.length > 0 && (
         <div className="flex justify-end">
           <Button onClick={handleSubmit} disabled={saving} className="gap-2">
             {saving ? (

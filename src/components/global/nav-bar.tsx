@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Moon, Sun, UserCog, type LucideProps } from "lucide-react";
+import { ListChecks, Moon, Sun, UserCog, type LucideProps } from "lucide-react";
 import { useTheme } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -153,6 +153,8 @@ export function GlobalNavbar() {
     user?.role === "user" ? "/auth/user/profile/" : "/auth/admin/profile/";
 
   const usersPath = "/auth/admin/profile/users/";
+  
+  const activityLogsPath = "/auth/admin/profile/log/";
 
   const settingsPath =
     user?.role === "user"
@@ -275,6 +277,15 @@ export function GlobalNavbar() {
                         <span>Users</span>
                       </DropdownMenuItem>
                     )}
+                    {user?.role === "superadmin" && (
+                      <DropdownMenuItem
+                        onClick={() => handleNavigate(activityLogsPath)}
+                      >
+                        <ListChecks className="mr-2 h-4 w-4" />
+                        <span>Activity Logs</span>
+                      </DropdownMenuItem>
+                    )}
+
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleSignOut}

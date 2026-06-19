@@ -180,7 +180,7 @@ function TradeItemModal({ open, editItem, onClose, onSaved }: TradeItemModalProp
               <SelectContent>
                 <SelectItem value="Export">Export</SelectItem>
                 <SelectItem value="Local">Local</SelectItem>
-                <SelectItem value="CWC">CWC</SelectItem>
+                {/* <SelectItem value="CWC">CWC</SelectItem> */}
               </SelectContent>
             </Select>
           </div>
