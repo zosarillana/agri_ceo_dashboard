@@ -1,6 +1,13 @@
 import { Globe } from "lucide-react";
 import { DashCard } from "./shared-dashboard-ui";
-import { fmt, fmtUSD } from "@/lib/dashboard-utils";
+import { fmt } from "@/lib/dashboard-utils";
+
+function fmtMT(kg: number, decimals = 2) {
+  return (kg / 1000).toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
 
 function TradesExpanded({ trades }: { trades: any }) {
   const exportPct =
@@ -12,7 +19,7 @@ function TradesExpanded({ trades }: { trades: any }) {
     <div className="space-y-3">
 
       {/* GRID */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
 
         <div className="flex flex-col items-center p-2 rounded-md bg-blue-500/5 border border-blue-500/10">
           <p className="text-[10px] text-muted-foreground uppercase font-medium">
@@ -28,12 +35,12 @@ function TradesExpanded({ trades }: { trades: any }) {
           <p className="text-sm font-bold">{trades?.local_orders ?? 0}</p>
         </div>
 
-        <div className="flex flex-col items-center p-2 rounded-md bg-cyan-500/5 border border-cyan-500/10">
+        {/* <div className="flex flex-col items-center p-2 rounded-md bg-cyan-500/5 border border-cyan-500/10">
           <p className="text-[10px] text-muted-foreground uppercase font-medium">
             CWC
           </p>
           <p className="text-sm font-bold">{trades?.cwc_orders ?? 0}</p>
-        </div>
+        </div> */}
       </div>
 
       {/* EXPORT SHARE */}
@@ -54,23 +61,14 @@ function TradesExpanded({ trades }: { trades: any }) {
       </div>
 
       {/* METRICS */}
-      <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border/30">
-
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground uppercase font-medium">
-            Avg. Price
-          </p>
-          <p className="text-sm font-semibold">
-            {trades?.avg_price ? `${fmtUSD(trades.avg_price)}/kg` : "—"}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 gap-3 pt-1 border-t border-border/30">
 
         <div className="space-y-1">
           <p className="text-[10px] text-muted-foreground uppercase font-medium">
             Total Volume
           </p>
           <p className="text-sm font-semibold">
-            {trades?.total_volume ? `${fmt(trades.total_volume)} kg` : "—"}
+            {trades?.total_volume ? `${fmtMT(trades.total_volume)} MT` : "—"}
           </p>
         </div>
 
@@ -99,7 +97,7 @@ export function TradesCard({
 
   const unit =
     trades?.total_volume
-      ? `${fmt(trades.total_volume)} kg traded`
+      ? `${fmtMT(trades.total_volume)} MT traded`
       : "no trades yet";
 
   return (
