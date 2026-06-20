@@ -108,7 +108,7 @@ export function TradesCard({
       color="blue"
       icon={Globe}
       label="Trading Activity"
-      summary={`${stat} trade operations`}
+      summary={`${stat} trade operations (Filtered Monthly)`}
       stat={stat}
       unit={unit}
       timeLabel={timeLabel}

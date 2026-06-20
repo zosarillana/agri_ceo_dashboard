@@ -28,7 +28,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Globe, Building2, Package, Save, Loader2 } from "lucide-react";
+import { Globe, Building2, Save, Loader2 } from "lucide-react";
 import { useTradingStore } from "@/store/trading.store";
 import { TradeItem, Market, TradePayload } from "@/types/trading.types";
 import { cn } from "@/lib/utils";
@@ -39,15 +39,15 @@ interface TradeRow {
   trade_item_id: number;
   market: Market;
   counterparty: string;
-  price_per_kg: number;
-  quantity_kg: number;
+  input_kg: number;
+  output_kg: number;
   existing_trade_id?: number;
   is_editing?: boolean;
   original_data?: {
     market: Market;
     counterparty: string;
-    price_per_kg: number;
-    quantity_kg: number;
+    input_kg: number;
+    output_kg: number;
   };
 }
 
@@ -67,8 +67,8 @@ function initRows(tradeItems: TradeItem[]): Record<number, TradeRow> {
         trade_item_id: item.id,
         market: (item.market as Market) ?? "Export",
         counterparty: "",
-        price_per_kg: 0,
-        quantity_kg: 0,
+        input_kg: 0,
+        output_kg: 0,
         is_editing: false,
       },
     ])
@@ -90,7 +90,7 @@ export default function TradingInputForm({
   const [errorMsg, setErrorMsg] = useState("");
   const [showExistingData, setShowExistingData] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentDate, setCurrentDate] = useState<string>("");
+  const [, setCurrentDate] = useState<string>("");
 
   const { 
     saveTrades, 
@@ -133,15 +133,15 @@ export default function TradingInputForm({
             ...newRows[trade.trade_item_id],
             market: trade.market,
             counterparty: trade.counterparty || "",
-            price_per_kg: trade.price_per_kg,
-            quantity_kg: trade.quantity_kg,
+            input_kg: trade.input_kg,
+            output_kg: trade.output_kg,
             existing_trade_id: trade.id,
             is_editing: false,
             original_data: {
               market: trade.market,
               counterparty: trade.counterparty || "",
-              price_per_kg: trade.price_per_kg,
-              quantity_kg: trade.quantity_kg,
+              input_kg: trade.input_kg,
+              output_kg: trade.output_kg,
             },
           };
         }
@@ -197,14 +197,14 @@ export default function TradingInputForm({
     const updateTrades: { id: number; data: TradePayload }[] = [];
     
     Object.values(rows).forEach((r) => {
-      if (r.quantity_kg === 0 && r.price_per_kg === 0) return;
+      if (r.input_kg === 0 && r.output_kg === 0) return;
       
       const tradeData = {
         trade_item_id: r.trade_item_id,
         market: r.market,
         counterparty: r.counterparty || null,
-        price_per_kg: r.price_per_kg,
-        quantity_kg: r.quantity_kg,
+        input_kg: r.input_kg,
+        output_kg: r.output_kg,
       };
       
       if (r.existing_trade_id && !r.is_editing) {
@@ -221,7 +221,7 @@ export default function TradingInputForm({
 
     if (!newTrades.length && !updateTrades.length) {
       setStatus("error");
-      setErrorMsg("Please enter at least one trade with volume or price.");
+      setErrorMsg("Please enter at least one trade with input or output volume.");
       return;
     }
 
@@ -252,7 +252,7 @@ export default function TradingInputForm({
 
   // ── Delete existing trade ─────────────────────────────────────────────────
 
-  async function handleDeleteTrade(tradeId: number, tradeItemId: number) {
+  async function handleDeleteTrade(tradeId: number, _tradeItemId: number) {
     if (!confirm("Are you sure you want to delete this trade?")) return;
     
     try {
@@ -289,7 +289,7 @@ export default function TradingInputForm({
         <CardHeader>
           <CardTitle>Trade Input</CardTitle>
           <CardDescription>
-            Enter volumes and prices per trade item for a given date.
+            Enter input and output volumes per trade item for a given date.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -370,7 +370,7 @@ export default function TradingInputForm({
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="p-3 flex items-center justify-between">
             <span className="flex items-center gap-2">
@@ -389,7 +389,7 @@ export default function TradingInputForm({
             <b>{stats.local}</b>
           </CardContent>
         </Card>
-        <Card>
+        {/* <Card>
           <CardContent className="p-3 flex items-center justify-between">
             <span className="flex items-center gap-2">
               <Package className="h-4 w-4 text-cyan-500" />
@@ -397,7 +397,7 @@ export default function TradingInputForm({
             </span>
             <b>{stats.cwc}</b>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Error / Success banners */}
@@ -488,8 +488,8 @@ export default function TradingInputForm({
                                       ...prev[item.id],
                                       market: original.market,
                                       counterparty: original.counterparty,
-                                      price_per_kg: original.price_per_kg,
-                                      quantity_kg: original.quantity_kg,
+                                      input_kg: original.input_kg,
+                                      output_kg: original.output_kg,
                                       is_editing: false,
                                     }
                                   }));
@@ -525,7 +525,7 @@ export default function TradingInputForm({
                   </div>
 
                   {/* Input fields - now always editable for new data */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">
                         Market
@@ -547,7 +547,7 @@ export default function TradingInputForm({
                       </Select>
                     </div>
 
-                    <div className="space-y-1">
+                    {/* <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">
                         Counterparty
                       </label>
@@ -559,11 +559,11 @@ export default function TradingInputForm({
                           updateRow(item.id, "counterparty", e.target.value)
                         }
                       />
-                    </div>
+                    </div> */}
 
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">
-                        Price / kg
+                        Input (kg)
                       </label>
                       <Input
                         className="h-8 text-xs"
@@ -571,11 +571,11 @@ export default function TradingInputForm({
                         min={0}
                         step={0.0001}
                         placeholder="0.0000"
-                        value={row.price_per_kg || ""}
+                        value={row.input_kg || ""}
                         onChange={(e) =>
                           updateRow(
                             item.id,
-                            "price_per_kg",
+                            "input_kg",
                             parseFloat(e.target.value) || 0
                           )
                         }
@@ -584,7 +584,7 @@ export default function TradingInputForm({
 
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">
-                        Quantity (kg)
+                        Output (kg)
                       </label>
                       <Input
                         className="h-8 text-xs"
@@ -592,11 +592,11 @@ export default function TradingInputForm({
                         min={0}
                         step={0.0001}
                         placeholder="0.0000"
-                        value={row.quantity_kg || ""}
+                        value={row.output_kg || ""}
                         onChange={(e) =>
                           updateRow(
                             item.id,
-                            "quantity_kg",
+                            "output_kg",
                             parseFloat(e.target.value) || 0
                           )
                         }
@@ -604,15 +604,16 @@ export default function TradingInputForm({
                     </div>
                   </div>
 
-                  {/* Live total */}
-                  {row.price_per_kg > 0 && row.quantity_kg > 0 && (
+                  {/* Live yield (output as a % of input) */}
+                  {row.input_kg > 0 && row.output_kg > 0 && (
                     <p className="text-xs text-muted-foreground text-right">
-                      Total:{" "}
+                      Yield:{" "}
                       <span className="font-semibold text-foreground">
-                        {(row.price_per_kg * row.quantity_kg).toLocaleString(
+                        {((row.output_kg / row.input_kg) * 100).toLocaleString(
                           undefined,
                           { minimumFractionDigits: 2, maximumFractionDigits: 2 }
                         )}
+                        %
                       </span>
                     </p>
                   )}

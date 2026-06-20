@@ -73,7 +73,7 @@ export function ProcurementCard({
               color="amber"
               icon={ShoppingCart}
               label="Procurement"
-              summary={`${total} total items · ${monthLabel}`}
+              summary={`${total} total items · ${monthLabel} (Filtered Monthly)`}
             />
             <div className="text-right">
               <p className="text-2xl font-bold">{openOrders}</p>

@@ -154,7 +154,7 @@ function TradeItemModal({ open, editItem, onClose, onSaved }: TradeItemModalProp
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-sm font-medium">Input material</label>
+              <label className="text-sm font-medium">Input Product</label>
               <Input
                 placeholder="e.g. Cake"
                 value={form.input}
@@ -162,7 +162,7 @@ function TradeItemModal({ open, editItem, onClose, onSaved }: TradeItemModalProp
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Output material</label>
+              <label className="text-sm font-medium">Output Product</label>
               <Input
                 placeholder="e.g. VCO"
                 value={form.output}
@@ -295,8 +295,8 @@ export default function TradingManageItemsForm({ onItemsChanged }: TradingManage
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-semibold">Name</TableHead>
                   <TableHead className="font-semibold">Code</TableHead>
-                  <TableHead className="font-semibold">Input</TableHead>
-                  <TableHead className="font-semibold">Output</TableHead>
+                  <TableHead className="font-semibold">Input Product</TableHead>
+                  <TableHead className="font-semibold">Output Product</TableHead>
                   <TableHead className="font-semibold">Market</TableHead>
                   <TableHead className="text-right font-semibold">Actions</TableHead>
                 </TableRow>
