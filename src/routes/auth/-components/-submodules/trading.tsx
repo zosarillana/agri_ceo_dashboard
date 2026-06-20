@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { BarChart2, CalendarIcon, PlusCircle, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -156,11 +156,9 @@ export default function TradingDash() {
   const {
     total_volume,
     total_value,
-    avg_price,
     total_orders,
     export_orders,
     local_orders,
-    cwc_orders,
   } = summary;
 
   // ─────────────────────────────────────────────────────
@@ -265,8 +263,8 @@ export default function TradingDash() {
 
           {/* Summary */}
           {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {Array.from({ length: 5 }).map((_, i) => (
                 <Card key={i}>
                   <CardContent className="pt-4 pb-4">
                     <Skeleton className="h-4 w-20 mb-2" />
@@ -276,7 +274,7 @@ export default function TradingDash() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               <Card>
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-muted-foreground mb-1">
@@ -288,7 +286,7 @@ export default function TradingDash() {
               <Card>
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-muted-foreground mb-1">
-                    Total Volume
+                    Total Output Volume
                   </p>
                   <p className="text-xl font-semibold">
                     {fmtNumber(total_volume / 1000, 2)} MT
@@ -320,12 +318,12 @@ export default function TradingDash() {
                   <p className="text-xl font-semibold">{fmt(local_orders)}</p>
                 </CardContent>
               </Card>
-              <Card>
+              {/* <Card>
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-muted-foreground mb-1">CWC</p>
                   <p className="text-xl font-semibold">{fmt(cwc_orders)}</p>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           )}
 
@@ -337,19 +335,19 @@ export default function TradingDash() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Trade Name</TableHead>
-                      <TableHead>Input</TableHead>
-                      <TableHead>Output</TableHead>
+                      <TableHead>Input Product</TableHead>
+                      <TableHead>Output Product</TableHead>
                       <TableHead>Market</TableHead>
-                      <TableHead>Counterparty</TableHead>
-                      <TableHead className="text-right">Price / kg</TableHead>
-                      <TableHead className="text-right">Vol (kg)</TableHead>
-                      <TableHead className="text-right">Vol (MT)</TableHead>
-                      <TableHead className="text-right">Total Value</TableHead>
+                      {/* <TableHead>Counterparty</TableHead> */}
+                      <TableHead className="text-right">Input (kg)</TableHead>
+                      <TableHead className="text-right">Output (kg)</TableHead>
+                      <TableHead className="text-right">Output (MT)</TableHead>
+                      {/* <TableHead className="text-right">Total Value</TableHead> */}
                       <TableHead>Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Array.from({ length: 6 }).map((_, i) => (
+                    {Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
                         <TableCell>
                           <Skeleton className="h-4 w-32" />
@@ -363,9 +361,6 @@ export default function TradingDash() {
                         <TableCell>
                           <Skeleton className="h-5 w-16 rounded-full" />
                         </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-24" />
-                        </TableCell>
                         <TableCell className="text-right">
                           <Skeleton className="h-4 w-16 ml-auto" />
                         </TableCell>
@@ -374,9 +369,6 @@ export default function TradingDash() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Skeleton className="h-4 w-16 ml-auto" />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Skeleton className="h-4 w-20 ml-auto" />
                         </TableCell>
                         <TableCell>
                           <Skeleton className="h-4 w-24" />
@@ -395,16 +387,17 @@ export default function TradingDash() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Trade Name</TableHead>
-                        <TableHead>Input</TableHead>
+                        <TableHead>Input Product</TableHead>
                         <TableHead>Output</TableHead>
                         <TableHead>Market</TableHead>
-                        <TableHead>Counterparty</TableHead>
-                        <TableHead className="text-right">Price / kg</TableHead>
-                        <TableHead className="text-right">Vol (kg)</TableHead>
-                        <TableHead className="text-right">Vol (MT)</TableHead>
-                        <TableHead className="text-right">
+                        {/* <TableHead>Counterparty</TableHead> */}
+                        <TableHead className="text-right">Input (kg)</TableHead>
+                        <TableHead className="text-right">Output (kg)</TableHead>
+                        <TableHead className="text-right">Input (MT)</TableHead>
+                        <TableHead className="text-right">Output (MT)</TableHead>
+                        {/* <TableHead className="text-right">
                           Total Value
-                        </TableHead>
+                        </TableHead> */}
                         <TableHead>Date</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -421,31 +414,34 @@ export default function TradingDash() {
                             {trade.trade_item?.output ?? "—"}
                           </TableCell>
                           <TableCell>{getMarketBadge(trade.market)}</TableCell>
-                          <TableCell className="text-muted-foreground">
+                          {/* <TableCell className="text-muted-foreground">
                             {trade.counterparty ?? "—"}
+                          </TableCell> */}
+                          <TableCell className="text-right tabular-nums">
+                            {trade.input_kg > 0 ? fmt(trade.input_kg) : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {fmtNumber(trade.price_per_kg, 4)}
+                            {trade.output_kg > 0 ? fmt(trade.output_kg) : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {trade.quantity_kg > 0
-                              ? fmt(trade.quantity_kg)
+                            {trade.input_kg > 0
+                              ? fmtNumber(trade.input_kg / 1000, 2)
                               : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {trade.quantity_kg > 0
-                              ? fmtNumber(trade.quantity_kg / 1000, 2)
+                            {trade.output_kg > 0
+                              ? fmtNumber(trade.output_kg / 1000, 2)
                               : "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">
+                          {/* <TableCell className="text-right tabular-nums">
                             {fmtNumber(trade.total_value, 2)}
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell className="text-muted-foreground">
                             {new Date(trade.trade_date).toLocaleDateString()}
                           </TableCell>
                         </TableRow>
                       ))}
-                      {/* Summary Row */}
+                      {/* Summary Row
                       <TableRow className="border-t-2 bg-muted/30">
                         <TableCell colSpan={6} className="font-semibold">
                           Total
@@ -460,7 +456,7 @@ export default function TradingDash() {
                           {fmtNumber(total_value, 2)}
                         </TableCell>
                         <TableCell />
-                      </TableRow>
+                      </TableRow> */}
                     </TableBody>
                   </Table>
                 </div>

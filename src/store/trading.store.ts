@@ -54,9 +54,9 @@ export const useTradingStore = create<TradingStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await tradingService.getLatest(from, to);
-      const trades = response.data;
+      const trades: Trade[] = response.data;
 
-      const totalVolume = trades.reduce((sum, t) => sum + t.quantity_kg, 0);
+      const totalVolume = trades.reduce((sum, t) => sum + t.output_kg, 0);
       const totalValue = trades.reduce((sum, t) => sum + t.total_value, 0);
       const exportOrders = trades.filter((t) => t.market === "Export").length;
       const localOrders = trades.filter((t) => t.market === "Local").length;

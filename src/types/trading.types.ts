@@ -16,8 +16,8 @@ export interface Trade {
   trade_date: string;
   market: Market;
   counterparty: string | null;
-  price_per_kg: number;
-  quantity_kg: number;
+  input_kg: number;        // Changed from price_per_kg
+  output_kg: number;       // Changed from quantity_kg
   total_value: number;
   created_at: string;
   updated_at: string;
@@ -27,8 +27,8 @@ export interface TradePayload {
   trade_item_id: number;
   market: Market;
   counterparty: string | null;
-  price_per_kg: number;
-  quantity_kg: number;
+  input_kg: number;        // Changed from price_per_kg
+  output_kg: number;       // Changed from quantity_kg
 }
 
 export interface TradeSummary {
