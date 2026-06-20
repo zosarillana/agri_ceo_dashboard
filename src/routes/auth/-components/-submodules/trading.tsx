@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { format } from "date-fns";
 import { BarChart2, CalendarIcon, PlusCircle, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,22 @@ import { Market } from "@/types/trading.types";
 // ─── Types ─────────────────────────────────────────────
 
 type Tab = "view" | "input" | "manage";
+
+// Aggregated row: one trade_item, kg summed across every trade for
+// that item within the currently filtered date range.
+type GroupedRow = {
+  key: string;
+  trade_item_id: number | string | null;
+  name: string;
+  input: string;
+  output: string;
+  market: Market;
+  input_kg: number;
+  output_kg: number;
+  first_date: string;
+  last_date: string;
+  entry_count: number;
+};
 
 // ─── Formatters ────────────────────────────────────────
 
@@ -72,6 +88,59 @@ function getCurrentMonthRange() {
     from: format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"),
     to: format(now, "yyyy-MM-dd"),
   };
+}
+
+// Group raw trades by trade_item only (NOT by date) and sum kg fields
+// across every trade for that item in the currently filtered range.
+// Falls back to trade_item name if id isn't present.
+function groupTrades(trades: any[]): GroupedRow[] {
+  const map = new Map<string, GroupedRow>();
+
+  for (const trade of trades) {
+    const itemKey = trade.trade_item_id ?? trade.trade_item?.name ?? "unknown";
+    const key = String(itemKey);
+
+    const existing = map.get(key);
+    const tradeTime = new Date(trade.trade_date).getTime();
+
+    if (existing) {
+      existing.input_kg += Number(trade.input_kg) || 0;
+      existing.output_kg += Number(trade.output_kg) || 0;
+      existing.entry_count += 1;
+
+      if (tradeTime < new Date(existing.first_date).getTime()) {
+        existing.first_date = trade.trade_date;
+      }
+      if (tradeTime > new Date(existing.last_date).getTime()) {
+        existing.last_date = trade.trade_date;
+      }
+    } else {
+      map.set(key, {
+        key,
+        trade_item_id: trade.trade_item_id ?? null,
+        name: trade.trade_item?.name ?? "—",
+        input: trade.trade_item?.input ?? "—",
+        output: trade.trade_item?.output ?? "—",
+        market: trade.market,
+        input_kg: Number(trade.input_kg) || 0,
+        output_kg: Number(trade.output_kg) || 0,
+        first_date: trade.trade_date,
+        last_date: trade.trade_date,
+        entry_count: 1,
+      });
+    }
+  }
+
+  // Stable order by name
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Format the date column: a single date if all entries fall on one day,
+// or a "first – last" range if the item has trades across multiple days.
+function formatDateRange(row: GroupedRow) {
+  const first = new Date(row.first_date).toLocaleDateString();
+  const last = new Date(row.last_date).toLocaleDateString();
+  return first === last ? first : `${first} – ${last}`;
 }
 
 // ─── Component ─────────────────────────────────────────
@@ -160,6 +229,9 @@ export default function TradingDash() {
     export_orders,
     local_orders,
   } = summary;
+
+  // Group raw trades into one row per (trade_item, trade_date), kg summed.
+  const groupedRows = useMemo(() => groupTrades(trades), [trades]);
 
   // ─────────────────────────────────────────────────────
   // 5. RENDER
@@ -338,11 +410,9 @@ export default function TradingDash() {
                       <TableHead>Input Product</TableHead>
                       <TableHead>Output Product</TableHead>
                       <TableHead>Market</TableHead>
-                      {/* <TableHead>Counterparty</TableHead> */}
                       <TableHead className="text-right">Input (kg)</TableHead>
                       <TableHead className="text-right">Output (kg)</TableHead>
                       <TableHead className="text-right">Output (MT)</TableHead>
-                      {/* <TableHead className="text-right">Total Value</TableHead> */}
                       <TableHead>Date</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -377,7 +447,7 @@ export default function TradingDash() {
                     ))}
                   </TableBody>
                 </Table>
-              ) : trades.length === 0 ? (
+              ) : groupedRows.length === 0 ? (
                 <div className="py-10 text-center text-sm text-muted-foreground">
                   No trades found for the selected period.
                 </div>
@@ -390,73 +460,52 @@ export default function TradingDash() {
                         <TableHead>Input Product</TableHead>
                         <TableHead>Output</TableHead>
                         <TableHead>Market</TableHead>
-                        {/* <TableHead>Counterparty</TableHead> */}
                         <TableHead className="text-right">Input (kg)</TableHead>
                         <TableHead className="text-right">Output (kg)</TableHead>
                         <TableHead className="text-right">Input (MT)</TableHead>
                         <TableHead className="text-right">Output (MT)</TableHead>
-                        {/* <TableHead className="text-right">
-                          Total Value
-                        </TableHead> */}
                         <TableHead>Date</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {trades.map((trade) => (
-                        <TableRow key={trade.id}>
+                      {groupedRows.map((row) => (
+                        <TableRow key={row.key}>
                           <TableCell className="font-medium">
-                            {trade.trade_item?.name ?? "—"}
+                            {row.name}
+                            {row.entry_count > 1 && (
+                              <span className="ml-1.5 text-xs text-muted-foreground">
+                                ({row.entry_count} entries)
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {trade.trade_item?.input ?? "—"}
+                            {row.input}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {trade.trade_item?.output ?? "—"}
+                            {row.output}
                           </TableCell>
-                          <TableCell>{getMarketBadge(trade.market)}</TableCell>
-                          {/* <TableCell className="text-muted-foreground">
-                            {trade.counterparty ?? "—"}
-                          </TableCell> */}
+                          <TableCell>{getMarketBadge(row.market)}</TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {trade.input_kg > 0 ? fmt(trade.input_kg) : "—"}
+                            {row.input_kg > 0 ? fmt(row.input_kg) : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {trade.output_kg > 0 ? fmt(trade.output_kg) : "—"}
+                            {row.output_kg > 0 ? fmt(row.output_kg) : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {trade.input_kg > 0
-                              ? fmtNumber(trade.input_kg / 1000, 2)
+                            {row.input_kg > 0
+                              ? fmtNumber(row.input_kg / 1000, 2)
                               : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {trade.output_kg > 0
-                              ? fmtNumber(trade.output_kg / 1000, 2)
+                            {row.output_kg > 0
+                              ? fmtNumber(row.output_kg / 1000, 2)
                               : "—"}
                           </TableCell>
-                          {/* <TableCell className="text-right tabular-nums">
-                            {fmtNumber(trade.total_value, 2)}
-                          </TableCell> */}
-                          <TableCell className="text-muted-foreground">
-                            {new Date(trade.trade_date).toLocaleDateString()}
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {formatDateRange(row)}
                           </TableCell>
                         </TableRow>
                       ))}
-                      {/* Summary Row
-                      <TableRow className="border-t-2 bg-muted/30">
-                        <TableCell colSpan={6} className="font-semibold">
-                          Total
-                        </TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">
-                          {fmt(total_volume)}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">
-                          {fmtNumber(total_volume / 1000, 2)}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">
-                          {fmtNumber(total_value, 2)}
-                        </TableCell>
-                        <TableCell />
-                      </TableRow> */}
                     </TableBody>
                   </Table>
                 </div>
