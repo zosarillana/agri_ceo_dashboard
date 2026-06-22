@@ -49,6 +49,8 @@ import type {
 } from "@/types/maintenance.types";
 import MaintenanceLogForm from "../-forms/maintenance-log-form";
 
+import { useCanSubmitMaintenanceCheck } from "@/hooks/use-can-submit-maintenance-check";
+
 type ViewMode = "view" | "logs";
 
 // ─────────────────────────────────────────────────────────────
@@ -108,9 +110,11 @@ function formatDateTime(date: Date | undefined) {
 function DateTimePicker({
   value,
   onChange,
+  disabled,
 }: {
   value: string;
   onChange: (date: string) => void;
+  disabled?: boolean;
 }) {
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     value ? new Date(value) : undefined,
@@ -148,6 +152,7 @@ function DateTimePicker({
           <PopoverTrigger asChild>
             <Button
               variant="outline"
+              disabled={disabled}
               className={cn(
                 "w-1/2 justify-start text-left font-normal",
                 !selectedDate && "text-muted-foreground",
@@ -174,6 +179,7 @@ function DateTimePicker({
             type="time"
             value={selectedTime}
             onChange={handleTimeChange}
+            disabled={disabled}
             className="w-fulle pl-9"
           />
         </div>
@@ -195,6 +201,8 @@ function LogInput({
   unitName: string;
   onSubmit: (log: MaintenanceLog) => void;
 }) {
+  const canSubmit = useCanSubmitMaintenanceCheck();
+
   const [status, setStatus] = React.useState<MaintenanceStatus>("operational");
   const [notes, setNotes] = React.useState("");
   const [nextScheduled, setNextScheduled] = React.useState("");
@@ -203,6 +211,7 @@ function LogInput({
   const [success, setSuccess] = React.useState(false);
 
   async function handleSubmit() {
+    if (!canSubmit) return; // second line of defense against stray calls
     setLoading(true);
     setSuccess(false);
     try {
@@ -235,7 +244,9 @@ function LogInput({
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors flex justify-between items-center"
       >
-        <span>Submit Maintenance Check</span>
+        <span>
+          {canSubmit ? "Submit Maintenance Check" : "Maintenance Check (view only)"}
+        </span>
         <ChevronDown
           className={cn(
             "h-3 w-3 transition-transform duration-200",
@@ -265,6 +276,11 @@ function LogInput({
                     Check submitted for {unitName}!
                   </span>
                 </motion.div>
+              ) : !canSubmit ? (
+                <div className="flex items-center gap-2 text-muted-foreground bg-muted/50 p-3 rounded-md text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  You don't have permission to submit maintenance checks.
+                </div>
               ) : (
                 <>
                   <div className="space-y-2">
@@ -274,6 +290,7 @@ function LogInput({
                     <Select
                       value={status}
                       onValueChange={(v) => setStatus(v as MaintenanceStatus)}
+                      disabled={!canSubmit}
                     >
                       <SelectTrigger id={`status-${unitId}`} className="w-full">
                         <SelectValue placeholder="Select status" />
@@ -298,16 +315,18 @@ function LogInput({
                       onChange={(e) => setNotes(e.target.value)}
                       className="text-sm"
                       rows={2}
+                      disabled={!canSubmit}
                     />
                   </div>
 
                   <DateTimePicker
                     value={nextScheduled}
                     onChange={setNextScheduled}
+                    disabled={!canSubmit}
                   />
 
                   <Button
-                    disabled={loading}
+                    disabled={loading || !canSubmit}
                     onClick={handleSubmit}
                     className="w-full mt-2"
                     size="sm"

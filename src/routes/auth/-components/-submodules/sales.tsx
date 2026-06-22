@@ -33,9 +33,12 @@ import { useSalesStore } from "@/store/sales.store";
 import { Sale, SalesSummary } from "@/types/sales.types";
 import SalesInputForm from "../-forms/sales-input-form";
 
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
+
 // ─── Types ─────────────────────────────────────────────
 
-type Tab = "view" | "input";
+// type Tab = "view" | "input";
 
 interface SalesDashProps {
   initialData?: {
@@ -77,6 +80,9 @@ function getCurrentMonthRange() {
 // ─── Component ─────────────────────────────────────────
 
 export default function SalesDash({ initialData }: SalesDashProps) {
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role);
+
   const [tab, setTab] = useState<Tab>("view");
 
   // ── Stores ───────────────────────────────────────────
@@ -174,12 +180,14 @@ export default function SalesDash({ initialData }: SalesDashProps) {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize",
+        {(["view", "input"] as Tab[])
+          .filter((t) => allowedTabs.includes(t))
+          .map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize",
               tab === t
                 ? "bg-background shadow-sm text-foreground"
                 : "text-muted-foreground hover:text-foreground",

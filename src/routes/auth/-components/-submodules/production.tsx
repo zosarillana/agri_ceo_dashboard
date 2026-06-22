@@ -41,7 +41,10 @@ import { useProductsStore } from "@/store/products.store";
 import ProductInputForm from "../-forms/product-form";
 import DailyProductionForm from "../-forms/production-form";
 
-type Tab = "view" | "input" | "products";
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
+
+// type Tab = "view" | "input" | "products";
 
 function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
@@ -166,6 +169,9 @@ function ProductTabSkeleton({ rows = 3 }: { rows?: number }) {
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function ProductionDash() {
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role);
+
   const [tab, setTab] = useState<Tab>("view");
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [calOpen, setCalOpen] = useState(false);
@@ -256,22 +262,24 @@ export default function ProductionDash() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input", "products"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
-              tab === t
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
-            {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
-            {t === "products" && <Package className="h-3.5 w-3.5" />}
-            {t}
-          </button>
-        ))}
+        {(["view", "input", "products"] as Tab[])
+          .filter((t) => allowedTabs.includes(t))
+          .map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
+                tab === t
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
+              {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
+              {t === "products" && <Package className="h-3.5 w-3.5" />}
+              {t}
+            </button>
+          ))}
       </div>
 
       {/* ── VIEW TAB ─────────────────────────────────── */}

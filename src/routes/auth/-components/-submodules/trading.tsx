@@ -32,9 +32,12 @@ import TradingInputForm from "../-forms/trading-input-form";
 import TradingManageItemsForm from "../-forms/trading-manage-items-form";
 import { Market } from "@/types/trading.types";
 
-// ─── Types ─────────────────────────────────────────────
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
 
-type Tab = "view" | "input" | "manage";
+// ─── Local tab type for this module (subset of the shared Tab) ────────────────
+type TradingTab = Extract<Tab, "view" | "input" | "manage">;
+const TRADING_TABS: TradingTab[] = ["view", "input", "manage"];
 
 // Aggregated row: one trade_item, kg summed across every trade for
 // that item within the currently filtered date range.
@@ -146,7 +149,15 @@ function formatDateRange(row: GroupedRow) {
 // ─── Component ─────────────────────────────────────────
 
 export default function TradingDash() {
-  const [tab, setTab] = useState<Tab>("view");
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role, "trading");
+
+  // Only tabs this module supports AND that the role is allowed to see
+  const visibleTabs = TRADING_TABS.filter((t) => allowedTabs.includes(t));
+
+  const [tab, setTab] = useState<TradingTab>(
+    visibleTabs.includes("view") ? "view" : (visibleTabs[0] ?? "view"),
+  );
 
   // ── Stores ───────────────────────────────────────────
   const {
@@ -240,7 +251,7 @@ export default function TradingDash() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input", "manage"] as Tab[]).map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -273,7 +284,7 @@ export default function TradingDash() {
       )}
 
       {/* ── VIEW TAB ───────────────────────────── */}
-      {tab === "view" && (
+      {tab === "view" && allowedTabs.includes("view") && (
         <div className="space-y-4">
           {/* Date filter */}
           <div className="flex flex-wrap items-end gap-2">
@@ -390,12 +401,6 @@ export default function TradingDash() {
                   <p className="text-xl font-semibold">{fmt(local_orders)}</p>
                 </CardContent>
               </Card>
-              {/* <Card>
-                <CardContent className="pt-4 pb-4">
-                  <p className="text-xs text-muted-foreground mb-1">CWC</p>
-                  <p className="text-xl font-semibold">{fmt(cwc_orders)}</p>
-                </CardContent>
-              </Card> */}
             </div>
           )}
 
@@ -516,7 +521,7 @@ export default function TradingDash() {
       )}
 
       {/* ── INPUT TAB ───────────────────────────── */}
-      {tab === "input" && (
+      {tab === "input" && allowedTabs.includes("input") && (
         <TradingInputForm
           tradeItems={tradeItems}
           loading={itemsLoading}
@@ -529,7 +534,7 @@ export default function TradingDash() {
       )}
 
       {/* ── MANAGE TAB ───────────────────────────── */}
-      {tab === "manage" && (
+      {tab === "manage" && allowedTabs.includes("manage") && (
         <TradingManageItemsForm
           onItemsChanged={() => {
             fetchTradeItems();

@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { useProcurementStore } from "@/store/procurement.store";
 import { ProcurementStatus } from "@/types/procurement.types";
 import ProcurementInputForm from "../-forms/procurement-input-form";
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
 
 function fmt(n: number) {
   return n.toLocaleString();
@@ -42,7 +44,7 @@ function procurementBadge(status: ProcurementStatus) {
   return <Badge variant="destructive">Delayed</Badge>;
 }
 
-type Tab = "view" | "input";
+// type Tab = "view" | "input";
 
 function ViewSkeleton() {
   return (
@@ -69,6 +71,9 @@ function ViewSkeleton() {
 }
 
 export default function ProcurementDash() {
+    const role = useRole();
+    const allowedTabs = getAllowedTabs(role);
+
   const [tab, setTab] = useState<Tab>("view");
 
   const {
@@ -114,12 +119,14 @@ export default function ProcurementDash() {
     <div className="space-y-4">
       {/* ── Tab navigation ── */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
-              tab === t
+        {(["view", "input"] as Tab[])
+          .filter((t) => allowedTabs.includes(t))
+          .map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
+                tab === t
                 ? "bg-background shadow-sm text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}

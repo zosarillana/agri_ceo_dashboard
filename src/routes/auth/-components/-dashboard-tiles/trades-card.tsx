@@ -1,6 +1,6 @@
 import { Globe } from "lucide-react";
 import { DashCard } from "./shared-dashboard-ui";
-import { fmt } from "@/lib/dashboard-utils";
+// import { fmt } from "@/lib/dashboard-utils";
 
 function fmtMT(kg: number, decimals = 2) {
   return (kg / 1000).toLocaleString(undefined, {

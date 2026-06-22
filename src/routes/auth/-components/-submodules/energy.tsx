@@ -51,6 +51,13 @@ import { cn } from "@/lib/utils";
 
 import EnergyInputForm from "../-forms/energy-input-form";
 
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
+
+// ─── Local tab type for this module (subset of the shared Tab) ────────────────
+type EnergyTab = Extract<Tab, "view" | "input">;
+const ENERGY_TABS: EnergyTab[] = ["view", "input"];
+
 /* ─────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────── */
@@ -434,7 +441,6 @@ function EnergyView({
       </div>
 
       {/* ───────────────── chart ───────────────── */}
-      {/* ───────────────── chart ───────────────── */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">
@@ -527,7 +533,7 @@ function EnergyView({
           </ChartContainer>
         </CardContent>
       </Card>
-      
+
       {/* ───────────────── table ───────────────── */}
       <Card>
         <CardHeader className="pb-2">
@@ -653,10 +659,16 @@ function EnergyView({
    ROOT DASH
 ───────────────────────────────────────────── */
 
-type Tab = "view" | "input";
-
 export default function EnergyDash() {
-  const [tab, setTab] = useState<Tab>("view");
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role);
+
+  // Only tabs this module supports AND that the role is allowed to see
+  const visibleTabs = ENERGY_TABS.filter((t) => allowedTabs.includes(t));
+
+  const [tab, setTab] = useState<EnergyTab>(
+    visibleTabs.includes("view") ? "view" : (visibleTabs[0] ?? "view"),
+  );
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [selectedMonth, setSelectedMonth] = useState<Date | undefined>(
@@ -672,33 +684,37 @@ export default function EnergyDash() {
     <div className="space-y-4">
       {/* ───────────────── tabs ───────────────── */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        <button
-          onClick={() => setTab("view")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-            tab === "view"
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <BarChart2 className="h-3.5 w-3.5" />
-          View
-        </button>
+        {visibleTabs.includes("view") && (
+          <button
+            onClick={() => setTab("view")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              tab === "view"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BarChart2 className="h-3.5 w-3.5" />
+            View
+          </button>
+        )}
 
-        <button
-          onClick={() => setTab("input")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-            tab === "input"
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <PlusCircle className="h-3.5 w-3.5" />
-          Input
-        </button>
+        {visibleTabs.includes("input") && (
+          <button
+            onClick={() => setTab("input")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              tab === "input"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+            Input
+          </button>
+        )}
       </div>
 
       {/* ───────────────── content ───────────────── */}
-      {tab === "view" && (
+      {tab === "view" && allowedTabs.includes("view") && (
         <div className="space-y-4">
           <div className="flex items-end gap-2">
             <div className="space-y-1">
@@ -735,7 +751,9 @@ export default function EnergyDash() {
         </div>
       )}
 
-      {tab === "input" && <EnergyInputForm onSaved={handleSaved} />}
+      {tab === "input" && allowedTabs.includes("input") && (
+        <EnergyInputForm onSaved={handleSaved} />
+      )}
     </div>
   );
 }
