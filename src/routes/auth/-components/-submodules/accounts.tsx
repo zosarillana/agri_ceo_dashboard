@@ -26,9 +26,12 @@ import { useAccountStore } from "@/store/accounts.store";
 import { Account, AccountStatus, AccountType } from "@/types/accounts.types";
 import AccountInputForm from "../-forms/accounts-input-form";
 
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "view" | "input";
+// type Tab = "view" | "input";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -163,6 +166,9 @@ function ViewSkeleton() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AccountsDash() {
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role);
+
   const [tab, setTab] = useState<Tab>("view");
 
   const {
@@ -230,12 +236,14 @@ export default function AccountsDash() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
-              tab === t
+        {(["view", "input"] as Tab[])
+          .filter((t) => allowedTabs.includes(t))
+          .map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
+                tab === t
                 ? "bg-background shadow-sm text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}

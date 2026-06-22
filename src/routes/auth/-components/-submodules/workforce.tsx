@@ -19,6 +19,13 @@ import { cn } from "@/lib/utils";
 import { useWorkforceStore } from "@/store/workforce.store";
 import WorkforceInputForm from "../-forms/workforce-input-form";
 
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
+
+// ─── Local tab type for this module (subset of the shared Tab) ────────────────
+type WorkforceTab = Extract<Tab, "view" | "input">;
+const WORKFORCE_TABS: WorkforceTab[] = ["view", "input"];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function rateBadgeVariant(rate: number) {
@@ -90,7 +97,15 @@ function ViewSkeleton() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function WorkforceDash() {
-  const [activeTab, setActiveTab] = useState<"view" | "input">("view");
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role);
+
+  // Only tabs this module supports AND that the role is allowed to see
+  const visibleTabs = WORKFORCE_TABS.filter((t) => allowedTabs.includes(t));
+
+  const [activeTab, setActiveTab] = useState<WorkforceTab>(
+    visibleTabs.includes("view") ? "view" : (visibleTabs[0] ?? "view"),
+  );
 
   // ── View date state ─────────────────────────────────────────────────────────
   const [dateISO, setDateISO]   = useState(getTodayISO);
@@ -153,7 +168,7 @@ export default function WorkforceDash() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input"] as const).map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -171,7 +186,7 @@ export default function WorkforceDash() {
       </div>
 
       {/* ── VIEW TAB ── */}
-      {activeTab === "view" && (
+      {activeTab === "view" && allowedTabs.includes("view") && (
         <div className="space-y-4">
 
           {/* Date picker — same pattern as SalesDash */}
@@ -428,7 +443,7 @@ export default function WorkforceDash() {
       )}
 
       {/* ── INPUT TAB ── */}
-      {activeTab === "input" && (
+      {activeTab === "input" && allowedTabs.includes("input") && (
         <WorkforceInputForm onSaved={() => setActiveTab("view")} />
       )}
     </div>

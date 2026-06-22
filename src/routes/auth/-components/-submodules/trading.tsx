@@ -32,9 +32,12 @@ import TradingInputForm from "../-forms/trading-input-form";
 import TradingManageItemsForm from "../-forms/trading-manage-items-form";
 import { Market } from "@/types/trading.types";
 
-// ─── Types ─────────────────────────────────────────────
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
 
-type Tab = "view" | "input" | "manage";
+// ─── Local tab type for this module (subset of the shared Tab) ────────────────
+type TradingTab = Extract<Tab, "view" | "input" | "manage">;
+const TRADING_TABS: TradingTab[] = ["view", "input", "manage"];
 
 // Aggregated row: one trade_item, kg summed across every trade for
 // that item within the currently filtered date range.
@@ -54,12 +57,19 @@ type GroupedRow = {
 
 // ─── Formatters ────────────────────────────────────────
 
+// Safely coerce any incoming value (string, number, null, malformed string)
+// to a finite number. Falls back to 0 instead of producing NaN.
+function toSafeNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function fmt(n: number) {
-  return n.toLocaleString();
+  return toSafeNumber(n).toLocaleString();
 }
 
 function fmtNumber(n: number, decimals = 2) {
-  return n.toLocaleString(undefined, {
+  return toSafeNumber(n).toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -104,8 +114,8 @@ function groupTrades(trades: any[]): GroupedRow[] {
     const tradeTime = new Date(trade.trade_date).getTime();
 
     if (existing) {
-      existing.input_kg += Number(trade.input_kg) || 0;
-      existing.output_kg += Number(trade.output_kg) || 0;
+      existing.input_kg += toSafeNumber(trade.input_kg);
+      existing.output_kg += toSafeNumber(trade.output_kg);
       existing.entry_count += 1;
 
       if (tradeTime < new Date(existing.first_date).getTime()) {
@@ -122,8 +132,8 @@ function groupTrades(trades: any[]): GroupedRow[] {
         input: trade.trade_item?.input ?? "—",
         output: trade.trade_item?.output ?? "—",
         market: trade.market,
-        input_kg: Number(trade.input_kg) || 0,
-        output_kg: Number(trade.output_kg) || 0,
+        input_kg: toSafeNumber(trade.input_kg),
+        output_kg: toSafeNumber(trade.output_kg),
         first_date: trade.trade_date,
         last_date: trade.trade_date,
         entry_count: 1,
@@ -146,7 +156,15 @@ function formatDateRange(row: GroupedRow) {
 // ─── Component ─────────────────────────────────────────
 
 export default function TradingDash() {
-  const [tab, setTab] = useState<Tab>("view");
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role, "trading");
+
+  // Only tabs this module supports AND that the role is allowed to see
+  const visibleTabs = TRADING_TABS.filter((t) => allowedTabs.includes(t));
+
+  const [tab, setTab] = useState<TradingTab>(
+    visibleTabs.includes("view") ? "view" : (visibleTabs[0] ?? "view"),
+  );
 
   // ── Stores ───────────────────────────────────────────
   const {
@@ -222,16 +240,28 @@ export default function TradingDash() {
   // ─────────────────────────────────────────────────────
   const loading = tradesLoading || itemsLoading;
 
-  const {
-    total_volume,
-    total_value,
-    total_orders,
-    export_orders,
-    local_orders,
-  } = summary;
+  // Backend summary values, defensively coerced (orders/export/local
+  // were displaying correctly, so we still trust those from the API).
+  const total_orders = toSafeNumber(summary?.total_orders);
+  const export_orders = toSafeNumber(summary?.export_orders);
+  const local_orders = toSafeNumber(summary?.local_orders);
 
-  // Group raw trades into one row per (trade_item, trade_date), kg summed.
+  // Group raw trades into one row per trade_item, kg summed.
   const groupedRows = useMemo(() => groupTrades(trades), [trades]);
+
+  // Input/output volume are derived directly from the visible table rows
+  // rather than trusted from summary.* — the backend aggregate was
+  // returning 0 / malformed values that didn't match the actual trades
+  // being shown, so this guarantees the tiles always agree with the table.
+  const computedInputKg = useMemo(
+    () => groupedRows.reduce((sum, row) => sum + row.input_kg, 0),
+    [groupedRows],
+  );
+
+  const computedOutputKg = useMemo(
+    () => groupedRows.reduce((sum, row) => sum + row.output_kg, 0),
+    [groupedRows],
+  );
 
   // ─────────────────────────────────────────────────────
   // 5. RENDER
@@ -240,7 +270,7 @@ export default function TradingDash() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input", "manage"] as Tab[]).map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -273,7 +303,7 @@ export default function TradingDash() {
       )}
 
       {/* ── VIEW TAB ───────────────────────────── */}
-      {tab === "view" && (
+      {tab === "view" && allowedTabs.includes("view") && (
         <div className="space-y-4">
           {/* Date filter */}
           <div className="flex flex-wrap items-end gap-2">
@@ -358,23 +388,26 @@ export default function TradingDash() {
               <Card>
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-muted-foreground mb-1">
-                    Total Output Volume
+                    Total Input Volume
                   </p>
                   <p className="text-xl font-semibold">
-                    {fmtNumber(total_volume / 1000, 2)} MT
+                    {fmtNumber(computedInputKg / 1000, 2)} MT
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {fmt(total_volume)} kg
+                    {fmt(computedInputKg)} kg
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-muted-foreground mb-1">
-                    Total Value
+                    Total Output Volume
                   </p>
                   <p className="text-xl font-semibold">
-                    {fmtNumber(total_value, 2)}
+                    {fmtNumber(computedOutputKg / 1000, 2)} MT
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {fmt(computedOutputKg)} kg
                   </p>
                 </CardContent>
               </Card>
@@ -390,12 +423,6 @@ export default function TradingDash() {
                   <p className="text-xl font-semibold">{fmt(local_orders)}</p>
                 </CardContent>
               </Card>
-              {/* <Card>
-                <CardContent className="pt-4 pb-4">
-                  <p className="text-xs text-muted-foreground mb-1">CWC</p>
-                  <p className="text-xl font-semibold">{fmt(cwc_orders)}</p>
-                </CardContent>
-              </Card> */}
             </div>
           )}
 
@@ -516,7 +543,7 @@ export default function TradingDash() {
       )}
 
       {/* ── INPUT TAB ───────────────────────────── */}
-      {tab === "input" && (
+      {tab === "input" && allowedTabs.includes("input") && (
         <TradingInputForm
           tradeItems={tradeItems}
           loading={itemsLoading}
@@ -529,7 +556,7 @@ export default function TradingDash() {
       )}
 
       {/* ── MANAGE TAB ───────────────────────────── */}
-      {tab === "manage" && (
+      {tab === "manage" && allowedTabs.includes("manage") && (
         <TradingManageItemsForm
           onItemsChanged={() => {
             fetchTradeItems();

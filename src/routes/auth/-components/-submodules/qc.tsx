@@ -51,6 +51,13 @@ import { useQcStore } from "@/store/qc.store";
 import { useProductsStore } from "@/store/products.store";
 import QCInputForm from "../../-components/-forms/qc-input-form";
 
+import { useRole } from "@/hooks/use-role";
+import { getAllowedTabs, type Tab } from "@/lib/permissions";
+
+// ─── Local tab type for this module (subset of the shared Tab) ────────────────
+type QcTab = Extract<Tab, "view" | "input">;
+const QC_TABS: QcTab[] = ["view", "input"];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
@@ -107,7 +114,15 @@ function ViewSkeleton() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function QcDash() {
-  const [activeTab, setActiveTab] = React.useState<"view" | "input">("view");
+  const role = useRole();
+  const allowedTabs = getAllowedTabs(role);
+
+  // Only tabs this module supports AND that the role is allowed to see
+  const visibleTabs = QC_TABS.filter((t) => allowedTabs.includes(t));
+
+  const [activeTab, setActiveTab] = React.useState<QcTab>(
+    visibleTabs.includes("view") ? "view" : (visibleTabs[0] ?? "view"),
+  );
   const [timeRange] = React.useState("90d");
 
   // ── Single date picker state ────────────────────────────────────────────────
@@ -210,7 +225,7 @@ export default function QcDash() {
     <div className="space-y-6">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input"] as const).map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -228,7 +243,7 @@ export default function QcDash() {
       </div>
 
       {/* ── VIEW TAB ── */}
-      {activeTab === "view" && (
+      {activeTab === "view" && allowedTabs.includes("view") && (
         <div className="space-y-6">
           {/* Single date picker */}
           <div className="flex items-end gap-2">
@@ -331,25 +346,6 @@ export default function QcDash() {
                           Passed vs failed samples across product lines
                         </CardDescription>
                       </div>
-                      {/* <Select value={timeRange} onValueChange={setTimeRange}>
-                        <SelectTrigger
-                          className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
-                          aria-label="Select a value"
-                        >
-                          <SelectValue placeholder="All products" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="90d" className="rounded-lg">
-                            All products
-                          </SelectItem>
-                          <SelectItem value="30d" className="rounded-lg">
-                            Last 30
-                          </SelectItem>
-                          <SelectItem value="7d" className="rounded-lg">
-                            Last 7
-                          </SelectItem>
-                        </SelectContent>
-                      </Select> */}
                     </CardHeader>
                     <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
                       <ChartContainer
@@ -565,7 +561,7 @@ export default function QcDash() {
       )}
 
       {/* ── INPUT TAB ── */}
-      {activeTab === "input" && (
+      {activeTab === "input" && allowedTabs.includes("input") && (
         <QCInputForm
           products={products.filter((p) => p.is_active)}
           loading={productsLoading}
