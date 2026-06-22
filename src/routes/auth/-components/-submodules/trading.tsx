@@ -57,12 +57,19 @@ type GroupedRow = {
 
 // ─── Formatters ────────────────────────────────────────
 
+// Safely coerce any incoming value (string, number, null, malformed string)
+// to a finite number. Falls back to 0 instead of producing NaN.
+function toSafeNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function fmt(n: number) {
-  return n.toLocaleString();
+  return toSafeNumber(n).toLocaleString();
 }
 
 function fmtNumber(n: number, decimals = 2) {
-  return n.toLocaleString(undefined, {
+  return toSafeNumber(n).toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -107,8 +114,8 @@ function groupTrades(trades: any[]): GroupedRow[] {
     const tradeTime = new Date(trade.trade_date).getTime();
 
     if (existing) {
-      existing.input_kg += Number(trade.input_kg) || 0;
-      existing.output_kg += Number(trade.output_kg) || 0;
+      existing.input_kg += toSafeNumber(trade.input_kg);
+      existing.output_kg += toSafeNumber(trade.output_kg);
       existing.entry_count += 1;
 
       if (tradeTime < new Date(existing.first_date).getTime()) {
@@ -125,8 +132,8 @@ function groupTrades(trades: any[]): GroupedRow[] {
         input: trade.trade_item?.input ?? "—",
         output: trade.trade_item?.output ?? "—",
         market: trade.market,
-        input_kg: Number(trade.input_kg) || 0,
-        output_kg: Number(trade.output_kg) || 0,
+        input_kg: toSafeNumber(trade.input_kg),
+        output_kg: toSafeNumber(trade.output_kg),
         first_date: trade.trade_date,
         last_date: trade.trade_date,
         entry_count: 1,
@@ -233,16 +240,28 @@ export default function TradingDash() {
   // ─────────────────────────────────────────────────────
   const loading = tradesLoading || itemsLoading;
 
-  const {
-    total_volume,
-    total_value,
-    total_orders,
-    export_orders,
-    local_orders,
-  } = summary;
+  // Backend summary values, defensively coerced (orders/export/local
+  // were displaying correctly, so we still trust those from the API).
+  const total_orders = toSafeNumber(summary?.total_orders);
+  const export_orders = toSafeNumber(summary?.export_orders);
+  const local_orders = toSafeNumber(summary?.local_orders);
 
-  // Group raw trades into one row per (trade_item, trade_date), kg summed.
+  // Group raw trades into one row per trade_item, kg summed.
   const groupedRows = useMemo(() => groupTrades(trades), [trades]);
+
+  // Input/output volume are derived directly from the visible table rows
+  // rather than trusted from summary.* — the backend aggregate was
+  // returning 0 / malformed values that didn't match the actual trades
+  // being shown, so this guarantees the tiles always agree with the table.
+  const computedInputKg = useMemo(
+    () => groupedRows.reduce((sum, row) => sum + row.input_kg, 0),
+    [groupedRows],
+  );
+
+  const computedOutputKg = useMemo(
+    () => groupedRows.reduce((sum, row) => sum + row.output_kg, 0),
+    [groupedRows],
+  );
 
   // ─────────────────────────────────────────────────────
   // 5. RENDER
@@ -369,23 +388,26 @@ export default function TradingDash() {
               <Card>
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-muted-foreground mb-1">
-                    Total Output Volume
+                    Total Input Volume
                   </p>
                   <p className="text-xl font-semibold">
-                    {fmtNumber(total_volume / 1000, 2)} MT
+                    {fmtNumber(computedInputKg / 1000, 2)} MT
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {fmt(total_volume)} kg
+                    {fmt(computedInputKg)} kg
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-muted-foreground mb-1">
-                    Total Value
+                    Total Output Volume
                   </p>
                   <p className="text-xl font-semibold">
-                    {fmtNumber(total_value, 2)}
+                    {fmtNumber(computedOutputKg / 1000, 2)} MT
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {fmt(computedOutputKg)} kg
                   </p>
                 </CardContent>
               </Card>
