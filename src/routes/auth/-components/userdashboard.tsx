@@ -50,7 +50,7 @@ const DEPARTMENT_TILES: Record<string, DashboardSegment[]> = {
   maintenance: ["maintenance"],
   energy: ["energy"],
   qc: ["qc"],
-  "quality control": ["qc"],
+  quality_control: ["qc"],
   procurement: ["procurement"],
   workforce: ["workforce"],
   trading: ["trading"],
@@ -185,7 +185,9 @@ export default function UserDashboard() {
                   key={d.id}
                   className="text-xs font-semibold capitalize px-2 py-0.5 rounded-md bg-muted"
                 >
-                  {d.name}
+                  {d.name
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (c) => c.toUpperCase())}
                 </span>
               ))
             ) : (
