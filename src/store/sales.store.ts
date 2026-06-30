@@ -17,6 +17,7 @@ type SalesStore = {
 
   setSalesData: (sales: Sale[], summary: SalesSummary, dateRange: DateRange) => void;
   fetchLatest: (from?: string, to?: string) => Promise<void>;
+  fetchAllSales: (from?: string, to?: string) => Promise<void>;
   fetchSummary: (from?: string, to?: string) => Promise<void>;
   fetchAll: (from?: string, to?: string) => Promise<void>;
   setDateRange: (range: DateRange) => void;
@@ -26,7 +27,9 @@ type SalesStore = {
 
 const defaultSummary: SalesSummary = {
   total_sales_usd: 0,
+  total_sales_raw: 0,
   total_quantity_kg: 0,
+  asp_total_usd: 0,
   export_count: 0,
   local_count: 0,
   detailed_summary: [],
@@ -46,10 +49,23 @@ export const useSalesStore = create<SalesStore>((set, get) => ({
   setSalesData: (sales, summary, dateRange) =>
     set({ sales, summary, dateRange }),
 
-  // Raw fetchers — no loading management, fetchAll owns that
+  // Raw fetcher — latest-per-product only. Kept in case anything else
+  // in the app still wants this view; no longer used by fetchAll.
   fetchLatest: async (from?: string, to?: string) => {
     try {
       const response = await salesService.getLatest(from, to);
+      set({ sales: response.data });
+    } catch (err: any) {
+      set({ error: err?.response?.data?.message ?? "Failed to fetch sales." });
+    }
+  },
+
+  // Raw fetcher — ALL sale rows in range (not collapsed to latest-per-product).
+  // This is what the grouped table view needs to show real entry counts
+  // and date ranges per product.
+  fetchAllSales: async (from?: string, to?: string) => {
+    try {
+      const response = await salesService.getAll(from, to);
       set({ sales: response.data });
     } catch (err: any) {
       set({ error: err?.response?.data?.message ?? "Failed to fetch sales." });
@@ -70,7 +86,7 @@ export const useSalesStore = create<SalesStore>((set, get) => ({
     set({ loading: true, error: null, dateRange: { from: from ?? null, to: to ?? null } });
     try {
       await Promise.all([
-        get().fetchLatest(from, to),
+        get().fetchAllSales(from, to),
         get().fetchSummary(from, to),
       ]);
     } finally {
@@ -95,7 +111,7 @@ export const useSalesStore = create<SalesStore>((set, get) => ({
       const { from, to } = get().dateRange;
       await get().fetchAll(from ?? undefined, to ?? undefined);
     } catch (err: any) {
-      set({ error: err?.response?.data?.message ?? "Failed to save sales." });
+      set({ error: err?.response?.data?.message ?? "Failed to fetch sales." });
       throw err;
     } finally {
       set({ saving: false });

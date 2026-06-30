@@ -22,6 +22,15 @@ export const salesService = {
     return response.data;
   },
 
+  // NEW — calls index(), now returns ALL rows in range (not latest-per-product)
+  getAll: async (from?: string, to?: string): Promise<{ data: Sale[] }> => {
+    const params = new URLSearchParams();
+    if (from) params.append("from", from);
+    if (to) params.append("to", to);
+    const response = await api.get(`api/sales?${params.toString()}`);
+    return response.data;
+  },
+
   getSummary: async (from?: string, to?: string) => {
     const params = new URLSearchParams();
     if (from) params.append("from", from);
