@@ -11,10 +11,12 @@ export interface Sale {
     unit?: string;
   };
   market: Market;
+  sales: number;
   asp_per_kg: number;
+  asp_total_usd: number;
   quantity_kg: number;
   total_sales_usd: number;
-  sale_date: string; // Added this field
+  sale_date: string;
   created_at: string;
   updated_at: string;
 }
@@ -22,23 +24,26 @@ export interface Sale {
 export interface SalePayload {
   product_id: number;
   market: Market;
+  sales: number;
   asp_per_kg: number;
   quantity_kg: number;
 }
 
 export interface SalesSummary {
   total_sales_usd: number;
+  total_sales_raw: number;
   total_quantity_kg: number;
+  asp_total_usd: number;
   export_count: number;
   local_count: number;
   from: string | null;
   to: string | null;
   detailed_summary: {
     product_id: number;
-    product_name: string;
-    total_sales_usd: number;
+    market: Market;
     total_quantity_kg: number;
-    export_count: number;
-    local_count: number;
+    total_sales_usd: number;
+    total_sales_raw: number;
+    asp_total_usd: number;
   }[];
 }
