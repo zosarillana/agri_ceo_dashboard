@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { BarChart2, CalendarIcon, PlusCircle } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,16 +84,45 @@ function fmtUSD(n: number) {
   );
 }
 
-// ─── Month helper ───────────────────────────────────────
+// ─── Date Helpers ───────────────────────────────────────
 
+/**
+ * Parse a date string in YYYY-MM-DD format as local date
+ * This prevents timezone issues with UTC date parsing
+ */
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    return new Date(
+      parseInt(parts[0]),
+      parseInt(parts[1]) - 1,
+      parseInt(parts[2]),
+    );
+  }
+  return new Date(dateStr);
+}
+
+/**
+ * Format a date to YYYY-MM-DD string using local timezone
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Get the current month range in local timezone
+ */
 function getCurrentMonthRange() {
   const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const from = startOfMonth(now);
+  const to = endOfMonth(now);
 
   return {
-    from: format(from, "yyyy-MM-dd"),
-    to: format(to, "yyyy-MM-dd"),
+    from: formatLocalDate(from),
+    to: formatLocalDate(to),
   };
 }
 
@@ -112,7 +141,7 @@ function groupSales(sales: Sale[]): GroupedRow[] {
     const total = toSafeNumber(sale.total_sales_usd);
     const salesAmount = toSafeNumber(sale.sales);
     const aspTotal = toSafeNumber(sale.asp_total_usd);
-    
+
     // Calculate weighted ASP contribution (ASP * quantity)
     const weightedAsp = aspTotal * qty;
 
@@ -160,8 +189,8 @@ function groupSales(sales: Sale[]): GroupedRow[] {
 // Format the date column: a single date if all entries fall on one day,
 // or a "first – last" range if the product has sales across multiple days.
 function formatDateRange(row: GroupedRow) {
-  const first = new Date(row.first_date).toLocaleDateString();
-  const last = new Date(row.last_date).toLocaleDateString();
+  const first = parseLocalDate(row.first_date).toLocaleDateString();
+  const last = parseLocalDate(row.last_date).toLocaleDateString();
   return first === last ? first : `${first} – ${last}`;
 }
 
@@ -225,16 +254,16 @@ export default function SalesDash({ initialData }: SalesDashProps) {
   // 3. DATE PICKER LOCAL STATE
   // ─────────────────────────────────────────────────────
   const [from, setFrom] = useState<Date | undefined>(
-    dateRange.from ? new Date(dateRange.from) : undefined,
+    dateRange.from ? parseLocalDate(dateRange.from) : undefined,
   );
 
   const [to, setTo] = useState<Date | undefined>(
-    dateRange.to ? new Date(dateRange.to) : undefined,
+    dateRange.to ? parseLocalDate(dateRange.to) : undefined,
   );
 
   useEffect(() => {
-    setFrom(dateRange.from ? new Date(dateRange.from) : undefined);
-    setTo(dateRange.to ? new Date(dateRange.to) : undefined);
+    setFrom(dateRange.from ? parseLocalDate(dateRange.from) : undefined);
+    setTo(dateRange.to ? parseLocalDate(dateRange.to) : undefined);
   }, [dateRange]);
 
   // ─────────────────────────────────────────────────────
@@ -242,8 +271,8 @@ export default function SalesDash({ initialData }: SalesDashProps) {
   // ─────────────────────────────────────────────────────
   function handleFilter() {
     setDateRange({
-      from: from ? format(from, "yyyy-MM-dd") : null,
-      to: to ? format(to, "yyyy-MM-dd") : null,
+      from: from ? formatLocalDate(from) : null,
+      to: to ? formatLocalDate(to) : null,
     });
   }
 
@@ -385,9 +414,7 @@ export default function SalesDash({ initialData }: SalesDashProps) {
               </Card>
               <Card>
                 <CardContent className="pt-4 pb-4">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    ASP
-                  </p>
+                  <p className="text-xs text-muted-foreground mb-1">ASP</p>
                   <p className="text-2xl font-semibold">
                     {fmtUSD(asp_total_usd)}
                   </p>
