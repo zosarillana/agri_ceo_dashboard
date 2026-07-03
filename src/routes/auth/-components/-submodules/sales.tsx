@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { BarChart2, CalendarIcon, PlusCircle } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,43 +86,12 @@ function fmtUSD(n: number) {
 
 // ─── Date Helpers ───────────────────────────────────────
 
-/**
- * Parse a date string in YYYY-MM-DD format as local date
- * This prevents timezone issues with UTC date parsing
- */
-function parseLocalDate(dateStr: string): Date {
-  const parts = dateStr.split("-");
-  if (parts.length === 3) {
-    return new Date(
-      parseInt(parts[0]),
-      parseInt(parts[1]) - 1,
-      parseInt(parts[2]),
-    );
-  }
-  return new Date(dateStr);
-}
-
-/**
- * Format a date to YYYY-MM-DD string using local timezone
- */
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Get the current month range in local timezone
- */
 function getCurrentMonthRange() {
   const now = new Date();
-  const from = startOfMonth(now);
-  const to = endOfMonth(now);
 
   return {
-    from: formatLocalDate(from),
-    to: formatLocalDate(to),
+    from: format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"),
+    to: format(now, "yyyy-MM-dd"),
   };
 }
 
@@ -189,8 +158,8 @@ function groupSales(sales: Sale[]): GroupedRow[] {
 // Format the date column: a single date if all entries fall on one day,
 // or a "first – last" range if the product has sales across multiple days.
 function formatDateRange(row: GroupedRow) {
-  const first = parseLocalDate(row.first_date).toLocaleDateString();
-  const last = parseLocalDate(row.last_date).toLocaleDateString();
+  const first = new Date(row.first_date).toLocaleDateString();
+  const last = new Date(row.last_date).toLocaleDateString();
   return first === last ? first : `${first} – ${last}`;
 }
 
@@ -232,7 +201,7 @@ export default function SalesDash({ initialData }: SalesDashProps) {
       setSalesData(
         initialData.sales,
         initialData.summary,
-        initialData.dateRange,
+        getCurrentMonthRange(), // always compute client-side, ignore server's dateRange
       );
     } else {
       setDateRange(getCurrentMonthRange());
@@ -254,16 +223,16 @@ export default function SalesDash({ initialData }: SalesDashProps) {
   // 3. DATE PICKER LOCAL STATE
   // ─────────────────────────────────────────────────────
   const [from, setFrom] = useState<Date | undefined>(
-    dateRange.from ? parseLocalDate(dateRange.from) : undefined,
+    dateRange.from ? new Date(dateRange.from) : undefined,
   );
 
   const [to, setTo] = useState<Date | undefined>(
-    dateRange.to ? parseLocalDate(dateRange.to) : undefined,
+    dateRange.to ? new Date(dateRange.to) : undefined,
   );
 
   useEffect(() => {
-    setFrom(dateRange.from ? parseLocalDate(dateRange.from) : undefined);
-    setTo(dateRange.to ? parseLocalDate(dateRange.to) : undefined);
+    setFrom(dateRange.from ? new Date(dateRange.from) : undefined);
+    setTo(dateRange.to ? new Date(dateRange.to) : undefined);
   }, [dateRange]);
 
   // ─────────────────────────────────────────────────────
@@ -271,8 +240,8 @@ export default function SalesDash({ initialData }: SalesDashProps) {
   // ─────────────────────────────────────────────────────
   function handleFilter() {
     setDateRange({
-      from: from ? formatLocalDate(from) : null,
-      to: to ? formatLocalDate(to) : null,
+      from: from ? format(from, "yyyy-MM-dd") : null,
+      to: to ? format(to, "yyyy-MM-dd") : null,
     });
   }
 
@@ -337,7 +306,7 @@ export default function SalesDash({ initialData }: SalesDashProps) {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-[240px] h-9 justify-start"
+                    className="w-[200px] h-9 justify-start"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {from ? format(from, "PPP") : "Select start date"}
@@ -355,7 +324,7 @@ export default function SalesDash({ initialData }: SalesDashProps) {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-[240px] h-9 justify-start"
+                    className="w-[200px] h-9 justify-start"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {to ? format(to, "PPP") : "Select end date"}
