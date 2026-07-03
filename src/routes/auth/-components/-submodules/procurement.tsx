@@ -33,6 +33,15 @@ function fmt(n: number) {
   return n.toLocaleString();
 }
 
+function getCurrentMonthRange() {
+  const now = new Date();
+
+  return {
+    from: format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"),
+    to: format(now, "yyyy-MM-dd"),
+  };
+}
+
 function procurementBadge(status: ProcurementStatus) {
   if (status === "received")
     return (
@@ -79,6 +88,7 @@ export default function ProcurementDash() {
   const {
     records,
     summary,
+    dateRange,
     loading,
     fetchLatest,
     setDateRange,
@@ -87,15 +97,28 @@ export default function ProcurementDash() {
 
   const fetched = useRef(false);
   useEffect(() => {
-    if (!fetched.current) {
-      fetched.current = true;
-      fetchLatest();
+    if (fetched.current) return;
+    fetched.current = true;
+
+    if (!dateRange.from) {
+      setDateRange(getCurrentMonthRange());
+    } else {
+      fetchLatest(dateRange.from ?? undefined, dateRange.to ?? undefined);
     }
-  }, [fetchLatest]);
+  }, []);
 
   // Date range filter state
-  const [from, setFrom] = useState<Date | undefined>();
-  const [to, setTo] = useState<Date | undefined>();
+  const [from, setFrom] = useState<Date | undefined>(
+    dateRange.from ? new Date(dateRange.from) : undefined,
+  );
+  const [to, setTo] = useState<Date | undefined>(
+    dateRange.to ? new Date(dateRange.to) : undefined,
+  );
+
+  useEffect(() => {
+    setFrom(dateRange.from ? new Date(dateRange.from) : undefined);
+    setTo(dateRange.to ? new Date(dateRange.to) : undefined);
+  }, [dateRange.from, dateRange.to]);
 
   function handleFilter() {
     setDateRange({

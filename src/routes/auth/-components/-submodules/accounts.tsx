@@ -35,6 +35,15 @@ import { getAllowedTabs, type Tab } from "@/lib/permissions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function getCurrentMonthRange() {
+  const now = new Date();
+
+  return {
+    from: format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"),
+    to: format(now, "yyyy-MM-dd"),
+  };
+}
+
 function formatUSD(n: number) {
   return (
     "$" +
@@ -183,11 +192,15 @@ export default function AccountsDash() {
 
   const fetched = useRef(false);
   useEffect(() => {
-    if (!fetched.current) {
-      fetched.current = true;
-      fetchAll();
+    if (fetched.current) return;
+    fetched.current = true;
+
+    if (!dateRange.from) {
+      setDateRange(getCurrentMonthRange());
+    } else {
+      fetchAll(dateRange.from ?? undefined, dateRange.to ?? undefined);
     }
-  }, [fetchAll]);
+  }, []);
 
   // ── Date filter state ─────────────────────────────────────────────────────
   const [from, setFrom] = useState<Date | undefined>(
