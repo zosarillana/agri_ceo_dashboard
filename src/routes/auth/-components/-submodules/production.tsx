@@ -26,6 +26,7 @@ import {
   BarChart2,
   Package,
   PlusCircle,
+  Import,
 } from "lucide-react";
 import {
   Popover,
@@ -43,6 +44,8 @@ import DailyProductionForm from "../-forms/production-form";
 
 import { useRole } from "@/hooks/use-role";
 import { getAllowedTabs, type Tab } from "@/lib/permissions";
+import ProductionImportForm from "../-imports/production-import";
+import ProductionImportViewer from "../-imports/production-import-viewer";
 
 // type Tab = "view" | "input" | "products";
 
@@ -262,7 +265,7 @@ export default function ProductionDash() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input", "products"] as Tab[])
+        {(["view", "input", "products", "import"] as Tab[])
           .filter((t) => allowedTabs.includes(t))
           .map((t) => (
             <button
@@ -277,6 +280,7 @@ export default function ProductionDash() {
               {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
               {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
               {t === "products" && <Package className="h-3.5 w-3.5" />}
+              {t === "import" && <Import className="h-3.5 w-3.5" />}
               {t}
             </button>
           ))}
@@ -620,6 +624,24 @@ export default function ProductionDash() {
           {productsLoading ? <ProductTabSkeleton /> : null}
 
           <ProductInputForm onSave={handleProductSave} />
+        </>
+      )}
+
+      {/* ── IMPORT TAB ─────────────────────────────── */}
+      {tab === "import" && (
+        <>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">
+                Import Products
+              </CardTitle>
+              <CardDescription>
+                Import product data into the system
+              </CardDescription>
+            </CardHeader>
+          </Card>
+          <ProductionImportForm onImported={() => fetchByDate(selectedISO)} />
+          <ProductionImportViewer />
         </>
       )}
     </div>
