@@ -63,8 +63,9 @@ type SheetMatch = {
 
 type BatchResult = {
   sheetName: string;
-  status: "success" | "error" | "skipped";
+  status: "success" | "partial" | "error" | "skipped";
   message: string;
+  syncErrors?: { row_name: string; message: string }[];
 };
 
 const GRID_PREVIEW_ROWS = 12;
@@ -136,12 +137,12 @@ const MONTH_NAMES = [
   "july", "august", "september", "october", "november", "december",
 ];
 
-// Best-effort guess at a sheet's date from its tab name (e.g. "JULY 6",
-// "July 6 Report"). Falls back to null when nothing recognizable is
-// found — the person can always set/correct the date manually before
-// importing.
+// Best-effort guess at a sheet's date from its tab name. Handles spaced
+// ("JULY 6", "July 6 Report"), separated ("July-6", "July_6", "July.6"),
+// and squashed-together ("JULY11", "July6") tab names — the separator
+// between month and day is optional, not required.
 function guessDateFromSheetName(name: string): string | null {
-  const match = name.trim().match(/([A-Za-z]{3,9})\s+(\d{1,2})/);
+  const match = name.trim().match(/([A-Za-z]{3,9})[\s\-_.]*(\d{1,2})(?!\d)/);
   if (!match) return null;
   const [, monthPart, dayPart] = match;
   const monthLower = monthPart.toLowerCase();
@@ -358,12 +359,14 @@ export default function ProductionImportForm({ onImported }: Props) {
 
         const result = await importService.submitImport(form);
         const sync = result.production_sync;
+        const hasErrors = !!sync && sync.errors.length > 0;
         results.push({
           sheetName: match.sheetName,
-          status: "success",
+          status: hasErrors ? "partial" : "success",
           message: sync
-            ? `${result.imported_rows} rows logged, ${sync.matched} synced to Production Entries, ${sync.skipped} skipped.`
+            ? `${result.imported_rows} rows logged, ${sync.matched} synced to Production Entries, ${sync.skipped} skipped${hasErrors ? `, ${sync.errors.length} failed` : ""}.`
             : `${result.imported_rows} rows logged.`,
+          syncErrors: sync?.errors,
         });
       } catch (err: any) {
         results.push({
@@ -1038,7 +1041,13 @@ export default function ProductionImportForm({ onImported }: Props) {
 
           {/* Result */}
           {lastResult && (
-            <Card className="border-emerald-200">
+            <Card
+              className={
+                lastResult.production_sync && lastResult.production_sync.errors.length > 0
+                  ? "border-rose-200"
+                  : "border-emerald-200"
+              }
+            >
               <CardContent className="pt-6 space-y-2">
                 <p className="text-sm flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -1055,7 +1064,30 @@ export default function ProductionImportForm({ onImported }: Props) {
                       <Badge variant="outline">
                         {lastResult.production_sync.skipped} skipped
                       </Badge>
+                      {lastResult.production_sync.errors.length > 0 && (
+                        <Badge variant="destructive">
+                          {lastResult.production_sync.errors.length} error
+                          {lastResult.production_sync.errors.length !== 1 ? "s" : ""}
+                        </Badge>
+                      )}
                     </div>
+                    {lastResult.production_sync.errors.length > 0 && (
+                      <details open>
+                        <summary className="text-xs text-rose-600 cursor-pointer font-medium">
+                          {lastResult.production_sync.errors.length} row
+                          {lastResult.production_sync.errors.length !== 1 ? "s" : ""} failed to
+                          sync — click to see why
+                        </summary>
+                        <ul className="text-xs mt-1 pl-4 list-disc space-y-1">
+                          {lastResult.production_sync.errors.map((err, i) => (
+                            <li key={i}>
+                              <span className="font-medium">{err.row_name}</span>
+                              <span className="text-muted-foreground"> — {err.message}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                     {lastResult.production_sync.unmatched_names.length > 0 && (
                       <details>
                         <summary className="text-xs text-muted-foreground cursor-pointer">
@@ -1193,15 +1225,33 @@ export default function ProductionImportForm({ onImported }: Props) {
                         {r.status === "success" && (
                           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                         )}
+                        {r.status === "partial" && (
+                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        )}
                         {r.status === "error" && (
                           <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
                         )}
                         {r.status === "skipped" && (
                           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                         )}
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium">{r.sheetName}</p>
                           <p className="text-xs text-muted-foreground">{r.message}</p>
+                          {r.syncErrors && r.syncErrors.length > 0 && (
+                            <details className="mt-1">
+                              <summary className="text-xs text-rose-600 cursor-pointer font-medium">
+                                See which rows failed
+                              </summary>
+                              <ul className="text-xs mt-1 pl-4 list-disc space-y-1">
+                                {r.syncErrors.map((err, i) => (
+                                  <li key={i}>
+                                    <span className="font-medium">{err.row_name}</span>
+                                    <span className="text-muted-foreground"> — {err.message}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
                         </div>
                       </div>
                     ))}

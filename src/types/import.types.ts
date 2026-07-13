@@ -22,10 +22,17 @@ export type ImportTemplate = {
   column_map: ImportTemplateColumn[];
 };
 
+export type ProductionSyncError = {
+  row_name: string;
+  product_id: number | null;
+  message: string;
+};
+
 export type ProductionSyncStats = {
   matched: number;
   skipped: number;
   unmatched_names: string[];
+  errors: ProductionSyncError[];
 };
 
 export type ImportResult = {
