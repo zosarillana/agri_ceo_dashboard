@@ -41,15 +41,31 @@ import {
   CalendarIcon,
   CheckCircle2,
   AlertTriangle,
+  Layers,
   X,
 } from "lucide-react";
 
 import { useImportStore } from "@/store/import.store";
+import { importService } from "@/services/import.service";
 import {
   ImportColumnRole,
   ImportTemplate,
   ParsedColumn,
 } from "@/types/import.types";
+
+type SheetMatch = {
+  sheetName: string;
+  headerRowIndex: number;
+  template: ImportTemplate | null;
+  date: string; // yyyy-mm-dd, editable
+  include: boolean;
+};
+
+type BatchResult = {
+  sheetName: string;
+  status: "success" | "error" | "skipped";
+  message: string;
+};
 
 const GRID_PREVIEW_ROWS = 12;
 const GRID_PREVIEW_COLS = 20;
@@ -105,6 +121,41 @@ function dateToISO(d: Date) {
   return d.toLocaleDateString("en-CA");
 }
 
+// Mirrors ImportTemplate::matches() on the backend: every label in the
+// template's saved signature must appear somewhere in this sheet's header
+// row (case/whitespace-insensitive). Extra columns in the sheet are fine.
+function clientTemplateMatches(headerLabels: string[], template: ImportTemplate): boolean {
+  const incoming = new Set(
+    headerLabels.map((l) => l.trim().toLowerCase()).filter((l) => l !== ""),
+  );
+  return template.signature.every((label) => incoming.has(label.trim().toLowerCase()));
+}
+
+const MONTH_NAMES = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+// Best-effort guess at a sheet's date from its tab name (e.g. "JULY 6",
+// "July 6 Report"). Falls back to null when nothing recognizable is
+// found — the person can always set/correct the date manually before
+// importing.
+function guessDateFromSheetName(name: string): string | null {
+  const match = name.trim().match(/([A-Za-z]{3,9})\s+(\d{1,2})/);
+  if (!match) return null;
+  const [, monthPart, dayPart] = match;
+  const monthLower = monthPart.toLowerCase();
+  let monthIndex = MONTH_NAMES.findIndex((m) => m === monthLower);
+  if (monthIndex === -1) {
+    monthIndex = MONTH_NAMES.findIndex((m) => m.slice(0, 3) === monthLower.slice(0, 3));
+  }
+  if (monthIndex === -1) return null;
+  const day = parseInt(dayPart, 10);
+  if (isNaN(day) || day < 1 || day > 31) return null;
+  const date = new Date(new Date().getFullYear(), monthIndex, day);
+  return dateToISO(date);
+}
+
 type Props = {
   onImported?: () => void;
 };
@@ -144,6 +195,13 @@ export default function ProductionImportForm({ onImported }: Props) {
   const [productionDate, setProductionDate] = useState<Date>(() => new Date());
   const [calOpen, setCalOpen] = useState(false);
 
+  // Import-all-sheets mode
+  const [mode, setMode] = useState<"single" | "all">("single");
+  const [sheetMatches, setSheetMatches] = useState<SheetMatch[]>([]);
+  const [scanningAll, setScanningAll] = useState(false);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
+
   useEffect(() => {
     fetchTemplates();
   }, [fetchTemplates]);
@@ -162,6 +220,9 @@ export default function ProductionImportForm({ onImported }: Props) {
     setColumnRoles({});
     setMatchedTemplate(null);
     setTemplateName("");
+    setMode("single");
+    setSheetMatches([]);
+    setBatchResults([]);
     reset();
   };
 
@@ -191,6 +252,131 @@ export default function ProductionImportForm({ onImported }: Props) {
     setShowAllGridRows(false);
     setSelectedColumns(new Set());
     setColumnRoles({});
+  };
+
+  // Scans every sheet in the workbook, matches each against the saved
+  // templates (client-side, using the same rule as ImportTemplate::matches
+  // on the backend), and best-effort guesses a production date from the
+  // sheet's tab name. Nothing is sent to the server here — this is purely
+  // local so the person can review/correct matches and dates before
+  // committing to the batch import.
+  const scanAllSheets = useCallback(() => {
+    if (!workbook) return;
+    setScanningAll(true);
+    setBatchResults([]);
+    try {
+      const matches: SheetMatch[] = sheetNames.map((name) => {
+        const ws = workbook.Sheets[name];
+        const raw = getRawRows(ws);
+        const headerRowIndex = raw.length ? guessHeaderRow(raw) : 0;
+        const headerLabels = (raw[headerRowIndex] ?? []).map((v) => String(v).trim());
+
+        const template =
+          templates.find((t) => clientTemplateMatches(headerLabels, t)) ?? null;
+
+        return {
+          sheetName: name,
+          headerRowIndex,
+          template,
+          date: guessDateFromSheetName(name) ?? dateToISO(new Date()),
+          include: template != null,
+        };
+      });
+      setSheetMatches(matches);
+    } finally {
+      setScanningAll(false);
+    }
+  }, [workbook, sheetNames, templates]);
+
+  useEffect(() => {
+    if (mode === "all" && workbook) {
+      scanAllSheets();
+    }
+    // Deliberately not depending on scanAllSheets itself — it's rebuilt
+    // every render via useCallback, and we only want to re-scan when the
+    // workbook or the switch into "all" mode actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, workbook]);
+
+  const updateSheetMatchDate = (sheetName: string, date: string) => {
+    setSheetMatches((prev) =>
+      prev.map((m) => (m.sheetName === sheetName ? { ...m, date } : m)),
+    );
+  };
+
+  const toggleSheetMatchInclude = (sheetName: string) => {
+    setSheetMatches((prev) =>
+      prev.map((m) => (m.sheetName === sheetName ? { ...m, include: !m.include } : m)),
+    );
+  };
+
+  // Only toggles sheets that actually matched a template — unmatched
+  // sheets have no template to import against, so their checkbox stays
+  // disabled and untouched regardless of this toggle's state.
+  const matchableSheetCount = sheetMatches.filter((m) => m.template).length;
+  const includedSheetCount = sheetMatches.filter((m) => m.template && m.include).length;
+
+  const toggleAllSheetMatches = () => {
+    const allIncluded = includedSheetCount === matchableSheetCount && matchableSheetCount > 0;
+    setSheetMatches((prev) =>
+      prev.map((m) => (m.template ? { ...m, include: !allIncluded } : m)),
+    );
+  };
+
+  // Imports every included, matched sheet sequentially against the
+  // existing single-sheet /api/imports endpoint — no new backend route
+  // needed. Sequential (not Promise.all) so the server isn't hit with N
+  // concurrent multipart uploads of the same file, and so one sheet's
+  // failure doesn't cancel the others.
+  const submitAllSheets = async () => {
+    if (!rawFile) return;
+    const toImport = sheetMatches.filter((m) => m.include && m.template);
+    if (toImport.length === 0) return;
+
+    setBatchSubmitting(true);
+    setBatchResults([]);
+    const results: BatchResult[] = [];
+
+    for (const match of toImport) {
+      if (!match.date) {
+        results.push({
+          sheetName: match.sheetName,
+          status: "skipped",
+          message: "No date set.",
+        });
+        setBatchResults([...results]);
+        continue;
+      }
+      try {
+        const form = new FormData();
+        form.append("file", rawFile);
+        form.append("sheet_name", match.sheetName);
+        form.append("production_date", match.date);
+        form.append("template_id", String(match.template!.id));
+        // No selected_row_indices — every non-blank row in each sheet
+        // is imported in batch mode.
+
+        const result = await importService.submitImport(form);
+        const sync = result.production_sync;
+        results.push({
+          sheetName: match.sheetName,
+          status: "success",
+          message: sync
+            ? `${result.imported_rows} rows logged, ${sync.matched} synced to Production Entries, ${sync.skipped} skipped.`
+            : `${result.imported_rows} rows logged.`,
+        });
+      } catch (err: any) {
+        results.push({
+          sheetName: match.sheetName,
+          status: "error",
+          message: err?.response?.data?.message ?? "Import failed.",
+        });
+      }
+      setBatchResults([...results]);
+    }
+
+    setBatchSubmitting(false);
+    onImported?.();
   };
 
   const handleFile = useCallback((file: File | undefined) => {
@@ -415,7 +601,26 @@ export default function ProductionImportForm({ onImported }: Props) {
                   Start over
                 </Button>
               </div>
+              <div className="flex items-center gap-1 mt-3">
+                <Button
+                  variant={mode === "single" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMode("single")}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+                  This sheet
+                </Button>
+                <Button
+                  variant={mode === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMode("all")}
+                >
+                  <Layers className="h-3.5 w-3.5 mr-1.5" />
+                  All sheets ({sheetNames.length})
+                </Button>
+              </div>
             </CardHeader>
+            {mode === "single" && (
             <CardContent className="space-y-4">
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1.5">
@@ -423,7 +628,7 @@ export default function ProductionImportForm({ onImported }: Props) {
                 </p>
                 <Select
                   value={activeSheet ?? undefined}
-                  onValueChange={(name) => workbook && loadSheet(workbook, name)}
+                  onValueChange={(name: string) => workbook && loadSheet(workbook, name)}
                 >
                   <SelectTrigger className="w-[240px]">
                     <SelectValue placeholder="Choose a sheet" />
@@ -446,7 +651,7 @@ export default function ProductionImportForm({ onImported }: Props) {
                 <div className="flex items-center gap-2">
                   <Select
                     value={matchedTemplate ? String(matchedTemplate.id) : undefined}
-                    onValueChange={(id) => {
+                    onValueChange={(id: string) => {
                       const t = templates.find((t) => String(t.id) === id);
                       if (t) applyTemplate(t);
                     }}
@@ -589,8 +794,11 @@ export default function ProductionImportForm({ onImported }: Props) {
                 </div>
               )}
             </CardContent>
+            )}
           </Card>
 
+          {mode === "single" && (
+            <>
           {/* Column mapping (manual only) */}
           {!matchedTemplate && columns.length > 0 && (
             <Card>
@@ -631,7 +839,7 @@ export default function ProductionImportForm({ onImported }: Props) {
                           <TableCell>
                             <Select
                               value={columnRoles[col.letter] ?? "none"}
-                              onValueChange={(v) => setColumnRole(col.letter, v)}
+                              onValueChange={(v: string) => setColumnRole(col.letter, v)}
                               disabled={!checked}
                             >
                               <SelectTrigger className="w-[180px] h-8">
@@ -862,6 +1070,141 @@ export default function ProductionImportForm({ onImported }: Props) {
                         </ul>
                       </details>
                     )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+            </>
+          )}
+
+          {/* Import selected sheets mode */}
+          {mode === "all" && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">
+                  Import selected sheets
+                </CardTitle>
+                <CardDescription>
+                  Each sheet is matched against your saved templates by header labels. Untick any
+                  sheet you don't want to bring in, and check the date guessed from each tab name
+                  before importing — dates are guessed from the sheet name and may need
+                  correcting.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {scanningAll ? (
+                  <p className="text-sm text-muted-foreground">Scanning sheets…</p>
+                ) : sheetMatches.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No sheets found.</p>
+                ) : (
+                  <div className="rounded-lg border overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={
+                                includedSheetCount === matchableSheetCount &&
+                                matchableSheetCount > 0
+                              }
+                              disabled={matchableSheetCount === 0}
+                              onCheckedChange={toggleAllSheetMatches}
+                            />
+                          </TableHead>
+                          <TableHead>Sheet</TableHead>
+                          <TableHead>Matched template</TableHead>
+                          <TableHead>Production date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sheetMatches.map((m) => (
+                          <TableRow key={m.sheetName}>
+                            <TableCell>
+                              <Checkbox
+                                checked={m.include}
+                                disabled={!m.template}
+                                onCheckedChange={() => toggleSheetMatchInclude(m.sheetName)}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{m.sheetName}</TableCell>
+                            <TableCell>
+                              {m.template ? (
+                                <Badge variant="secondary">{m.template.name}</Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  No matching template — skipped
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="date"
+                                value={m.date}
+                                disabled={!m.template}
+                                onChange={(e) =>
+                                  updateSheetMatchDate(m.sheetName, e.target.value)
+                                }
+                                className="w-[150px] h-8"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {includedSheetCount} of {sheetMatches.length} sheets selected for import.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleAllSheetMatches}
+                      disabled={matchableSheetCount === 0}
+                    >
+                      {includedSheetCount === matchableSheetCount && matchableSheetCount > 0
+                        ? "Deselect all"
+                        : "Select all"}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={scanAllSheets}>
+                      Re-scan
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={submitAllSheets}
+                      disabled={batchSubmitting || includedSheetCount === 0}
+                    >
+                      {batchSubmitting ? "Importing…" : `Import ${includedSheetCount || ""} sheet${includedSheetCount !== 1 ? "s" : ""}`}
+                    </Button>
+                  </div>
+                </div>
+
+                {batchResults.length > 0 && (
+                  <div className="rounded-lg border divide-y">
+                    {batchResults.map((r) => (
+                      <div
+                        key={r.sheetName}
+                        className="flex items-start gap-2 px-3 py-2 text-sm"
+                      >
+                        {r.status === "success" && (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                        )}
+                        {r.status === "error" && (
+                          <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                        )}
+                        {r.status === "skipped" && (
+                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium">{r.sheetName}</p>
+                          <p className="text-xs text-muted-foreground">{r.message}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
