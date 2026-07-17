@@ -3,7 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import {
-  Card, CardContent, CardHeader, CardTitle, CardDescription,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,22 +69,12 @@ function emptyInputRows(): InputRows {
 // Helper function to format numbers with commas for display
 function formatDisplayValue(value: string | number): string {
   if (value === "" || value === null || value === undefined) return "";
-  
-  // Convert to number
-  let num = typeof value === 'string' ? parseFloat(value) : value;
-  
-  // Return empty if not a valid number
+  const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "";
-  
-  // Format with commas and appropriate decimal places
-  if (Number.isInteger(num)) {
-    return num.toLocaleString();
-  } else {
-    return num.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  }
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 /* ───────────────────────────────────────────────────────────── */
@@ -137,18 +131,20 @@ export default function EnergyInputForm({ onSaved }: Props) {
 
   const { data, fetchByMonth, saveBulk, saving } = useEnergyStore();
 
-  const [monthISO, setMonthISO]     = useState(today);
-  const [calOpen, setCalOpen]       = useState(false);
-  const [rows, setRows]             = useState<InputRows>(emptyInputRows());
+  const [monthISO, setMonthISO] = useState(today);
+  const [calOpen, setCalOpen] = useState(false);
+  const [rows, setRows] = useState<InputRows>(emptyInputRows());
   const [fetchingRows, setFetchingRows] = useState(false);
-  const [status, setStatus]         = useState<"idle" | "success" | "error">("idle");
-  const [statusMsg, setStatusMsg]   = useState("");
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [statusMsg, setStatusMsg] = useState("");
 
   // Track which accounts have been manually unlocked for editing
   const [unlockedKeys, setUnlockedKeys] = useState<Set<AccountKey>>(new Set());
 
   // Display values for formatted numbers
-  const [displayValues, setDisplayValues] = useState<Record<AccountKey, { kw: string; demand: string; billedAmount: string }>>({
+  const [displayValues, setDisplayValues] = useState<
+    Record<AccountKey, { kw: string; demand: string; billedAmount: string }>
+  >({
     account2: { kw: "", demand: "", billedAmount: "" },
     account3: { kw: "", demand: "", billedAmount: "" },
   });
@@ -160,21 +156,37 @@ export default function EnergyInputForm({ onSaved }: Props) {
 
   // Initialize display values when rows change
   useEffect(() => {
-    const newDisplay: Record<AccountKey, { kw: string; demand: string; billedAmount: string }> = {
-      account2: { kw: "", demand: "", billedAmount: "" },
-      account3: { kw: "", demand: "", billedAmount: "" },
-    };
-    
-    Object.entries(rows).forEach(([key, row]) => {
-      const accountKey = key as AccountKey;
-      newDisplay[accountKey] = {
-        kw: row.kw ? formatDisplayValue(row.kw) : "",
-        demand: row.demand ? formatDisplayValue(row.demand) : "",
-        billedAmount: row.billedAmount ? formatDisplayValue(row.billedAmount) : ""
+    if (data) {
+      const populated: InputRows = {
+        account2: mapRecord("account2"),
+        account3: mapRecord("account3"),
       };
-    });
-    setDisplayValues(newDisplay);
-  }, [rows]);
+      setRows(populated);
+      cache.current[monthISO] = populated;
+
+      // Format display values only when data is freshly loaded
+      const newDisplay: Record<
+        AccountKey,
+        { kw: string; demand: string; billedAmount: string }
+      > = {
+        account2: { kw: "", demand: "", billedAmount: "" },
+        account3: { kw: "", demand: "", billedAmount: "" },
+      };
+      Object.entries(populated).forEach(([key, row]) => {
+        const accountKey = key as AccountKey;
+        newDisplay[accountKey] = {
+          kw: row.kw ? formatDisplayValue(row.kw) : "",
+          demand: row.demand ? formatDisplayValue(row.demand) : "",
+          billedAmount: row.billedAmount
+            ? formatDisplayValue(row.billedAmount)
+            : "",
+        };
+      });
+      setDisplayValues(newDisplay);
+
+      setFetchingRows(false);
+    }
+  }, [data]);
 
   useEffect(() => {
     loadMonth(today);
@@ -198,10 +210,10 @@ export default function EnergyInputForm({ onSaved }: Props) {
     );
     const hasData = record && (record.kw > 0 || record.billed_amount > 0);
     return {
-      kw:           record ? String(record.kw)            : "",
-      demand:       record ? String(record.demand)         : "",
-      billedAmount: record ? String(record.billed_amount)  : "",
-      isReadOnly:   !!hasData,
+      kw: record ? String(record.kw) : "",
+      demand: record ? String(record.demand) : "",
+      billedAmount: record ? String(record.billed_amount) : "",
+      isReadOnly: !!hasData,
     };
   }
 
@@ -236,49 +248,55 @@ export default function EnergyInputForm({ onSaved }: Props) {
     formattedValue: string,
   ) {
     if (rows[account].isReadOnly && !unlockedKeys.has(account)) return;
-    
+
     // Remove commas to get raw number
-    const rawValue = formattedValue.replace(/,/g, '');
-    
+    const rawValue = formattedValue.replace(/,/g, "");
+
     setRows((r) => ({ ...r, [account]: { ...r[account], [field]: rawValue } }));
-    
+
     // Update display value with formatted version
-    setDisplayValues(prev => ({
+    setDisplayValues((prev) => ({
       ...prev,
       [account]: {
         ...prev[account],
-        [field]: formattedValue
-      }
+        [field]: formattedValue,
+      },
     }));
-    
+
     setStatus("idle");
   }
 
-  function handleBlur(account: AccountKey, field: keyof Omit<InputRow, "isReadOnly">) {
+  function handleBlur(
+    account: AccountKey,
+    field: keyof Omit<InputRow, "isReadOnly">,
+  ) {
     const row = rows[account];
     if (row) {
       const value = row[field];
       const formatted = formatDisplayValue(value);
-      setDisplayValues(prev => ({
+      setDisplayValues((prev) => ({
         ...prev,
         [account]: {
           ...prev[account],
-          [field]: formatted
-        }
+          [field]: formatted,
+        },
       }));
     }
   }
 
-  function handleFocus(account: AccountKey, field: keyof Omit<InputRow, "isReadOnly">) {
+  function handleFocus(
+    account: AccountKey,
+    field: keyof Omit<InputRow, "isReadOnly">,
+  ) {
     const row = rows[account];
     if (row) {
       const rawValue = row[field];
-      setDisplayValues(prev => ({
+      setDisplayValues((prev) => ({
         ...prev,
         [account]: {
           ...prev[account],
-          [field]: rawValue
-        }
+          [field]: rawValue,
+        },
       }));
     }
   }
@@ -351,11 +369,11 @@ export default function EnergyInputForm({ onSaved }: Props) {
         return false;
       })
       .map((k) => ({
-        account:       k,
-        month:         monthISO,
-        kw:            parseFloat(rows[k].kw)            || 0,
-        demand:        parseFloat(rows[k].demand)         || 0,
-        billedAmount:  parseFloat(rows[k].billedAmount)   || 0,
+        account: k,
+        month: monthISO,
+        kw: parseFloat(rows[k].kw) || 0,
+        demand: parseFloat(rows[k].demand) || 0,
+        billedAmount: parseFloat(rows[k].billedAmount) || 0,
       }));
 
     if (!payload.length) {
@@ -387,30 +405,34 @@ export default function EnergyInputForm({ onSaved }: Props) {
     } catch (err: any) {
       setStatus("error");
       setStatusMsg(
-        err?.response?.data?.message ?? "Something went wrong. Please try again.",
+        err?.response?.data?.message ??
+          "Something went wrong. Please try again.",
       );
     }
   }
 
   /* ───────────────────────────────────────────── */
 
-  const keys: AccountKey[]    = ["account2", "account3"];
-  const isAllReadOnly         = keys.every((k) => rows[k].isReadOnly) && unlockedKeys.size === 0;
-  const hasEditableRows       = keys.some((k) => !rows[k].isReadOnly);
-  const hasUnlockedRows       = unlockedKeys.size > 0;
-  const showActionButtons     = (hasEditableRows || hasUnlockedRows) && !fetchingRows;
-  const selectedDate          = isoToDate(monthISO);
+  const keys: AccountKey[] = ["account2", "account3"];
+  const isAllReadOnly =
+    keys.every((k) => rows[k].isReadOnly) && unlockedKeys.size === 0;
+  const hasEditableRows = keys.some((k) => !rows[k].isReadOnly);
+  const hasUnlockedRows = unlockedKeys.size > 0;
+  const showActionButtons =
+    (hasEditableRows || hasUnlockedRows) && !fetchingRows;
+  const selectedDate = isoToDate(monthISO);
 
   /* ───────────────────────────────────────────── */
 
   return (
     <div className="space-y-4">
-
       {/* ── Month picker ── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">Energy Entry</CardTitle>
-          <CardDescription>Input monthly consumption per account</CardDescription>
+          <CardDescription>
+            Input monthly consumption per account
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 flex-wrap">
@@ -441,14 +463,16 @@ export default function EnergyInputForm({ onSaved }: Props) {
             {isAllReadOnly && !fetchingRows && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3 shrink-0" />
-                All saved — click <Pencil className="h-3 w-3 inline mx-0.5" /> to update
+                All saved — click <Pencil className="h-3 w-3 inline mx-0.5" />{" "}
+                to update
               </span>
             )}
 
             {hasUnlockedRows && (
               <span className="flex items-center gap-1.5 text-xs text-amber-600">
                 <Pencil className="h-3 w-3 shrink-0" />
-                {unlockedKeys.size} account{unlockedKeys.size === 1 ? "" : "s"} unlocked for editing
+                {unlockedKeys.size} account{unlockedKeys.size === 1 ? "" : "s"}{" "}
+                unlocked for editing
               </span>
             )}
           </div>
@@ -457,7 +481,7 @@ export default function EnergyInputForm({ onSaved }: Props) {
 
       {/* ── Status banners ── */}
       {status === "success" && <SuccessBanner message={statusMsg} />}
-      {status === "error"   && <ErrorBanner   message={statusMsg} />}
+      {status === "error" && <ErrorBanner message={statusMsg} />}
 
       {/* ── Account tiles ── */}
       {fetchingRows ? (
@@ -466,7 +490,7 @@ export default function EnergyInputForm({ onSaved }: Props) {
         <form onSubmit={handleSave} noValidate>
           <div className="grid md:grid-cols-2 gap-3">
             {keys.map((key) => {
-              const row        = rows[key];
+              const row = rows[key];
               const isReadOnly = row.isReadOnly;
               const isUnlocked = unlockedKeys.has(key);
               const isEditable = !isReadOnly || isUnlocked;
@@ -484,26 +508,30 @@ export default function EnergyInputForm({ onSaved }: Props) {
                   }
                 >
                   <CardContent className="pt-4 pb-4 space-y-3">
-
                     {/* Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{ACCOUNT_LABELS[key]}</p>
+                        <p className="text-sm font-medium">
+                          {ACCOUNT_LABELS[key]}
+                        </p>
                         {isUnlocked && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
                             editing
                           </span>
                         )}
                         {isReadOnly && !isUnlocked && (
-                          <Badge variant="outline" className="text-[10px] py-0 h-5">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 h-5"
+                          >
                             Saved
                           </Badge>
                         )}
                       </div>
 
                       {/* Unlock / Relock button */}
-                      {(isReadOnly || isUnlocked) && (
-                        isUnlocked ? (
+                      {(isReadOnly || isUnlocked) &&
+                        (isUnlocked ? (
                           <button
                             type="button"
                             onClick={() => relockAccount(key)}
@@ -523,8 +551,7 @@ export default function EnergyInputForm({ onSaved }: Props) {
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                        )
-                      )}
+                        ))}
                     </div>
 
                     {/* kW */}
@@ -535,10 +562,17 @@ export default function EnergyInputForm({ onSaved }: Props) {
                         min={0}
                         step="0.01"
                         placeholder="0.00"
-                        value={displayRow?.kw ?? (row.kw ? formatDisplayValue(row.kw) : "")}
+                        value={
+                          displayRow?.kw ??
+                          (row.kw ? formatDisplayValue(row.kw) : "")
+                        }
                         readOnly={!isEditable}
                         disabled={saving || !isEditable}
-                        className={!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}
+                        className={
+                          !isEditable
+                            ? "bg-muted cursor-default pointer-events-none"
+                            : ""
+                        }
                         onChange={(e) => setField(key, "kw", e.target.value)}
                         onFocus={() => handleFocus(key, "kw")}
                         onBlur={() => handleBlur(key, "kw")}
@@ -553,11 +587,20 @@ export default function EnergyInputForm({ onSaved }: Props) {
                         min={0}
                         step="0.01"
                         placeholder="0.00"
-                        value={displayRow?.demand ?? (row.demand ? formatDisplayValue(row.demand) : "")}
+                        value={
+                          displayRow?.demand ??
+                          (row.demand ? formatDisplayValue(row.demand) : "")
+                        }
                         readOnly={!isEditable}
                         disabled={saving || !isEditable}
-                        className={!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}
-                        onChange={(e) => setField(key, "demand", e.target.value)}
+                        className={
+                          !isEditable
+                            ? "bg-muted cursor-default pointer-events-none"
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setField(key, "demand", e.target.value)
+                        }
                         onFocus={() => handleFocus(key, "demand")}
                         onBlur={() => handleBlur(key, "demand")}
                       />
@@ -565,7 +608,9 @@ export default function EnergyInputForm({ onSaved }: Props) {
 
                     {/* Billed Amount */}
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Billed Amount (₱)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Billed Amount (₱)
+                      </p>
                       <div className="relative">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
                           ₱
@@ -575,17 +620,23 @@ export default function EnergyInputForm({ onSaved }: Props) {
                           min={0}
                           step="0.01"
                           placeholder="0.00"
-                          value={displayRow?.billedAmount ?? (row.billedAmount ? formatDisplayValue(row.billedAmount) : "")}
+                          value={
+                            displayRow?.billedAmount ??
+                            (row.billedAmount
+                              ? formatDisplayValue(row.billedAmount)
+                              : "")
+                          }
                           readOnly={!isEditable}
                           disabled={saving || !isEditable}
                           className={`pl-5 ${!isEditable ? "bg-muted cursor-default pointer-events-none" : ""}`}
-                          onChange={(e) => setField(key, "billedAmount", e.target.value)}
+                          onChange={(e) =>
+                            setField(key, "billedAmount", e.target.value)
+                          }
                           onFocus={() => handleFocus(key, "billedAmount")}
                           onBlur={() => handleBlur(key, "billedAmount")}
                         />
                       </div>
                     </div>
-
                   </CardContent>
                 </Card>
               );
@@ -597,7 +648,10 @@ export default function EnergyInputForm({ onSaved }: Props) {
             <div className="flex items-center gap-3 mt-4">
               <Button type="submit" disabled={saving} className="flex-1">
                 {saving ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
                 ) : hasUnlockedRows ? (
                   `Update ${unlockedKeys.size} account${unlockedKeys.size === 1 ? "" : "s"}`
                 ) : (

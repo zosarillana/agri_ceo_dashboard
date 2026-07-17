@@ -60,7 +60,7 @@ export type ImportRow = {
   data: string | Record<string, unknown>;
   imported_at: string;
   template?: ImportTemplate;
-};
+};  
 
 export type PaginatedImportRows = {
   data: ImportRow[];
