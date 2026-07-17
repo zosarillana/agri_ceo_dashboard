@@ -16,7 +16,11 @@ function ProductionExpanded({ production }: { production: any }) {
           <p className="text-sm font-semibold">{production?.yesterday_production_output ? fmt(production.yesterday_production_output) : "—"}</p>
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground">6 product lines running</p>
+      <p className="text-[10px] text-muted-foreground">
+        {production?.products_lines != null
+          ? `${production.products_lines} product line${production.products_lines === 1 ? "" : "s"} running`
+          : "No product line data"}
+      </p>
     </div>
   );
 }
@@ -45,11 +49,14 @@ export function ProductionCard({
   const unit = isToday ? "units today" : `units on ${format(new Date(selectedISO + "T00:00:00"), "MMM d")}`;
   const timeLabel = production?.last_updated_at ? format(new Date(production.last_updated_at), "HH:mm") : "—";
   const dateLabel = production?.last_updated_at ? format(new Date(production.last_updated_at), "MMM d") : "—";
+  const productionLine = production?.products_lines != null
+    ? `${production.products_lines} product lines running`
+    : "—";
 
   return (
     <DashCard
       id="production" color="teal" icon={Factory} label="Production Output"
-      summary="6 product lines running" stat={stat} unit={unit}
+      summary={productionLine} stat={stat} unit={unit}
       timeLabel={timeLabel} dateLabel={dateLabel} active={active} index={0}
       basePath={basePath}
       expandedContent={<ProductionExpanded production={production} />}
