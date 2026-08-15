@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, useState, useCallback } from "react";
 import { format } from "date-fns";
 import {
   Card,
@@ -27,6 +27,7 @@ import {
   Package,
   PlusCircle,
   Import,
+  BarChart4,
 } from "lucide-react";
 import {
   Popover,
@@ -36,8 +37,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 
-import { useProductionStore } from "@/store/production.store";
 import { useProductsStore } from "@/store/products.store";
+import { useProductionStore } from "@/store/production.store";
 
 import ProductInputForm from "../-forms/product-form";
 import DailyProductionForm from "../-forms/production-form";
@@ -46,19 +47,14 @@ import { useRole } from "@/hooks/use-role";
 import { getAllowedTabs, type Tab } from "@/lib/permissions";
 import ProductionImportForm from "../-imports/production-import";
 import ProductionImportViewer from "../-imports/production-import-viewer";
-
-// type Tab = "view" | "input" | "products";
+import { useProductGroups } from "@/hooks/use-product-group";
+import { useProductionRange } from "@/hooks/use-production-range";
+import ProductionAnalytics from "../-analytics/production-analytics";
 
 function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
-
-  // Convert to number if it's a string
   let num = typeof n === "string" ? parseFloat(n) : n;
-
-  // Check if it's a valid number
   if (isNaN(num)) return "—";
-
-  // Format with commas and always show 2 decimal places
   return num.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -69,31 +65,7 @@ function getTodayISO() {
   return new Date().toLocaleDateString("en-CA");
 }
 
-function dateToISO(d: Date) {
-  return d.toLocaleDateString("en-CA");
-}
-
 // ── skeletons ─────────────────────────────────────────────────────────────────
-
-function CardSkeletons({ count = 6 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {Array.from({ length: count }).map((_, i) => (
-        <Card key={i} className="overflow-hidden">
-          <CardContent className="pt-4 pb-4 space-y-3">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-7 w-20" />
-            <Skeleton className="h-3 w-12" />
-            <div className="mt-3 pt-3 border-t flex items-center justify-between">
-              <Skeleton className="h-3 w-14" />
-              <Skeleton className="h-6 w-20 rounded-md" />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
 
 function TableSkeleton({ rows = 6 }: { rows?: number }) {
   return (
@@ -169,6 +141,100 @@ function ProductTabSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
+// small reusable date-picker button used for both "From" and "To"
+function DatePickerButton({
+  label,
+  date,
+  onSelect,
+  disabled,
+  maxDate,
+  minDate,
+}: {
+  label: string;
+  date: Date;
+  onSelect: (d: Date | undefined) => void;
+  disabled?: boolean;
+  maxDate?: Date;
+  minDate?: Date;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          disabled={disabled}
+          className="w-[170px] justify-start gap-2 text-left font-normal"
+        >
+          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground">{label}:</span>
+          {format(date, "MMM d, yyyy")}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="end">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(d) => {
+            onSelect(d);
+            setOpen(false);
+          }}
+          disabled={(d) =>
+            (maxDate ? d > maxDate : false) || (minDate ? d < minDate : false)
+          }
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// A subtotal / grand-total row for the table
+function TotalRow({
+  label,
+  totals,
+  unit = "",
+  emphasize = false,
+}: {
+  label: string;
+  totals: { actual: number; target: number; diff: number; pct: number | null; hasAnyData: boolean };
+  unit?: string;
+  emphasize?: boolean;
+}) {
+  const isPositive = totals.diff >= 0;
+  return (
+    <TableRow className={emphasize ? "bg-muted/70 font-semibold" : "bg-muted/20 font-medium"}>
+      <TableCell>{label}</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {totals.hasAnyData ? fmt(totals.actual) : "—"}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmt(totals.target)}
+      </TableCell>
+      <TableCell className="text-right text-muted-foreground text-xs">{unit}</TableCell>
+      <TableCell className="text-right">
+        {totals.hasAnyData && totals.target > 0 ? (
+          <span
+            className={`inline-flex items-center gap-1 text-xs font-semibold ${
+              isPositive ? "text-emerald-600" : "text-rose-600"
+            }`}
+          >
+            {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {isPositive ? "+" : "-"}
+            {fmt(Math.abs(totals.diff))} ({isPositive ? "+" : "-"}
+            {Math.abs(totals.pct ?? 0).toFixed(1)}%)
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            <Minus className="h-3 w-3 inline mr-1" />
+            No data
+          </span>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function ProductionDash() {
@@ -176,96 +242,50 @@ export default function ProductionDash() {
   const allowedTabs = getAllowedTabs(role);
 
   const [tab, setTab] = useState<Tab>("view");
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
-  const [calOpen, setCalOpen] = useState(false);
 
-  const selectedISO = dateToISO(selectedDate);
-  const isToday = selectedISO === getTodayISO();
+  const { products, loading: productsLoading, fetchProducts } = useProductsStore();
+  useProductionStore();
 
   const {
-    products,
-    loading: productsLoading,
-    fetchProducts,
-  } = useProductsStore();
-
-  const {
-    entries,
+    mode,
+    setMode,
+    from,
+    to,
+    setFrom,
+    setTo,
+    month,
+    goToPreviousMonth,
+    goToNextMonth,
+    isCurrentMonth,
+    isSingleDay,
+    viewItems,
     loading: entriesLoading,
-    fetchByDate,
-  } = useProductionStore();
+  } = useProductionRange(products);
 
   const loading = productsLoading || entriesLoading;
 
-  const initialized = useRef(false);
-  const productsFetched = useRef(false);
-
-  // LOAD PRODUCTS (once)
-  useEffect(() => {
-    if (!productsFetched.current) {
-      productsFetched.current = true;
-      fetchProducts();
-    }
-  }, [fetchProducts]);
-
-  // LOAD ENTRIES when selected date changes
-  useEffect(() => {
-    if (products.length === 0 && !productsLoading) return;
-    if (initialized.current || products.length > 0) {
-      initialized.current = true;
-      fetchByDate(selectedISO);
-    }
-  }, [products, productsLoading, fetchByDate, selectedISO]);
-
-  // Check if any product has actual data (non-zero)
-  const hasAnyActualData = entries.some((entry) => entry.actual_output > 0);
-
-  // Check if all products have actual data (non-zero)
-  const hasAllActualData =
-    products.length > 0 &&
-    products.every((product) => {
-      const entry = entries.find((e) => e.product_id === product.id);
-      return entry && entry.actual_output > 0;
-    });
-
-  // VIEW DATA — merge products + entries
-  const viewItems = products.map((pr) => {
-    const entry = entries.find((e) => e.product_id === pr.id);
-    const hasActualData = entry && entry.actual_output > 0;
-    const hasEntry = !!entry;
-    return {
-      id: pr.id,
-      label: pr.name,
-      actual: hasActualData ? entry.actual_output : null,
-      target: entry?.target_output ?? pr.default_target ?? 0,
-      unit: pr.unit ?? "—",
-      hasEntry,
-      hasActualData,
-    };
+  // fetch products once on mount
+  useState(() => {
+    fetchProducts();
   });
 
-  // Refresh entries after input-tab save
-  const handleProductionSave = useCallback(() => {
-    fetchByDate(selectedISO);
-  }, [fetchByDate, selectedISO]);
+  const hasAnyActualData = viewItems.some((item) => item.hasActualData);
+  const hasAllActualData =
+    viewItems.length > 0 && viewItems.every((item) => item.hasActualData);
 
-  // Refresh products after product-tab save
+  const { groups: groupedViewItems, grandTotal } = useProductGroups(viewItems);
+
   const handleProductSave = useCallback(() => {
-    if (!productsFetched.current || products.length === 0) {
-      fetchProducts();
-    }
-  }, [fetchProducts, products.length]);
+    fetchProducts();
+  }, [fetchProducts]);
 
-  function handleDateSelect(date: Date | undefined) {
-    if (!date) return;
-    setSelectedDate(date);
-    setCalOpen(false);
-  }
+  const todayISO = getTodayISO();
 
   return (
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view", "input", "products", "import"] as Tab[])
+        {(["view","analytics" ,"input", "products", "import"] as Tab[])
           .filter((t) => allowedTabs.includes(t))
           .map((t) => (
             <button
@@ -278,6 +298,7 @@ export default function ProductionDash() {
               }`}
             >
               {t === "view" && <BarChart2 className="h-3.5 w-3.5" />}
+              {t === "analytics" && <BarChart4 className="h-3.5 w-3.5" />}
               {t === "input" && <PlusCircle className="h-3.5 w-3.5" />}
               {t === "products" && <Package className="h-3.5 w-3.5" />}
               {t === "import" && <Import className="h-3.5 w-3.5" />}
@@ -289,7 +310,7 @@ export default function ProductionDash() {
       {/* ── VIEW TAB ─────────────────────────────────── */}
       {tab === "view" && (
         <>
-          {/* Date Picker for View Tab */}
+          {/* Filter card — Range / Month toggle */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-3">
@@ -301,36 +322,83 @@ export default function ProductionDash() {
                     View actual vs target across all product lines
                   </CardDescription>
                 </div>
-                <Popover open={calOpen} onOpenChange={setCalOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      disabled={loading}
-                      className="w-[200px] justify-start gap-2 text-left font-normal"
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* mode toggle */}
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
+                    <button
+                      onClick={() => setMode("range")}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                        mode === "range"
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                      {format(selectedDate, "PPP")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      disabled={(d) => d > new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                      Range
+                    </button>
+                    <button
+                      onClick={() => setMode("month")}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                        mode === "month"
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Month
+                    </button>
+                  </div>
+
+                  {mode === "range" ? (
+                    <div className="flex items-center gap-2">
+                      <DatePickerButton
+                        label="From"
+                        date={from}
+                        onSelect={setFrom}
+                        disabled={loading}
+                        maxDate={new Date()}
+                      />
+                      <span className="text-muted-foreground text-sm">–</span>
+                      <DatePickerButton
+                        label="To"
+                        date={to}
+                        onSelect={setTo}
+                        disabled={loading}
+                        maxDate={new Date()}
+                        minDate={from}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9"
+                        onClick={goToPreviousMonth}
+                        disabled={loading}
+                      >
+                        ‹
+                      </Button>
+                      <div className="w-[140px] text-center text-sm font-medium border rounded-md py-2">
+                        {format(month, "MMMM yyyy")}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9"
+                        onClick={goToNextMonth}
+                        disabled={loading || isCurrentMonth}
+                      >
+                        ›
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardHeader>
           </Card>
 
           {loading ? (
-            <>
-              <CardSkeletons />
-              <TableSkeleton />
-            </>
+            <TableSkeleton />
           ) : viewItems.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-sm text-muted-foreground">
@@ -345,7 +413,6 @@ export default function ProductionDash() {
               </CardContent>
             </Card>
           ) : !hasAnyActualData ? (
-            // Empty state - no actual data at all for selected date
             <Card className="border-dashed">
               <CardContent className="py-12 text-center space-y-4">
                 <div className="flex justify-center">
@@ -356,7 +423,11 @@ export default function ProductionDash() {
                     No production entries yet
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    No data recorded for {format(selectedDate, "PPP")}.
+                    {mode === "month"
+                      ? `No data recorded for ${format(month, "MMMM yyyy")}.`
+                      : isSingleDay
+                      ? `No data recorded for ${format(from, "PPP")}.`
+                      : `No data recorded between ${format(from, "PPP")} and ${format(to, "PPP")}.`}
                   </p>
                 </div>
                 <Button
@@ -369,209 +440,124 @@ export default function ProductionDash() {
               </CardContent>
             </Card>
           ) : (
-            <>
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {viewItems.map((item) => {
-                  // Only show data if there's actual data > 0
-                  if (!item.hasActualData) {
-                    return (
-                      <Card
-                        key={item.id}
-                        className="overflow-hidden opacity-70"
-                      >
-                        <CardContent className="pt-4 pb-4">
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {item.label}
-                          </p>
-                          <p className="text-2xl font-bold tracking-tight text-muted-foreground">
-                            —
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.unit}/day
-                          </p>
-                          <div className="mt-3 pt-3 border-t">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-muted-foreground">
-                                Status
-                              </p>
-                              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                                No entry
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  }
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {mode === "month"
+                    ? "Monthly Output Summary"
+                    : isSingleDay
+                    ? "Daily Output Summary"
+                    : "Output Summary"}
+                </CardTitle>
+                <CardDescription>
+                  Actual vs target across all product lines{" "}
+                  {mode === "month"
+                    ? `for ${format(month, "MMMM yyyy")}`
+                    : isSingleDay
+                    ? `for ${format(from, "PPP")}`
+                    : `from ${format(from, "PPP")} to ${format(to, "PPP")}`}
+                  {!hasAllActualData && " (incomplete data)"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold">Product</TableHead>
+                      <TableHead className="text-right font-semibold">Actual</TableHead>
+                      <TableHead className="text-right font-semibold">Target</TableHead>
+                      <TableHead className="text-right font-semibold">Unit</TableHead>
+                      <TableHead className="text-right font-semibold">vs Target</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groupedViewItems.map((group) => (
+                      <Fragment key={group.key}>
+                        <TableRow className="hover:bg-transparent bg-muted/40">
+                          <TableCell
+                            colSpan={5}
+                            className={`text-xs font-semibold border-l-4 ${group.color.border}`}
+                          >
+                            <span
+                              className={`inline-block h-2 w-2 rounded-full mr-2 ${group.color.dot}`}
+                            />
+                            {group.label}
+                          </TableCell>
+                        </TableRow>
 
-                  const diff = item.actual! - item.target;
-                  const pct =
-                    item.target > 0
-                      ? ((diff / item.target) * 100).toFixed(1)
-                      : "—";
-                  const isPositive = diff >= 0;
+                        {group.items.map((item) => {
+                          if (!item.hasActualData) {
+                            return (
+                              <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.label}</TableCell>
+                                <TableCell className="text-right text-muted-foreground">—</TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmt(item.target)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground text-xs">
+                                  {item.unit}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Minus className="h-3 w-3" />
+                                    No entry
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
 
-                  return (
-                    <Card key={item.id} className="overflow-hidden">
-                      <CardContent className="pt-4 pb-4">
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {item.label}
-                        </p>
-                        <p className="text-2xl font-bold tracking-tight">
-                          {fmt(item.actual!)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.unit}/day
-                        </p>
-                        <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Target
-                            </p>
-                            <p className="text-xs font-medium">
-                              {fmt(item.target)}
-                            </p>
-                          </div>
-                          {item.target > 0 && (
-                            <div
-                              className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md ${
-                                isPositive
-                                  ? "bg-emerald-500/10 text-emerald-600"
-                                  : "bg-rose-500/10 text-rose-600"
-                              }`}
-                            >
-                              {isPositive ? (
-                                <TrendingUp className="h-3 w-3" />
-                              ) : (
-                                <TrendingDown className="h-3 w-3" />
-                              )}
-                              {isPositive ? "+" : ""}
-                              {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
-                              {pct}%)
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                          const diff = item.actual! - item.target;
+                          const pct = item.target > 0 ? ((diff / item.target) * 100).toFixed(1) : "—";
+                          const isPositive = diff >= 0;
 
-              {/* Detailed Table */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Daily Output Summary
-                  </CardTitle>
-                  <CardDescription>
-                    Actual vs target across all product lines for{" "}
-                    {format(selectedDate, "PPP")}
-                    {!isToday && " (historical data)"}
-                    {!hasAllActualData && " (incomplete data)"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="font-semibold">Product</TableHead>
-                        <TableHead className="text-right font-semibold">
-                          Actual
-                        </TableHead>
-                        <TableHead className="text-right font-semibold">
-                          Target
-                        </TableHead>
-                        <TableHead className="text-right font-semibold">
-                          Unit
-                        </TableHead>
-                        <TableHead className="text-right font-semibold">
-                          vs Target
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {viewItems.map((item) => {
-                        // Show "No entry" if no actual data
-                        if (!item.hasActualData) {
                           return (
                             <TableRow key={item.id}>
-                              <TableCell className="font-medium">
-                                {item.label}
+                              <TableCell className="font-medium">{item.label}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {fmt(item.actual!)}
                               </TableCell>
-                              <TableCell className="text-right text-muted-foreground">
-                                —
-                              </TableCell>
-                              <TableCell className="text-right text-muted-foreground">
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {fmt(item.target)}
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground text-xs">
-                                {item.unit}/day
+                                {item.unit}
                               </TableCell>
                               <TableCell className="text-right">
-                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Minus className="h-3 w-3" />
-                                  No entry
-                                </span>
+                                {item.target > 0 ? (
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-xs font-semibold ${
+                                      isPositive ? "text-emerald-600" : "text-rose-600"
+                                    }`}
+                                  >
+                                    {isPositive ? (
+                                      <TrendingUp className="h-3 w-3" />
+                                    ) : (
+                                      <TrendingDown className="h-3 w-3" />
+                                    )}
+                                    {isPositive ? "+" : "-"}
+                                    {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
+                                    {Math.abs(parseFloat(pct))}%)
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">No target</span>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
-                        }
+                        })}
 
-                        const diff = item.actual! - item.target;
-                        const pct =
-                          item.target > 0
-                            ? ((diff / item.target) * 100).toFixed(1)
-                            : "—";
-                        const isPositive = diff >= 0;
+                        {/* group subtotal */}
+                        <TotalRow label={`${group.label} — Subtotal`} totals={group.totals} />
+                      </Fragment>
+                    ))}
 
-                        return (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium">
-                              {item.label}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {fmt(item.actual!)}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums text-muted-foreground">
-                              {fmt(item.target)}
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground text-xs">
-                              {item.unit}/day
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {item.target > 0 ? (
-                                <span
-                                  className={`inline-flex items-center gap-1 text-xs font-semibold ${
-                                    isPositive
-                                      ? "text-emerald-600"
-                                      : "text-rose-600"
-                                  }`}
-                                >
-                                  {isPositive ? (
-                                    <TrendingUp className="h-3 w-3" />
-                                  ) : (
-                                    <TrendingDown className="h-3 w-3" />
-                                  )}
-                                  {isPositive ? "+" : "-"}
-                                  {fmt(Math.abs(diff))} (
-                                  {isPositive ? "+" : "-"}
-                                  {Math.abs(parseFloat(pct))}%)
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  No target
-                                </span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </>
+                    {/* grand total across every group */}
+                    <TotalRow label="Grand Total" totals={grandTotal} emphasize />
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </>
       )}
@@ -599,9 +585,9 @@ export default function ProductionDash() {
           ) : (
             <DailyProductionForm
               products={products}
-              entries={entries}
-              onSave={handleProductionSave}
-              initialDate={selectedISO}
+              entries={[]}
+              onSave={() => {}}
+              initialDate={todayISO}
             />
           )}
         </>
@@ -640,8 +626,26 @@ export default function ProductionDash() {
               </CardDescription>
             </CardHeader>
           </Card>
-          <ProductionImportForm onImported={() => fetchByDate(selectedISO)} />
+          <ProductionImportForm onImported={() => {}} />
           <ProductionImportViewer />
+        </>
+      )}
+
+      
+      {/* ── IMPORT TAB ─────────────────────────────── */}
+      {tab === "analytics" && (
+        <>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">
+                Analytics
+              </CardTitle>
+              <CardDescription>
+                View production analytics and reports
+              </CardDescription>
+            </CardHeader>
+          </Card>
+          <ProductionAnalytics />
         </>
       )}
     </div>

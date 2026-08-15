@@ -1,6 +1,6 @@
 // lib/permissions.ts
 export type Role = "user" | "admin" | "superadmin";
-export type Tab = "view" | "input" | "products" | "manage" | "import";
+export type Tab = "view" | "analytics" | "input" | "products" | "manage" | "import";
 
 export type ModuleName =
   | "production"
@@ -12,16 +12,16 @@ export type ModuleName =
   | "maintenance";
 
 const DEFAULT_TAB_ACCESS: Record<Role, Tab[]> = {
-  admin: ["view"],
-  user: ["view", "input"],
-  superadmin: ["view", "input", "products", "manage", "import"],
+  admin: ["view", "analytics"],
+  user: ["view", "analytics", "input"],
+  superadmin: ["view", "analytics", "input", "products", "manage", "import"],
 };
 
 const MODULE_OVERRIDES: Partial<Record<ModuleName, Record<Role, Tab[]>>> = {
   trading: {
-    admin: ["view"],
-    user: ["view", "input", "manage"],
-    superadmin: ["view", "input", "manage"],
+    admin: ["view", "analytics"],
+    user: ["view", "analytics", "input", "manage"],
+    superadmin: ["view", "analytics", "input", "manage"],
   },
 };
 
