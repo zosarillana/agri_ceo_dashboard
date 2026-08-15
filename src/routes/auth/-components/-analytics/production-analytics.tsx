@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -61,9 +61,9 @@ function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
   const num = typeof n === "string" ? parseFloat(n) : n;
   if (isNaN(num)) return "—";
-  return num.toLocaleString(undefined, {
+  return Math.round(num).toLocaleString(undefined, {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   });
 }
 
@@ -295,7 +295,7 @@ function ProductTile({
           >
             {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             {isPositive ? "+" : ""}
-            {(pct ?? 0).toFixed(1)}%
+            {Math.round(pct ?? 0)}%
           </div>
         ) : (
           <div className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -339,7 +339,7 @@ function TotalRow({
             {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             {isPositive ? "+" : "-"}
             {fmt(Math.abs(totals.diff))} ({isPositive ? "+" : "-"}
-            {Math.abs(totals.pct ?? 0).toFixed(1)}%)
+            {Math.round(Math.abs(totals.pct ?? 0))}%)
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">
@@ -662,7 +662,7 @@ export default function ProductionAnalytics() {
             </CardContent>
           </Card>
 
-          {/* Detailed table — same grouped shape as the View tab, but reflects current filters */}
+          {/* Detailed table */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Detailed Breakdown</CardTitle>
@@ -690,8 +690,8 @@ export default function ProductionAnalytics() {
                   </TableHeader>
                   <TableBody>
                     {tableGroups.map((group) => (
-                      <>
-                        <TableRow key={`${group.key}-header`} className="hover:bg-transparent bg-muted/40">
+                      <Fragment key={group.key}>
+                        <TableRow className="hover:bg-transparent bg-muted/40">
                           <TableCell
                             colSpan={5}
                             className={`text-xs font-semibold border-l-4 ${group.color.border}`}
@@ -726,7 +726,7 @@ export default function ProductionAnalytics() {
                           }
 
                           const diff = item.actual! - item.target;
-                          const pct = item.target > 0 ? ((diff / item.target) * 100).toFixed(1) : "—";
+                          const pct = item.target > 0 ? (diff / item.target) * 100 : null;
                           const isPositive = diff >= 0;
 
                           return (
@@ -755,7 +755,7 @@ export default function ProductionAnalytics() {
                                     )}
                                     {isPositive ? "+" : "-"}
                                     {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
-                                    {Math.abs(parseFloat(pct))}%)
+                                    {Math.round(Math.abs(pct ?? 0))}%)
                                   </span>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">No target</span>
@@ -765,8 +765,12 @@ export default function ProductionAnalytics() {
                           );
                         })}
 
-                        <TotalRow key={`${group.key}-subtotal`} label={`${group.label} — Subtotal`} totals={group.totals} />
-                      </>
+                        <TotalRow label={`${group.label} — Subtotal`} totals={group.totals} />
+
+                        {group.highlightSubtotals.map((h) => (
+                          <TotalRow key={h.label} label={h.label} totals={h.totals} />
+                        ))}
+                      </Fragment>
                     ))}
 
                     <TotalRow label="Grand Total" totals={grandTotal} emphasize />

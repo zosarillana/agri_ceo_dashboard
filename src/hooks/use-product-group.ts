@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 
 export type ProductGroupKey =
-  | "withdrawn-nuts"
-  | "cream"
-  | "raw-cocowater"
+  | "group-1"
+  | "group-2"
+  | "group-3"
   | "ungrouped";
 
 export interface ProductGroupConfig {
@@ -16,12 +16,18 @@ export interface ProductGroupConfig {
     hex: string;
   };
   slugs: string[];
+  // Optional extra computed subtotal(s) shown below a group's rows —
+  // e.g. Group 2 wants "Diluted + Total Packed Cream" as its own line.
+  highlightSubtotals?: {
+    label: string;
+    slugs: string[];
+  }[];
 }
 
 export const PRODUCT_GROUPS: ProductGroupConfig[] = [
   {
-    key: "withdrawn-nuts",
-    label: "Withdrawn Nuts Group",
+    key: "group-1",
+    label: "Group 1",
     color: {
       dot: "bg-yellow-400",
       badge: "bg-yellow-500/10 text-yellow-700",
@@ -37,8 +43,8 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
     ],
   },
   {
-    key: "cream",
-    label: "Cream Group",
+    key: "group-2",
+    label: "Group 2",
     color: {
       dot: "bg-blue-400",
       badge: "bg-blue-500/10 text-blue-700",
@@ -57,10 +63,16 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
       "aseptic-30-packed-bid",
       "total-packed-cream",
     ],
+    highlightSubtotals: [
+      {
+        label: "Diluted + Total Packed Cream = Group 2 Subtotal",
+        slugs: ["diluted-extracted-cream-30", "total-packed-cream"],
+      },
+    ],
   },
   {
-    key: "raw-cocowater",
-    label: "Raw Cocowater Group",
+    key: "group-3",
+    label: "Group 3",
     color: {
       dot: "bg-pink-400",
       badge: "bg-pink-500/10 text-pink-700",
@@ -76,11 +88,11 @@ const SLUG_TO_GROUP: Record<string, ProductGroupConfig> = PRODUCT_GROUPS.reduce(
     group.slugs.forEach((slug) => (acc[slug] = group));
     return acc;
   },
-  {} as Record<string, ProductGroupConfig>,
+  {} as Record<string, ProductGroupConfig>
 );
 
 export function getGroupForSlug(
-  slug: string | undefined | null,
+  slug: string | undefined | null
 ): ProductGroupConfig | null {
   if (!slug) return null;
   return SLUG_TO_GROUP[slug] ?? null;
@@ -98,8 +110,13 @@ export interface GroupTotals {
   actual: number;
   target: number;
   diff: number;
-  pct: number | null; // null when target is 0 (can't compute %)
+  pct: number | null;
   hasAnyData: boolean;
+}
+
+export interface HighlightSubtotal {
+  label: string;
+  totals: GroupTotals;
 }
 
 export interface GroupedResult<T> {
@@ -108,6 +125,7 @@ export interface GroupedResult<T> {
   color: ProductGroupConfig["color"];
   items: T[];
   totals: GroupTotals;
+  highlightSubtotals: HighlightSubtotal[];
 }
 
 function computeTotals(items: Groupable[]): GroupTotals {
@@ -139,11 +157,14 @@ export interface UseProductGroupsResult<T> {
 /**
  * Groups any array of items that have a `slug` field according to
  * PRODUCT_GROUPS, and computes actual/target subtotals per group plus
- * a grand total across everything. Anything not in the config falls
- * into "Ungrouped" at the end. Empty groups are skipped.
+ * a grand total across everything. Groups can also define
+ * `highlightSubtotals` — extra named sums over a subset of their own
+ * slugs (e.g. Group 2's "Diluted + Total Packed Cream" line).
+ * Anything not in the config falls into "Ungrouped" at the end.
+ * Empty groups are skipped.
  */
 export function useProductGroups<T extends Groupable>(
-  items: T[],
+  items: T[]
 ): UseProductGroupsResult<T> {
   return useMemo(() => {
     const buckets = new Map<ProductGroupKey, T[]>();
@@ -160,13 +181,25 @@ export function useProductGroups<T extends Groupable>(
       else ungrouped.push(item);
     }
 
-    const groups: GroupedResult<T>[] = PRODUCT_GROUPS.map((g) => ({
-      key: g.key,
-      label: g.label,
-      color: g.color,
-      items: buckets.get(g.key)!,
-      totals: computeTotals(buckets.get(g.key)!),
-    })).filter((g) => g.items.length > 0);
+    const groups: GroupedResult<T>[] = PRODUCT_GROUPS.map((g) => {
+      const groupItems = buckets.get(g.key)!;
+
+      const highlightSubtotals: HighlightSubtotal[] = (g.highlightSubtotals ?? []).map(
+        (h) => ({
+          label: h.label,
+          totals: computeTotals(groupItems.filter((i) => h.slugs.includes(i.slug ?? ""))),
+        })
+      );
+
+      return {
+        key: g.key,
+        label: g.label,
+        color: g.color,
+        items: groupItems,
+        totals: computeTotals(groupItems),
+        highlightSubtotals,
+      };
+    }).filter((g) => g.items.length > 0);
 
     if (ungrouped.length > 0) {
       groups.push({
@@ -180,6 +213,7 @@ export function useProductGroups<T extends Groupable>(
         },
         items: ungrouped,
         totals: computeTotals(ungrouped),
+        highlightSubtotals: [],
       });
     }
 

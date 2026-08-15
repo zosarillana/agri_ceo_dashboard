@@ -53,11 +53,11 @@ import ProductionAnalytics from "../-analytics/production-analytics";
 
 function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  let num = typeof n === "string" ? parseFloat(n) : n;
+  const num = typeof n === "string" ? parseFloat(n) : n;
   if (isNaN(num)) return "—";
-  return num.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  return Math.round(num).toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 }
 
@@ -222,7 +222,7 @@ function TotalRow({
             {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             {isPositive ? "+" : "-"}
             {fmt(Math.abs(totals.diff))} ({isPositive ? "+" : "-"}
-            {Math.abs(totals.pct ?? 0).toFixed(1)}%)
+            {Math.round(Math.abs(totals.pct ?? 0))}%)
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">
@@ -244,7 +244,7 @@ export default function ProductionDash() {
   const [tab, setTab] = useState<Tab>("view");
 
   const { products, loading: productsLoading, fetchProducts } = useProductsStore();
-  useProductionStore();
+  const { saving } = useProductionStore();
 
   const {
     mode,
@@ -285,7 +285,7 @@ export default function ProductionDash() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(["view","analytics" ,"input", "products", "import"] as Tab[])
+        {(["view", "analytics", "input", "products", "import"] as Tab[])
           .filter((t) => allowedTabs.includes(t))
           .map((t) => (
             <button
@@ -508,7 +508,7 @@ export default function ProductionDash() {
                           }
 
                           const diff = item.actual! - item.target;
-                          const pct = item.target > 0 ? ((diff / item.target) * 100).toFixed(1) : "—";
+                          const pct = item.target > 0 ? (diff / item.target) * 100 : null;
                           const isPositive = diff >= 0;
 
                           return (
@@ -537,7 +537,7 @@ export default function ProductionDash() {
                                     )}
                                     {isPositive ? "+" : "-"}
                                     {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
-                                    {Math.abs(parseFloat(pct))}%)
+                                    {Math.round(Math.abs(pct ?? 0))}%)
                                   </span>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">No target</span>
@@ -549,6 +549,11 @@ export default function ProductionDash() {
 
                         {/* group subtotal */}
                         <TotalRow label={`${group.label} — Subtotal`} totals={group.totals} />
+
+                        {/* any extra named subtotals this group defines */}
+                        {group.highlightSubtotals.map((h) => (
+                          <TotalRow key={h.label} label={h.label} totals={h.totals} />
+                        ))}
                       </Fragment>
                     ))}
 
@@ -561,6 +566,9 @@ export default function ProductionDash() {
           )}
         </>
       )}
+
+      {/* ── ANALYTICS TAB ─────────────────────────────── */}
+      {tab === "analytics" && <ProductionAnalytics />}
 
       {/* ── INPUT TAB ────────────────────────────────── */}
       {tab === "input" && (
@@ -628,24 +636,6 @@ export default function ProductionDash() {
           </Card>
           <ProductionImportForm onImported={() => {}} />
           <ProductionImportViewer />
-        </>
-      )}
-
-      
-      {/* ── IMPORT TAB ─────────────────────────────── */}
-      {tab === "analytics" && (
-        <>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">
-                Analytics
-              </CardTitle>
-              <CardDescription>
-                View production analytics and reports
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <ProductionAnalytics />
         </>
       )}
     </div>
