@@ -1,4 +1,3 @@
-// src/services/production.service.ts
 import api from "@/lib/api";
 import { ProductionEntry, ProductionEntryPayload } from "@/types/production.types";
 
@@ -10,6 +9,14 @@ export const productionService = {
 
   async getByDate(date: string): Promise<ProductionEntry[]> {
     const res = await api.get(`/api/production-entries?date=${date}`);
+    return res.data;
+  },
+
+  // 👇 NEW — assumes backend supports ?from=&to= on the same endpoint
+  async getByRange(from: string, to: string): Promise<ProductionEntry[]> {
+    const res = await api.get("/api/production-entries", {
+      params: { from, to },
+    });
     return res.data;
   },
 
@@ -27,9 +34,16 @@ export const productionService = {
     await api.delete(`/api/production-entries/${id}`);
   },
 
-  // Saves multiple entries — one per product — sequentially
   async bulkCreate(entries: ProductionEntryPayload[]): Promise<ProductionEntry[]> {
     const results = await Promise.all(entries.map((e) => productionService.create(e)));
     return results;
   },
+
+  async getByMonth(month: string): Promise<ProductionEntry[]> {
+  // month format: "YYYY-MM"
+  const res = await api.get("/api/production-entries", {
+    params: { month },
+  });
+  return res.data;
+},
 };
