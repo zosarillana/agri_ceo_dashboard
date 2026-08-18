@@ -65,8 +65,33 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
     ],
     highlightSubtotals: [
       {
-        label: "Diluted + Total Packed Cream = Group 2 Subtotal",
-        slugs: ["diluted-extracted-cream-30", "total-packed-cream"],
+        // Computed independently of the raw "total-packed-cream" product entry —
+        // this sums the actual packaging line items instead.
+        label: "Total Packed Cream (computed)",
+        slugs: [
+          "fpcc-manual-fillingpacking",
+          "aseptic-17-packed-bib",
+          "aseptic-17-packed-bid",
+          "aseptic-24-packed-bib",
+          "aseptic-24-packed-bid",
+          "aseptic-30-packed-bib",
+          "aseptic-30-packed-1t-tote-bag",
+          "aseptic-30-packed-bid",
+        ],
+      },
+      {
+        label: "Group 2 — Subtotal (Diluted Extracted Cream 30% + Total Packed Cream)",
+        slugs: [
+          "diluted-extracted-cream-30",
+          "fpcc-manual-fillingpacking",
+          "aseptic-17-packed-bib",
+          "aseptic-17-packed-bid",
+          "aseptic-24-packed-bib",
+          "aseptic-24-packed-bid",
+          "aseptic-30-packed-bib",
+          "aseptic-30-packed-1t-tote-bag",
+          "aseptic-30-packed-bid",
+        ],
       },
     ],
   },

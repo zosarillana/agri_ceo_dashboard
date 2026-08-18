@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -53,8 +53,9 @@ import {
 
 import { useProductsStore } from "@/store/products.store";
 import { useProductionStore } from "@/store/production.store";
-import { useProductionRange } from "@/hooks/use-production-range";
-import { useAnalyticsChart } from "@/hooks/use-analytics-charts";
+import { useProductionRange, aggregateViewItems } from "@/hooks/use-production-range";
+import { useMultiMonthEntries } from "@/hooks/use-multi-month-entries";
+import { useAnalyticsChart, type ChartSeriesConfig } from "@/hooks/use-analytics-charts";
 import { useProductGroups, getGroupForSlug, PRODUCT_GROUPS } from "@/hooks/use-product-group";
 
 function fmt(n: number | string | null | undefined): string {
@@ -65,6 +66,27 @@ function fmt(n: number | string | null | undefined): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
+}
+
+function toMonthStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(monthStr: string): string {
+  // monthStr = "YYYY-MM"
+  return format(new Date(`${monthStr}-01`), "MMM yyyy");
+}
+
+// generates the last `count` months (including current), most recent first
+function generateMonthOptions(count = 24): { value: string; label: string }[] {
+  const opts: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = toMonthStr(d);
+    opts.push({ value, label: format(d, "MMMM yyyy") });
+  }
+  return opts;
 }
 
 // ── date picker button ──────────────────────────────────────────────────
@@ -110,6 +132,77 @@ function DatePickerButton({
           }
           initialFocus
         />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── month multi-select dropdown (checkboxes) ─────────────────────────────
+function MonthMultiSelect({
+  selectedMonths,
+  onChange,
+}: {
+  selectedMonths: string[];
+  onChange: (months: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const options = useMemo(() => generateMonthOptions(24), []);
+
+  function toggle(value: string) {
+    onChange(
+      selectedMonths.includes(value)
+        ? selectedMonths.filter((m) => m !== value)
+        : [...selectedMonths, value]
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="w-[220px] justify-between font-normal">
+          <span className="truncate text-sm">
+            {selectedMonths.length === 0
+              ? "Select months"
+              : selectedMonths.length === 1
+              ? monthLabel(selectedMonths[0])
+              : `${selectedMonths.length} months selected`}
+          </span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[240px] p-0" align="end">
+        <div className="max-h-64 overflow-y-auto p-1">
+          {options.map((opt) => {
+            const checked = selectedMonths.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                onClick={() => toggle(opt.value)}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-muted text-left"
+              >
+                {checked ? (
+                  <CheckSquare className="h-4 w-4 text-primary shrink-0" />
+                ) : (
+                  <Square className="h-4 w-4 text-muted-foreground shrink-0" />
+                )}
+                <span className="truncate">{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between p-2 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => onChange([])}
+          >
+            Clear
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {selectedMonths.length} selected
+          </span>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -379,46 +472,59 @@ function AnalyticsSkeleton() {
 export default function ProductionAnalytics() {
   const { products, loading: productsLoading } = useProductsStore();
 
+  // "range" always uses this hook's from/to picker.
+  // "month" is now handled locally (see selectedMonths below) so we can
+  // support multi-select instead of one month at a time.
   const {
-    mode,
-    setMode,
     from,
     to,
     setFrom,
     setTo,
-    month,
-    goToPreviousMonth,
-    goToNextMonth,
-    isCurrentMonth,
-    viewItems,
+    viewItems: rangeViewItems,
     loading: rangeLoading,
   } = useProductionRange(products);
 
-  const { entries, loading: entriesLoading } = useProductionStore();
+  const { entries: rangeEntries, loading: rangeEntriesLoading } = useProductionStore();
+
+  const [viewMode, setViewMode] = useState<"range" | "month">("range");
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([toMonthStr(new Date())]);
+
+  const { entries: monthEntries, loading: monthLoading } = useMultiMonthEntries(
+    viewMode === "month" ? selectedMonths : []
+  );
+
+  const monthViewItems = useMemo(
+    () => aggregateViewItems(products, monthEntries),
+    [products, monthEntries]
+  );
 
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<string[]>([]); // [] = all groups
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]); // [] = all products
   const [chartType, setChartType] = useState<"line" | "bar">("line");
 
-  const loading = productsLoading || rangeLoading || entriesLoading;
+  // pick the active data source based on viewMode
+  const activeEntries = viewMode === "month" ? monthEntries : rangeEntries;
+  const activeViewItems = viewMode === "month" ? monthViewItems : rangeViewItems;
+  const loading =
+    productsLoading || (viewMode === "month" ? monthLoading : rangeLoading || rangeEntriesLoading);
 
-  // viewItems filtered by BOTH the group chips and the product multi-select
   const filteredViewItems = useMemo(() => {
-    return viewItems.filter((item) => {
+    return activeViewItems.filter((item) => {
       const group = getGroupForSlug(item.slug);
       const groupOk = selectedGroupKeys.length === 0 || (group && selectedGroupKeys.includes(group.key));
       const productOk = selectedProductIds.length === 0 || selectedProductIds.includes(item.id);
       return groupOk && productOk;
     });
-  }, [viewItems, selectedGroupKeys, selectedProductIds]);
+  }, [activeViewItems, selectedGroupKeys, selectedProductIds]);
 
   const { groups: tableGroups, grandTotal } = useProductGroups(filteredViewItems);
 
   const { chartData, series, byProductMode } = useAnalyticsChart(
-    entries,
+    activeEntries,
     products,
     selectedGroupKeys,
-    selectedProductIds
+    selectedProductIds,
+    viewMode === "month" ? "month" : "day" // 👈 X-axis buckets by month when in month mode
   );
 
   function toggleGroup(key: string) {
@@ -433,6 +539,19 @@ export default function ProductionAnalytics() {
 
   const hasAnyChartData = chartData.length > 0 && series.length > 0;
   const hasAnyTileData = filteredViewItems.length > 0;
+
+  const periodLabel =
+    viewMode === "month"
+      ? selectedMonths.length === 0
+        ? "No months selected"
+        : selectedMonths.length === 1
+        ? monthLabel(selectedMonths[0])
+        : `${selectedMonths.length} months (${selectedMonths
+            .slice()
+            .sort()
+            .map(monthLabel)
+            .join(", ")})`
+      : `${format(from, "PPP")} to ${format(to, "PPP")}`;
 
   return (
     <div className="space-y-4">
@@ -450,9 +569,9 @@ export default function ProductionAnalytics() {
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
                 <button
-                  onClick={() => setMode("range")}
+                  onClick={() => setViewMode("range")}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                    mode === "range"
+                    viewMode === "range"
                       ? "bg-background shadow-sm text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -460,9 +579,9 @@ export default function ProductionAnalytics() {
                   Range
                 </button>
                 <button
-                  onClick={() => setMode("month")}
+                  onClick={() => setViewMode("month")}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                    mode === "month"
+                    viewMode === "month"
                       ? "bg-background shadow-sm text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -471,7 +590,7 @@ export default function ProductionAnalytics() {
                 </button>
               </div>
 
-              {mode === "range" ? (
+              {viewMode === "range" ? (
                 <div className="flex items-center gap-2">
                   <DatePickerButton
                     label="From"
@@ -491,29 +610,10 @@ export default function ProductionAnalytics() {
                   />
                 </div>
               ) : (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9"
-                    onClick={goToPreviousMonth}
-                    disabled={loading}
-                  >
-                    ‹
-                  </Button>
-                  <div className="w-[140px] text-center text-sm font-medium border rounded-md py-2">
-                    {format(month, "MMMM yyyy")}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9"
-                    onClick={goToNextMonth}
-                    disabled={loading || isCurrentMonth}
-                  >
-                    ›
-                  </Button>
-                </div>
+                <MonthMultiSelect
+                  selectedMonths={selectedMonths}
+                  onChange={setSelectedMonths}
+                />
               )}
 
               <ProductMultiSelect
@@ -567,7 +667,8 @@ export default function ProductionAnalytics() {
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <CardTitle className="text-sm font-medium">
-                    {byProductMode ? "Daily Output by Product" : "Daily Output by Group"}
+                    {byProductMode ? "Output by Product" : "Output by Group"}
+                    {viewMode === "month" ? " (by Month)" : ""}
                   </CardTitle>
                   <CardDescription>
                     {series.length === 0
@@ -606,7 +707,9 @@ export default function ProductionAnalytics() {
                 <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
                   {series.length === 0
                     ? "Select at least one group or product to see the chart."
-                    : "No data for the selected range."}
+                    : viewMode === "month" && selectedMonths.length === 0
+                    ? "Select at least one month to see the chart."
+                    : "No data for the selected period."}
                 </div>
               ) : (
                 <div className="h-72 w-full">
@@ -616,16 +719,24 @@ export default function ProductionAnalytics() {
                         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                         <XAxis
                           dataKey="date"
-                          tickFormatter={(d) => format(new Date(d), "MMM d")}
+                          tickFormatter={(d) =>
+                            viewMode === "month"
+                              ? monthLabel(d as string)
+                              : format(new Date(d as string), "MMM d")
+                          }
                           fontSize={11}
                         />
                         <YAxis fontSize={11} />
                         <Tooltip
-                          labelFormatter={(d) => format(new Date(d as string), "PPP")}
+                          labelFormatter={(d) =>
+                            viewMode === "month"
+                              ? monthLabel(d as string)
+                              : format(new Date(d as string), "PPP")
+                          }
                           formatter={(value) => fmt(value as number)}
                         />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
-                        {series.map((s) => (
+                        {series.map((s: ChartSeriesConfig) => (
                           <Line
                             key={s.key}
                             type="monotone"
@@ -642,16 +753,24 @@ export default function ProductionAnalytics() {
                         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                         <XAxis
                           dataKey="date"
-                          tickFormatter={(d) => format(new Date(d), "MMM d")}
+                          tickFormatter={(d) =>
+                            viewMode === "month"
+                              ? monthLabel(d as string)
+                              : format(new Date(d as string), "MMM d")
+                          }
                           fontSize={11}
                         />
                         <YAxis fontSize={11} />
                         <Tooltip
-                          labelFormatter={(d) => format(new Date(d as string), "PPP")}
+                          labelFormatter={(d) =>
+                            viewMode === "month"
+                              ? monthLabel(d as string)
+                              : format(new Date(d as string), "PPP")
+                          }
                           formatter={(value) => fmt(value as number)}
                         />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
-                        {series.map((s) => (
+                        {series.map((s: ChartSeriesConfig) => (
                           <Bar key={s.key} dataKey={s.label} fill={s.color} />
                         ))}
                       </BarChart>
@@ -666,11 +785,7 @@ export default function ProductionAnalytics() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Detailed Breakdown</CardTitle>
-              <CardDescription>
-                {mode === "month"
-                  ? `For ${format(month, "MMMM yyyy")}`
-                  : `From ${format(from, "PPP")} to ${format(to, "PPP")}`}
-              </CardDescription>
+              <CardDescription>{periodLabel}</CardDescription>
             </CardHeader>
             <CardContent>
               {!hasAnyTileData ? (
