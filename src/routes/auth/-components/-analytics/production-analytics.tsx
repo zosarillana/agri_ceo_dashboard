@@ -87,6 +87,33 @@ function generateMonthOptions(count = 24): { value: string; label: string }[] {
   return opts;
 }
 
+// Sorts products to match PRODUCT_GROUPS' declared slug order —
+// group 1 items first (in their listed order), then group 2, then group 3,
+// then anything ungrouped at the end. Used so the product dropdown lists
+// products in the same order they appear in the tiles/table.
+function sortProductsByGroupOrder(
+  products: { id: number; name: string; slug?: string | null }[]
+) {
+  return [...products].sort((a, b) => {
+    const groupA = getGroupForSlug(a.slug);
+    const groupB = getGroupForSlug(b.slug);
+
+    const groupIndexA = groupA
+      ? PRODUCT_GROUPS.findIndex((g) => g.key === groupA.key)
+      : PRODUCT_GROUPS.length;
+    const groupIndexB = groupB
+      ? PRODUCT_GROUPS.findIndex((g) => g.key === groupB.key)
+      : PRODUCT_GROUPS.length;
+
+    if (groupIndexA !== groupIndexB) return groupIndexA - groupIndexB;
+
+    const slugIndexA = groupA ? groupA.slugs.indexOf(a.slug ?? "") : 0;
+    const slugIndexB = groupB ? groupB.slugs.indexOf(b.slug ?? "") : 0;
+
+    return slugIndexA - slugIndexB;
+  });
+}
+
 // ── date picker button ──────────────────────────────────────────────────
 function DatePickerButton({
   label,
@@ -260,14 +287,18 @@ function ProductMultiSelect({
   selectedIds,
   onChange,
 }: {
-  products: { id: number; name: string }[];
+  products: { id: number; name: string; slug?: string | null }[];
   selectedIds: number[];
   onChange: (ids: number[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const filtered = products.filter((p) =>
+  // sorted to match PRODUCT_GROUPS' declared order (group 1 → 2 → 3 → ungrouped),
+  // same ordering the tiles and table already use
+  const sortedProducts = useMemo(() => sortProductsByGroupOrder(products), [products]);
+
+  const filtered = sortedProducts.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -632,7 +663,7 @@ export default function ProductionAnalytics() {
         <AnalyticsSkeleton />
       ) : (
         <>
-          {/* Per-product tiles */}
+          {/* Per-product tiles, grouped */}
           {!hasAnyTileData ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -640,17 +671,32 @@ export default function ProductionAnalytics() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {filteredViewItems.map((item) => (
-                <ProductTile
-                  key={item.id}
-                  label={item.label}
-                  unit={item.unit}
-                  hex={getGroupForSlug(item.slug)?.color.hex ?? "#9ca3af"}
-                  actual={item.actual}
-                  target={item.target}
-                  hasActualData={item.hasActualData}
-                />
+            <div className="space-y-4">
+              {tableGroups.map((group) => (
+                <div key={group.key}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: group.color.hex }}
+                    />
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {group.label}
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {group.items.map((item) => (
+                      <ProductTile
+                        key={item.id}
+                        label={item.label}
+                        unit={item.unit}
+                        hex={group.color.hex}
+                        actual={item.actual}
+                        target={item.target}
+                        hasActualData={item.hasActualData}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

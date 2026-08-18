@@ -1,10 +1,32 @@
 import { useMemo } from "react";
 
-export type ProductGroupKey =
-  | "group-1"
-  | "group-2"
-  | "group-3"
-  | "ungrouped";
+export type ProductGroupKey = "group-1" | "group-2" | "group-3" | "ungrouped";
+
+function sortProductsByGroupOrder(products: { id: number; name: string; slug?: string | null }[]) {
+  return [...products].sort((a, b) => {
+    const groupA = getGroupForSlug(a.slug);
+    const groupB = getGroupForSlug(b.slug);
+
+    const groupIndexA = groupA ? PRODUCT_GROUPS.findIndex((g) => g.key === groupA.key) : PRODUCT_GROUPS.length;
+    const groupIndexB = groupB ? PRODUCT_GROUPS.findIndex((g) => g.key === groupB.key) : PRODUCT_GROUPS.length;
+
+    if (groupIndexA !== groupIndexB) return groupIndexA - groupIndexB;
+
+    const slugIndexA = groupA ? groupA.slugs.indexOf(a.slug ?? "") : 0;
+    const slugIndexB = groupB ? groupB.slugs.indexOf(b.slug ?? "") : 0;
+
+    return slugIndexA - slugIndexB;
+  });
+}
+
+const normalizeForSlug = (value: string) => {
+  return value
+    .trim()
+    .replace(/\s*\/\s*/g, "/") // "Filling / Packing" → "Filling/Packing"
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
 
 export interface ProductGroupConfig {
   key: ProductGroupKey;
@@ -51,10 +73,10 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
       border: "border-l-blue-400",
       hex: "#3b82f6",
     },
-    // all 10 rows still display in the table, in this order
+
     slugs: [
       "diluted-extracted-cream-30",
-      "fpcc-manual-fillingpacking",
+      "fpcc-manual-filling-packing",
       "aseptic-17-packed-bib",
       "aseptic-17-packed-bid",
       "aseptic-24-packed-bib",
@@ -64,9 +86,7 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
       "aseptic-30-packed-bid",
       "total-packed-cream",
     ],
-    // but the subtotal only sums Diluted + Total Packed Cream, since
-    // Total Packed Cream already equals the sum of the 8 packaging lines above —
-    // including both would double-count them.
+
     subtotalSlugs: ["diluted-extracted-cream-30", "total-packed-cream"],
   },
   {
@@ -84,17 +104,22 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
 
 const SLUG_TO_GROUP: Record<string, ProductGroupConfig> = PRODUCT_GROUPS.reduce(
   (acc, group) => {
-    group.slugs.forEach((slug) => (acc[slug] = group));
+    group.slugs.forEach((slug) => {
+      acc[normalizeForSlug(slug)] = group;
+    });
     return acc;
   },
-  {} as Record<string, ProductGroupConfig>
+  {} as Record<string, ProductGroupConfig>,
 );
 
 export function getGroupForSlug(
-  slug: string | undefined | null
+  slug: string | undefined | null,
 ): ProductGroupConfig | null {
   if (!slug) return null;
-  return SLUG_TO_GROUP[slug] ?? null;
+
+  const normalizedSlug = normalizeForSlug(slug);
+
+  return SLUG_TO_GROUP[normalizedSlug] ?? null;
 }
 
 export interface Groupable {
@@ -161,7 +186,7 @@ export interface UseProductGroupsResult<T> {
  * "Ungrouped" at the end. Empty groups are skipped.
  */
 export function useProductGroups<T extends Groupable>(
-  items: T[]
+  items: T[],
 ): UseProductGroupsResult<T> {
   return useMemo(() => {
     const buckets = new Map<ProductGroupKey, T[]>();
