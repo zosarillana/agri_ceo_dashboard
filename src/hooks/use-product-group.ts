@@ -16,6 +16,12 @@ export interface ProductGroupConfig {
     hex: string;
   };
   slugs: string[];
+  // Optional: if provided, the group's subtotal is computed ONLY from these
+  // slugs instead of summing every item in `slugs`. Use this when some items
+  // in the group are themselves a sum of other items in the same group
+  // (e.g. "Total Packed Cream" already equals the 8 packaging lines below it),
+  // so summing everything would double-count.
+  subtotalSlugs?: string[];
 }
 
 export const PRODUCT_GROUPS: ProductGroupConfig[] = [
@@ -45,6 +51,7 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
       border: "border-l-blue-400",
       hex: "#3b82f6",
     },
+    // all 10 rows still display in the table, in this order
     slugs: [
       "diluted-extracted-cream-30",
       "fpcc-manual-fillingpacking",
@@ -57,6 +64,10 @@ export const PRODUCT_GROUPS: ProductGroupConfig[] = [
       "aseptic-30-packed-bid",
       "total-packed-cream",
     ],
+    // but the subtotal only sums Diluted + Total Packed Cream, since
+    // Total Packed Cream already equals the sum of the 8 packaging lines above —
+    // including both would double-count them.
+    subtotalSlugs: ["diluted-extracted-cream-30", "total-packed-cream"],
   },
   {
     key: "group-3",
@@ -139,10 +150,15 @@ export interface UseProductGroupsResult<T> {
 
 /**
  * Groups any array of items that have a `slug` field according to
- * PRODUCT_GROUPS, sorted to match the order slugs were listed, and computes
- * one subtotal per group (labelled "Subtotal (Group N)") plus a grand total
- * across everything. Anything not in the config falls into "Ungrouped" at
- * the end. Empty groups are skipped.
+ * PRODUCT_GROUPS, sorted to match the order slugs were listed. Computes
+ * one subtotal per group (labelled "Subtotal (Group N)") — normally the
+ * sum of every item in the group, but if a group defines `subtotalSlugs`,
+ * only those slugs are summed (to avoid double-counting when one item is
+ * itself a rollup of others in the same group). Also computes a grand
+ * total across everything, using each group's subtotal (not a raw sum of
+ * every displayed item) so the grand total doesn't inherit any
+ * double-counting either. Anything not in the config falls into
+ * "Ungrouped" at the end. Empty groups are skipped.
  */
 export function useProductGroups<T extends Groupable>(
   items: T[]
@@ -165,20 +181,24 @@ export function useProductGroups<T extends Groupable>(
     const groups: GroupedResult<T>[] = PRODUCT_GROUPS.map((g) => {
       const groupItems = buckets.get(g.key)!;
 
-      // keep items in the exact order their slugs were listed in PRODUCT_GROUPS,
-      // instead of whatever order they came back from the DB/products array
+      // keep items in the exact order their slugs were listed in PRODUCT_GROUPS
       const sortedItems = [...groupItems].sort((a, b) => {
         const aIndex = g.slugs.indexOf(a.slug ?? "");
         const bIndex = g.slugs.indexOf(b.slug ?? "");
         return aIndex - bIndex;
       });
 
+      // subtotal uses subtotalSlugs if defined, otherwise every item shown
+      const subtotalItems = g.subtotalSlugs
+        ? sortedItems.filter((i) => g.subtotalSlugs!.includes(i.slug ?? ""))
+        : sortedItems;
+
       return {
         key: g.key,
         label: g.label,
         color: g.color,
         items: sortedItems,
-        totals: computeTotals(sortedItems),
+        totals: computeTotals(subtotalItems),
         subtotalLabel: `Subtotal (${g.label})`,
       };
     }).filter((g) => g.items.length > 0);
@@ -199,7 +219,27 @@ export function useProductGroups<T extends Groupable>(
       });
     }
 
-    const grandTotal = computeTotals(items);
+    // grand total = sum of each group's already-correct subtotal,
+    // NOT a raw sum of every item — this keeps Group 2's dedup intact
+    let grandActual = 0;
+    let grandTarget = 0;
+    let grandHasAnyData = false;
+    for (const g of groups) {
+      if (g.totals.hasAnyData) {
+        grandActual += g.totals.actual;
+        grandHasAnyData = true;
+      }
+      grandTarget += g.totals.target;
+    }
+    const grandDiff = grandActual - grandTarget;
+    const grandPct = grandTarget > 0 ? (grandDiff / grandTarget) * 100 : null;
+    const grandTotal: GroupTotals = {
+      actual: grandActual,
+      target: grandTarget,
+      diff: grandDiff,
+      pct: grandPct,
+      hasAnyData: grandHasAnyData,
+    };
 
     return { groups, grandTotal };
   }, [items]);
