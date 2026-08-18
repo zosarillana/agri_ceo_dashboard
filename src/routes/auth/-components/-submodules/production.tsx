@@ -244,7 +244,7 @@ export default function ProductionDash() {
   const [tab, setTab] = useState<Tab>("view");
 
   const { products, loading: productsLoading, fetchProducts } = useProductsStore();
-  const { saving } = useProductionStore();
+  useProductionStore();
 
   const {
     mode,
@@ -548,12 +548,7 @@ export default function ProductionDash() {
                         })}
 
                         {/* group subtotal */}
-                        <TotalRow label={`${group.label} — Subtotal`} totals={group.totals} />
-
-                        {/* any extra named subtotals this group defines */}
-                        {group.highlightSubtotals.map((h) => (
-                          <TotalRow key={h.label} label={h.label} totals={h.totals} />
-                        ))}
+                        <TotalRow label={group.subtotalLabel} totals={group.totals} />
                       </Fragment>
                     ))}
 

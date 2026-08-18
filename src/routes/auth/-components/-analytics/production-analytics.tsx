@@ -73,11 +73,9 @@ function toMonthStr(d: Date): string {
 }
 
 function monthLabel(monthStr: string): string {
-  // monthStr = "YYYY-MM"
   return format(new Date(`${monthStr}-01`), "MMM yyyy");
 }
 
-// generates the last `count` months (including current), most recent first
 function generateMonthOptions(count = 24): { value: string; label: string }[] {
   const opts: { value: string; label: string }[] = [];
   const now = new Date();
@@ -472,9 +470,6 @@ function AnalyticsSkeleton() {
 export default function ProductionAnalytics() {
   const { products, loading: productsLoading } = useProductsStore();
 
-  // "range" always uses this hook's from/to picker.
-  // "month" is now handled locally (see selectedMonths below) so we can
-  // support multi-select instead of one month at a time.
   const {
     from,
     to,
@@ -502,7 +497,6 @@ export default function ProductionAnalytics() {
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]); // [] = all products
   const [chartType, setChartType] = useState<"line" | "bar">("line");
 
-  // pick the active data source based on viewMode
   const activeEntries = viewMode === "month" ? monthEntries : rangeEntries;
   const activeViewItems = viewMode === "month" ? monthViewItems : rangeViewItems;
   const loading =
@@ -524,7 +518,7 @@ export default function ProductionAnalytics() {
     products,
     selectedGroupKeys,
     selectedProductIds,
-    viewMode === "month" ? "month" : "day" // 👈 X-axis buckets by month when in month mode
+    viewMode === "month" ? "month" : "day"
   );
 
   function toggleGroup(key: string) {
@@ -880,11 +874,7 @@ export default function ProductionAnalytics() {
                           );
                         })}
 
-                        <TotalRow label={`${group.label} — Subtotal`} totals={group.totals} />
-
-                        {group.highlightSubtotals.map((h) => (
-                          <TotalRow key={h.label} label={h.label} totals={h.totals} />
-                        ))}
+                        <TotalRow label={group.subtotalLabel} totals={group.totals} />
                       </Fragment>
                     ))}
 
