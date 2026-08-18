@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useProductionStore } from "@/store/production.store";
 import type { Product } from "@/types/products.types";
+import type { ProductionEntry } from "@/types/production.types";
 
 export interface RangeViewItem {
   id: number;
@@ -24,12 +25,43 @@ function toMonthStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// 👇 extracted so it can be reused by use-multi-month-entries.ts
+export function aggregateViewItems(
+  products: Product[],
+  entries: ProductionEntry[]
+): RangeViewItem[] {
+  return products.map((pr) => {
+    const productEntries = entries.filter((e) => e.product_id === pr.id);
+    const daysWithData = productEntries.filter((e) => e.actual_output > 0).length;
+    const actualSum = productEntries.reduce(
+      (sum, e) => sum + Number(e.actual_output || 0),
+      0
+    );
+    const targetSum =
+      productEntries.length > 0
+        ? productEntries.reduce((sum, e) => sum + Number(e.target_output || 0), 0)
+        : pr.default_target ?? 0;
+
+    return {
+      id: pr.id,
+      slug: pr.slug,
+      label: pr.name,
+      actual: daysWithData > 0 ? actualSum : null,
+      target: targetSum,
+      unit: pr.unit ?? "—",
+      hasEntry: productEntries.length > 0,
+      hasActualData: daysWithData > 0,
+      daysWithData,
+    };
+  });
+}
+
 export function useProductionRange(products: Product[], initialFrom?: Date, initialTo?: Date) {
   const today = useMemo(() => new Date(), []);
   const [mode, setMode] = useState<RangeMode>("range");
   const [from, setFromRaw] = useState<Date>(initialFrom ?? today);
   const [to, setToRaw] = useState<Date>(initialTo ?? today);
-  const [month, setMonth] = useState<Date>(today); // any date within the target month
+  const [month, setMonth] = useState<Date>(today);
 
   const { entries, loading, fetchByRange, fetchByMonth } = useProductionStore();
 
@@ -71,32 +103,10 @@ export function useProductionRange(products: Product[], initialFrom?: Date, init
   const isCurrentMonth =
     month.getFullYear() === today.getFullYear() && month.getMonth() === today.getMonth();
 
-  const viewItems: RangeViewItem[] = useMemo(() => {
-    return products.map((pr) => {
-      const productEntries = entries.filter((e) => e.product_id === pr.id);
-      const daysWithData = productEntries.filter((e) => e.actual_output > 0).length;
-      const actualSum = productEntries.reduce(
-        (sum, e) => sum + Number(e.actual_output || 0),
-        0
-      );
-      const targetSum =
-        productEntries.length > 0
-          ? productEntries.reduce((sum, e) => sum + Number(e.target_output || 0), 0)
-          : pr.default_target ?? 0;
-
-      return {
-        id: pr.id,
-        slug: pr.slug,
-        label: pr.name,
-        actual: daysWithData > 0 ? actualSum : null,
-        target: targetSum,
-        unit: pr.unit ?? "—",
-        hasEntry: productEntries.length > 0,
-        hasActualData: daysWithData > 0,
-        daysWithData,
-      };
-    });
-  }, [products, entries]);
+  const viewItems: RangeViewItem[] = useMemo(
+    () => aggregateViewItems(products, entries),
+    [products, entries]
+  );
 
   return {
     mode,

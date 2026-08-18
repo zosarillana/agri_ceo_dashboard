@@ -20,8 +20,16 @@ export interface ChartPoint {
   [seriesLabel: string]: number | string;
 }
 
+export interface UseAnalyticsChartResult {
+  chartData: ChartPoint[];
+  series: ChartSeriesConfig[];
+  byProductMode: boolean;
+}
+
+export type ChartBucket = "day" | "month";
+
 /**
- * Builds chart series + daily data points.
+ * Builds chart series + data points, bucketed either by day or by month.
  * - If selectedProductIds is non-empty: one line/bar per selected PRODUCT.
  * - Otherwise: one line/bar per GROUP (respecting selectedGroupKeys).
  */
@@ -29,8 +37,9 @@ export function useAnalyticsChart(
   entries: ProductionEntry[],
   products: Product[],
   selectedGroupKeys: string[],
-  selectedProductIds: number[]
-) {
+  selectedProductIds: number[],
+  bucketBy: ChartBucket = "day"
+): UseAnalyticsChartResult {
   const byProductMode = selectedProductIds.length > 0;
 
   const series: ChartSeriesConfig[] = useMemo(() => {
@@ -49,7 +58,7 @@ export function useAnalyticsChart(
   }, [byProductMode, products, selectedProductIds, selectedGroupKeys]);
 
   const chartData: ChartPoint[] = useMemo(() => {
-    const byDate = new Map<string, ChartPoint>();
+    const byBucket = new Map<string, ChartPoint>();
 
     entries.forEach((e) => {
       let seriesLabel: string | null = null;
@@ -68,16 +77,20 @@ export function useAnalyticsChart(
 
       if (!seriesLabel) return;
 
-      const date = e.production_date.slice(0, 10);
-      if (!byDate.has(date)) byDate.set(date, { date });
-      const point = byDate.get(date)!;
+      const bucketKey =
+        bucketBy === "month"
+          ? e.production_date.slice(0, 7) // "YYYY-MM"
+          : e.production_date.slice(0, 10); // "YYYY-MM-DD"
+
+      if (!byBucket.has(bucketKey)) byBucket.set(bucketKey, { date: bucketKey });
+      const point = byBucket.get(bucketKey)!;
       point[seriesLabel] = ((point[seriesLabel] as number) || 0) + Number(e.actual_output || 0);
     });
 
-    return Array.from(byDate.values()).sort((a, b) =>
+    return Array.from(byBucket.values()).sort((a, b) =>
       (a.date as string).localeCompare(b.date as string)
     );
-  }, [entries, products, byProductMode, selectedProductIds, selectedGroupKeys]);
+  }, [entries, products, byProductMode, selectedProductIds, selectedGroupKeys, bucketBy]);
 
   return { chartData, series, byProductMode };
 }
