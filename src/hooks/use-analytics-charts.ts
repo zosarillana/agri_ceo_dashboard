@@ -32,6 +32,12 @@ export type ChartBucket = "day" | "month";
  * Builds chart series + data points, bucketed either by day or by month.
  * - If selectedProductIds is non-empty: one line/bar per selected PRODUCT.
  * - Otherwise: one line/bar per GROUP (respecting selectedGroupKeys).
+ *
+ * Charts plot actual_output only — dly_target, dly_yield, mtd_target, and
+ * mtd_yield are display-only fields shown in the tables/tiles, not charted.
+ * (dly_yield/mtd_yield are percentages already derived from actual/target,
+ * and mtd_* figures are cumulative-as-of-day so they don't sum sensibly
+ * across a bucketed date range the way actual_output does.)
  */
 export function useAnalyticsChart(
   entries: ProductionEntry[],

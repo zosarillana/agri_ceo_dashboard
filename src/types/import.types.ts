@@ -4,6 +4,10 @@ export type ImportColumnRole =
   | "product_name"
   | "actual_output"
   | "target_output"
+  | "dly_target"
+  | "dly_yield"
+  | "mtd_target"
+  | "mtd_yield"
   | "remarks"
   | null;
 
