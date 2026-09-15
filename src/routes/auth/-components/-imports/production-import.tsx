@@ -1,3 +1,4 @@
+//src\routes\auth\-components\-imports\production-import.tsx
 "use client";
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
@@ -72,11 +73,18 @@ const GRID_PREVIEW_ROWS = 12;
 const GRID_PREVIEW_COLS = 20;
 const PREVIEW_ROWS = 8;
 
-const ROLE_OPTIONS: { value: NonNullable<ImportColumnRole> | "none"; label: string }[] = [
+const ROLE_OPTIONS: {
+  value: NonNullable<ImportColumnRole> | "none";
+  label: string;
+}[] = [
   { value: "none", label: "— none —" },
   { value: "product_name", label: "Product name" },
   { value: "actual_output", label: "Actual output" },
   { value: "target_output", label: "Target output" },
+  { value: "dly_target", label: "Daily target" },
+  { value: "dly_yield", label: "Daily yield" },
+  { value: "mtd_target", label: "MTD target" },
+  { value: "mtd_yield", label: "MTD yield" },
   { value: "remarks", label: "Remarks" },
 ];
 
@@ -125,16 +133,31 @@ function dateToISO(d: Date) {
 // Mirrors ImportTemplate::matches() on the backend: every label in the
 // template's saved signature must appear somewhere in this sheet's header
 // row (case/whitespace-insensitive). Extra columns in the sheet are fine.
-function clientTemplateMatches(headerLabels: string[], template: ImportTemplate): boolean {
+function clientTemplateMatches(
+  headerLabels: string[],
+  template: ImportTemplate,
+): boolean {
   const incoming = new Set(
     headerLabels.map((l) => l.trim().toLowerCase()).filter((l) => l !== ""),
   );
-  return template.signature.every((label) => incoming.has(label.trim().toLowerCase()));
+  return template.signature.every((label) =>
+    incoming.has(label.trim().toLowerCase()),
+  );
 }
 
 const MONTH_NAMES = [
-  "january", "february", "march", "april", "may", "june",
-  "july", "august", "september", "october", "november", "december",
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
 ];
 
 // Best-effort guess at a sheet's date from its tab name. Handles spaced
@@ -148,7 +171,9 @@ function guessDateFromSheetName(name: string): string | null {
   const monthLower = monthPart.toLowerCase();
   let monthIndex = MONTH_NAMES.findIndex((m) => m === monthLower);
   if (monthIndex === -1) {
-    monthIndex = MONTH_NAMES.findIndex((m) => m.slice(0, 3) === monthLower.slice(0, 3));
+    monthIndex = MONTH_NAMES.findIndex(
+      (m) => m.slice(0, 3) === monthLower.slice(0, 3),
+    );
   }
   if (monthIndex === -1) return null;
   const day = parseInt(dayPart, 10);
@@ -185,12 +210,18 @@ export default function ProductionImportForm({ onImported }: Props) {
   const [showAllGridRows, setShowAllGridRows] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
-  const [columnRoles, setColumnRoles] = useState<Record<string, ImportColumnRole>>({});
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
+    new Set(),
+  );
+  const [columnRoles, setColumnRoles] = useState<
+    Record<string, ImportColumnRole>
+  >({});
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [showAllDataRows, setShowAllDataRows] = useState(false);
 
-  const [matchedTemplate, setMatchedTemplate] = useState<ImportTemplate | null>(null);
+  const [matchedTemplate, setMatchedTemplate] = useState<ImportTemplate | null>(
+    null,
+  );
   const [templateName, setTemplateName] = useState("");
 
   const [productionDate, setProductionDate] = useState<Date>(() => new Date());
@@ -235,8 +266,11 @@ export default function ProductionImportForm({ onImported }: Props) {
       header: 1,
       defval: "",
       blankrows: true,
+      raw: false, // ← use formatted display text (respects % / number formats), not underlying raw numbers
     });
-    return raw.map((r) => Array.from({ length: colCount }, (_, i) => r[i] ?? ""));
+    return raw.map((r) =>
+      Array.from({ length: colCount }, (_, i) => r[i] ?? ""),
+    );
   };
 
   const loadSheet = (wb: XLSX.WorkBook, name: string) => {
@@ -270,7 +304,9 @@ export default function ProductionImportForm({ onImported }: Props) {
         const ws = workbook.Sheets[name];
         const raw = getRawRows(ws);
         const headerRowIndex = raw.length ? guessHeaderRow(raw) : 0;
-        const headerLabels = (raw[headerRowIndex] ?? []).map((v) => String(v).trim());
+        const headerLabels = (raw[headerRowIndex] ?? []).map((v) =>
+          String(v).trim(),
+        );
 
         const template =
           templates.find((t) => clientTemplateMatches(headerLabels, t)) ?? null;
@@ -307,7 +343,9 @@ export default function ProductionImportForm({ onImported }: Props) {
 
   const toggleSheetMatchInclude = (sheetName: string) => {
     setSheetMatches((prev) =>
-      prev.map((m) => (m.sheetName === sheetName ? { ...m, include: !m.include } : m)),
+      prev.map((m) =>
+        m.sheetName === sheetName ? { ...m, include: !m.include } : m,
+      ),
     );
   };
 
@@ -315,10 +353,13 @@ export default function ProductionImportForm({ onImported }: Props) {
   // sheets have no template to import against, so their checkbox stays
   // disabled and untouched regardless of this toggle's state.
   const matchableSheetCount = sheetMatches.filter((m) => m.template).length;
-  const includedSheetCount = sheetMatches.filter((m) => m.template && m.include).length;
+  const includedSheetCount = sheetMatches.filter(
+    (m) => m.template && m.include,
+  ).length;
 
   const toggleAllSheetMatches = () => {
-    const allIncluded = includedSheetCount === matchableSheetCount && matchableSheetCount > 0;
+    const allIncluded =
+      includedSheetCount === matchableSheetCount && matchableSheetCount > 0;
     setSheetMatches((prev) =>
       prev.map((m) => (m.template ? { ...m, include: !allIncluded } : m)),
     );
@@ -404,7 +445,9 @@ export default function ProductionImportForm({ onImported }: Props) {
         setSheetNames(wb.SheetNames);
         loadSheet(wb, wb.SheetNames[0]);
       } catch {
-        setFileError("That file could not be parsed. Is it a valid spreadsheet?");
+        setFileError(
+          "That file could not be parsed. Is it a valid spreadsheet?",
+        );
       }
     };
     reader.readAsArrayBuffer(file);
@@ -460,7 +503,9 @@ export default function ProductionImportForm({ onImported }: Props) {
 
   const toggleAllRows = () => {
     setSelectedRows((prev) =>
-      prev.size === dataRows.length ? new Set() : new Set(dataRows.map((_, i) => i)),
+      prev.size === dataRows.length
+        ? new Set()
+        : new Set(dataRows.map((_, i) => i)),
     );
   };
 
@@ -479,13 +524,17 @@ export default function ProductionImportForm({ onImported }: Props) {
     }));
   };
 
-  const hasProductNameRole = Object.values(columnRoles).includes("product_name");
+  const hasProductNameRole =
+    Object.values(columnRoles).includes("product_name");
 
   // Columns to render in the row-preview table — from the applied template
   // when one's in use, otherwise whatever's checked in the manual mapper.
   const previewColumns: ParsedColumn[] = useMemo(() => {
     if (matchedTemplate) {
-      return matchedTemplate.column_map.map((c) => ({ letter: c.letter, label: c.label }));
+      return matchedTemplate.column_map.map((c) => ({
+        letter: c.letter,
+        label: c.label,
+      }));
     }
     return columns.filter((c) => selectedColumns.has(c.letter));
   }, [matchedTemplate, columns, selectedColumns]);
@@ -549,7 +598,8 @@ export default function ProductionImportForm({ onImported }: Props) {
     !!rawFile &&
     !submitting &&
     selectedRows.size > 0 &&
-    (matchedTemplate || (selectedColumns.size > 0 && templateName.trim().length > 0));
+    (matchedTemplate ||
+      (selectedColumns.size > 0 && templateName.trim().length > 0));
 
   return (
     <div className="space-y-4">
@@ -571,7 +621,9 @@ export default function ProductionImportForm({ onImported }: Props) {
             >
               <Upload className="h-6 w-6 text-muted-foreground" />
               <p className="text-sm font-medium">Click to choose a file</p>
-              <p className="text-xs text-muted-foreground">.xlsx, .xls, or .csv</p>
+              <p className="text-xs text-muted-foreground">
+                .xlsx, .xls, or .csv
+              </p>
               <input
                 ref={inputRef}
                 type="file"
@@ -624,489 +676,550 @@ export default function ProductionImportForm({ onImported }: Props) {
               </div>
             </CardHeader>
             {mode === "single" && (
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                  Sheet
-                </p>
-                <Select
-                  value={activeSheet ?? undefined}
-                  onValueChange={(name: string) => workbook && loadSheet(workbook, name)}
-                >
-                  <SelectTrigger className="w-[240px]">
-                    <SelectValue placeholder="Choose a sheet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sheetNames.map((name) => (
-                      <SelectItem key={name} value={name}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Template picker */}
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                  Saved template
-                </p>
-                <div className="flex items-center gap-2">
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    Sheet
+                  </p>
                   <Select
-                    value={matchedTemplate ? String(matchedTemplate.id) : undefined}
-                    onValueChange={(id: string) => {
-                      const t = templates.find((t) => String(t.id) === id);
-                      if (t) applyTemplate(t);
-                    }}
+                    value={activeSheet ?? undefined}
+                    onValueChange={(name: string) =>
+                      workbook && loadSheet(workbook, name)
+                    }
                   >
-                    <SelectTrigger className="w-[280px]">
-                      <SelectValue
-                        placeholder={
-                          loadingTemplates ? "Loading templates…" : "Pick a template (optional)"
-                        }
-                      />
+                    <SelectTrigger className="w-[240px]">
+                      <SelectValue placeholder="Choose a sheet" />
                     </SelectTrigger>
                     <SelectContent>
-                      {templates.map((t) => (
-                        <SelectItem key={t.id} value={String(t.id)}>
-                          {t.name} · {t.column_map.length} columns
+                      {sheetNames.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {matchedTemplate && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setMatchedTemplate(null);
-                        setSelectedColumns(new Set());
-                        setColumnRoles({});
+                </div>
+
+                {/* Template picker */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    Saved template
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={
+                        matchedTemplate ? String(matchedTemplate.id) : undefined
+                      }
+                      onValueChange={(id: string) => {
+                        const t = templates.find((t) => String(t.id) === id);
+                        if (t) applyTemplate(t);
                       }}
                     >
-                      Clear
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Header row (manual mapping only) — Excel-style grid preview */}
-              {!matchedTemplate && rawRows.length > 0 && (
-                <div>
-                  <div className="flex items-start justify-between mb-1.5">
-                    <div>
-                      <p className="text-xs font-medium">
-                        Which row are your headers on?
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 max-w-md">
-                        Click the row with your actual column names — everything above it is
-                        treated as a title block and skipped.
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="shrink-0 whitespace-nowrap">
-                      Suggested: row {suggestedHeaderRow + 1}
-                    </Badge>
+                      <SelectTrigger className="w-[280px]">
+                        <SelectValue
+                          placeholder={
+                            loadingTemplates
+                              ? "Loading templates…"
+                              : "Pick a template (optional)"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.name} · {t.column_map.length} columns
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {matchedTemplate && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setMatchedTemplate(null);
+                          setSelectedColumns(new Set());
+                          setColumnRoles({});
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    )}
                   </div>
+                </div>
 
-                  <div className="rounded-lg border overflow-auto max-h-80 mt-2">
-                    <table className="text-xs border-collapse w-full">
-                      <thead className="sticky top-0 z-10">
-                        <tr>
-                          <th className="sticky left-0 z-20 bg-muted border-b border-r w-10 min-w-10" />
-                          {Array.from(
-                            {
-                              length: Math.min(
-                                rawRows[0]?.length ?? 0,
-                                GRID_PREVIEW_COLS,
+                {/* Header row (manual mapping only) — Excel-style grid preview */}
+                {!matchedTemplate && rawRows.length > 0 && (
+                  <div>
+                    <div className="flex items-start justify-between mb-1.5">
+                      <div>
+                        <p className="text-xs font-medium">
+                          Which row are your headers on?
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 max-w-md">
+                          Click the row with your actual column names —
+                          everything above it is treated as a title block and
+                          skipped.
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 whitespace-nowrap"
+                      >
+                        Suggested: row {suggestedHeaderRow + 1}
+                      </Badge>
+                    </div>
+
+                    <div className="rounded-lg border overflow-auto max-h-80 mt-2">
+                      <table className="text-xs border-collapse w-full">
+                        <thead className="sticky top-0 z-10">
+                          <tr>
+                            <th className="sticky left-0 z-20 bg-muted border-b border-r w-10 min-w-10" />
+                            {Array.from(
+                              {
+                                length: Math.min(
+                                  rawRows[0]?.length ?? 0,
+                                  GRID_PREVIEW_COLS,
+                                ),
+                              },
+                              (_, i) => (
+                                <th
+                                  key={i}
+                                  className="bg-muted border-b px-2 py-1 font-medium text-muted-foreground whitespace-nowrap min-w-[88px]"
+                                >
+                                  {XLSX.utils.encode_col(i)}
+                                </th>
                               ),
-                            },
-                            (_, i) => (
-                              <th
-                                key={i}
-                                className="bg-muted border-b px-2 py-1 font-medium text-muted-foreground whitespace-nowrap min-w-[88px]"
-                              >
-                                {XLSX.utils.encode_col(i)}
-                              </th>
-                            ),
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(showAllGridRows
-                          ? rawRows
-                          : rawRows.slice(0, GRID_PREVIEW_ROWS)
-                        ).map((row, rIdx) => (
-                          <tr
-                            key={rIdx}
-                            onClick={() => setHeaderRowIndex(rIdx)}
-                            className={`cursor-pointer transition-colors ${
-                              rIdx === headerRowIndex
-                                ? "bg-primary/10"
-                                : rIdx === suggestedHeaderRow
-                                  ? "bg-amber-50"
-                                  : "hover:bg-muted/50"
-                            }`}
-                          >
-                            <td
-                              className={`sticky left-0 z-10 border-r border-b px-2 py-1 text-center font-medium tabular-nums ${
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(showAllGridRows
+                            ? rawRows
+                            : rawRows.slice(0, GRID_PREVIEW_ROWS)
+                          ).map((row, rIdx) => (
+                            <tr
+                              key={rIdx}
+                              onClick={() => setHeaderRowIndex(rIdx)}
+                              className={`cursor-pointer transition-colors ${
                                 rIdx === headerRowIndex
-                                  ? "bg-primary/15 text-primary"
+                                  ? "bg-primary/10"
                                   : rIdx === suggestedHeaderRow
-                                    ? "bg-amber-100 text-amber-800"
-                                    : "bg-muted text-muted-foreground"
+                                    ? "bg-amber-50"
+                                    : "hover:bg-muted/50"
                               }`}
                             >
-                              {rIdx + 1}
-                            </td>
-                            {row.slice(0, GRID_PREVIEW_COLS).map((cell, cIdx) => (
                               <td
-                                key={cIdx}
-                                className={`border-b px-2 py-1 whitespace-nowrap max-w-[160px] overflow-hidden text-ellipsis ${
-                                  looksNumeric(cell) ? "text-right tabular-nums" : ""
+                                className={`sticky left-0 z-10 border-r border-b px-2 py-1 text-center font-medium tabular-nums ${
+                                  rIdx === headerRowIndex
+                                    ? "bg-primary/15 text-primary"
+                                    : rIdx === suggestedHeaderRow
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-muted text-muted-foreground"
                                 }`}
-                                title={String(cell)}
                               >
-                                {String(cell)}
+                                {rIdx + 1}
                               </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {rawRows.length > GRID_PREVIEW_ROWS && (
-                    <div className="flex items-center justify-between mt-1.5">
-                      <p className="text-xs text-muted-foreground">
-                        {showAllGridRows
-                          ? `Showing all ${rawRows.length} rows.`
-                          : `Showing the first ${GRID_PREVIEW_ROWS} of ${rawRows.length} rows.`}
-                      </p>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="h-auto p-0 text-xs"
-                        onClick={() => setShowAllGridRows((v) => !v)}
-                      >
-                        {showAllGridRows
-                          ? "Show fewer rows"
-                          : `Show all ${rawRows.length} rows`}
-                      </Button>
+                              {row
+                                .slice(0, GRID_PREVIEW_COLS)
+                                .map((cell, cIdx) => (
+                                  <td
+                                    key={cIdx}
+                                    className={`border-b px-2 py-1 whitespace-nowrap max-w-[160px] overflow-hidden text-ellipsis ${
+                                      looksNumeric(cell)
+                                        ? "text-right tabular-nums"
+                                        : ""
+                                    }`}
+                                    title={String(cell)}
+                                  >
+                                    {String(cell)}
+                                  </td>
+                                ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
+
+                    {rawRows.length > GRID_PREVIEW_ROWS && (
+                      <div className="flex items-center justify-between mt-1.5">
+                        <p className="text-xs text-muted-foreground">
+                          {showAllGridRows
+                            ? `Showing all ${rawRows.length} rows.`
+                            : `Showing the first ${GRID_PREVIEW_ROWS} of ${rawRows.length} rows.`}
+                        </p>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => setShowAllGridRows((v) => !v)}
+                        >
+                          {showAllGridRows
+                            ? "Show fewer rows"
+                            : `Show all ${rawRows.length} rows`}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
             )}
           </Card>
 
           {mode === "single" && (
             <>
-          {/* Column mapping (manual only) */}
-          {!matchedTemplate && columns.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Map columns
-                </CardTitle>
-                <CardDescription>
-                  Choose which columns to bring in, and what each one means.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="w-10"></TableHead>
-                      <TableHead>Column</TableHead>
-                      <TableHead>Role</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {columns.map((col) => {
-                      const checked = selectedColumns.has(col.letter);
-                      return (
-                        <TableRow key={col.letter}>
-                          <TableCell>
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={() => toggleColumn(col.letter)}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <span className="text-muted-foreground mr-1.5 text-xs">
-                              {col.letter}
-                            </span>
-                            {col.label}
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={columnRoles[col.letter] ?? "none"}
-                              onValueChange={(v: string) => setColumnRole(col.letter, v)}
-                              disabled={!checked}
-                            >
-                              <SelectTrigger className="w-[180px] h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {ROLE_OPTIONS.map((r) => (
-                                  <SelectItem key={r.value} value={r.value}>
-                                    {r.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-                {!hasProductNameRole && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1.5 mt-3">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                    No column marked "Product name" — rows will still be logged, but nothing
-                    will sync into Production Entries.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Preview & choose rows — works whether columns came from a
-              template or were mapped manually, since previewColumns
-              covers both cases. */}
-          {previewColumns.length > 0 && dataRows.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
+              {/* Column mapping (manual only) */}
+              {!matchedTemplate && columns.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Preview &amp; choose rows
+                      Map columns
                     </CardTitle>
                     <CardDescription>
-                      Untick any row you don't want to bring in. {selectedRows.size} of{" "}
-                      {dataRows.length} rows selected.
+                      Choose which columns to bring in, and what each one means.
                     </CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={toggleAllRows}>
-                    {selectedRows.size === dataRows.length ? "Deselect all" : "Select all"}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border overflow-auto max-h-72">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="w-9">
-                          <Checkbox
-                            checked={
-                              selectedRows.size === dataRows.length && dataRows.length > 0
-                            }
-                            onCheckedChange={toggleAllRows}
-                          />
-                        </TableHead>
-                        <TableHead className="w-12 text-center text-xs">#</TableHead>
-                        {previewColumns.map((col) => (
-                          <TableHead key={col.letter} className="whitespace-nowrap">
-                            <span className="text-muted-foreground mr-1 text-xs">
-                              {col.letter}
-                            </span>
-                            {col.label}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(showAllDataRows ? dataRows : dataRows.slice(0, PREVIEW_ROWS)).map(
-                        (row, i) => {
-                          const checked = selectedRows.has(i);
-                          const actualRowNumber = (headerRowIndex ?? 0) + 1 + i + 1;
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="w-10"></TableHead>
+                          <TableHead>Column</TableHead>
+                          <TableHead>Role</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {columns.map((col) => {
+                          const checked = selectedColumns.has(col.letter);
                           return (
-                            <TableRow
-                              key={i}
-                              onClick={() => toggleRow(i)}
-                              className={`cursor-pointer ${!checked ? "opacity-50" : ""}`}
-                            >
-                              <TableCell onClick={(e) => e.stopPropagation()}>
+                            <TableRow key={col.letter}>
+                              <TableCell>
                                 <Checkbox
                                   checked={checked}
-                                  onCheckedChange={() => toggleRow(i)}
+                                  onCheckedChange={() =>
+                                    toggleColumn(col.letter)
+                                  }
                                 />
                               </TableCell>
-                              <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
-                                {actualRowNumber}
+                              <TableCell className="font-medium">
+                                <span className="text-muted-foreground mr-1.5 text-xs">
+                                  {col.letter}
+                                </span>
+                                {col.label}
                               </TableCell>
-                              {previewColumns.map((col) => {
-                                const idx = columnIndexByLetter.get(col.letter);
-                                const val = idx != null ? row[idx] : "";
-                                return (
-                                  <TableCell
-                                    key={col.letter}
-                                    className={`whitespace-nowrap ${
-                                      looksNumeric(val) ? "text-right tabular-nums" : ""
-                                    }`}
-                                  >
-                                    {String(val)}
-                                  </TableCell>
-                                );
-                              })}
+                              <TableCell>
+                                <Select
+                                  value={columnRoles[col.letter] ?? "none"}
+                                  onValueChange={(v: string) =>
+                                    setColumnRole(col.letter, v)
+                                  }
+                                  disabled={!checked}
+                                >
+                                  <SelectTrigger className="w-[180px] h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {ROLE_OPTIONS.map((r) => (
+                                      <SelectItem key={r.value} value={r.value}>
+                                        {r.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
                             </TableRow>
                           );
-                        },
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                {dataRows.length > PREVIEW_ROWS && (
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-muted-foreground">
-                      {showAllDataRows
-                        ? `Showing all ${dataRows.length} rows`
-                        : `Showing ${PREVIEW_ROWS} of ${dataRows.length} rows`}
-                    </p>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0 text-xs"
-                      onClick={() => setShowAllDataRows((v) => !v)}
-                    >
-                      {showAllDataRows ? "Show fewer rows" : `Show all ${dataRows.length} rows`}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Template name + production date + submit */}
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              {!matchedTemplate && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                    Template name
-                  </p>
-                  <Input
-                    value={templateName}
-                    onChange={(e) => setTemplateName(e.target.value)}
-                    placeholder="e.g. Daily Production Tracker"
-                    className="w-[280px]"
-                  />
-                </div>
+                        })}
+                      </TableBody>
+                    </Table>
+                    {!hasProductNameRole && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1.5 mt-3">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        No column marked "Product name" — rows will still be
+                        logged, but nothing will sync into Production Entries.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
               )}
 
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                  Production date
-                </p>
-                <Popover open={calOpen} onOpenChange={setCalOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-[200px] justify-start gap-2 text-left font-normal"
-                    >
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                      {format(productionDate, "PPP")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={productionDate}
-                      onSelect={(d) => {
-                        if (d) setProductionDate(d);
-                        setCalOpen(false);
-                      }}
-                      disabled={(d) => d > new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                {selectedRows.size} of {dataRows.length} data row
-                {dataRows.length !== 1 ? "s" : ""} selected for import.
-              </p>
-
-              {error && <p className="text-sm text-rose-600">{error}</p>}
-
-              <Button onClick={handleSubmit} disabled={!canSubmit}>
-                {submitting ? "Importing…" : "Import"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Result */}
-          {lastResult && (
-            <Card
-              className={
-                lastResult.production_sync && lastResult.production_sync.errors.length > 0
-                  ? "border-rose-200"
-                  : "border-emerald-200"
-              }
-            >
-              <CardContent className="pt-6 space-y-2">
-                <p className="text-sm flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                  Imported {lastResult.imported_rows} row
-                  {lastResult.imported_rows !== 1 ? "s" : ""} using template "
-                  {lastResult.template.name}".
-                </p>
-                {lastResult.production_sync && (
-                  <div className="text-sm space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">
-                        {lastResult.production_sync.matched} matched
-                      </Badge>
-                      <Badge variant="outline">
-                        {lastResult.production_sync.skipped} skipped
-                      </Badge>
-                      {lastResult.production_sync.errors.length > 0 && (
-                        <Badge variant="destructive">
-                          {lastResult.production_sync.errors.length} error
-                          {lastResult.production_sync.errors.length !== 1 ? "s" : ""}
-                        </Badge>
-                      )}
+              {/* Preview & choose rows — works whether columns came from a
+              template or were mapped manually, since previewColumns
+              covers both cases. */}
+              {previewColumns.length > 0 && dataRows.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-medium">
+                          Preview &amp; choose rows
+                        </CardTitle>
+                        <CardDescription>
+                          Untick any row you don't want to bring in.{" "}
+                          {selectedRows.size} of {dataRows.length} rows
+                          selected.
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleAllRows}
+                      >
+                        {selectedRows.size === dataRows.length
+                          ? "Deselect all"
+                          : "Select all"}
+                      </Button>
                     </div>
-                    {lastResult.production_sync.errors.length > 0 && (
-                      <details open>
-                        <summary className="text-xs text-rose-600 cursor-pointer font-medium">
-                          {lastResult.production_sync.errors.length} row
-                          {lastResult.production_sync.errors.length !== 1 ? "s" : ""} failed to
-                          sync — click to see why
-                        </summary>
-                        <ul className="text-xs mt-1 pl-4 list-disc space-y-1">
-                          {lastResult.production_sync.errors.map((err, i) => (
-                            <li key={i}>
-                              <span className="font-medium">{err.row_name}</span>
-                              <span className="text-muted-foreground"> — {err.message}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-lg border overflow-auto max-h-72">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="w-9">
+                              <Checkbox
+                                checked={
+                                  selectedRows.size === dataRows.length &&
+                                  dataRows.length > 0
+                                }
+                                onCheckedChange={toggleAllRows}
+                              />
+                            </TableHead>
+                            <TableHead className="w-12 text-center text-xs">
+                              #
+                            </TableHead>
+                            {previewColumns.map((col) => (
+                              <TableHead
+                                key={col.letter}
+                                className="whitespace-nowrap"
+                              >
+                                <span className="text-muted-foreground mr-1 text-xs">
+                                  {col.letter}
+                                </span>
+                                {col.label}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(showAllDataRows
+                            ? dataRows
+                            : dataRows.slice(0, PREVIEW_ROWS)
+                          ).map((row, i) => {
+                            const checked = selectedRows.has(i);
+                            const actualRowNumber =
+                              (headerRowIndex ?? 0) + 1 + i + 1;
+                            return (
+                              <TableRow
+                                key={i}
+                                onClick={() => toggleRow(i)}
+                                className={`cursor-pointer ${!checked ? "opacity-50" : ""}`}
+                              >
+                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() => toggleRow(i)}
+                                  />
+                                </TableCell>
+                                <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
+                                  {actualRowNumber}
+                                </TableCell>
+                                {previewColumns.map((col) => {
+                                  const idx = columnIndexByLetter.get(
+                                    col.letter,
+                                  );
+                                  const val = idx != null ? row[idx] : "";
+                                  return (
+                                    <TableCell
+                                      key={col.letter}
+                                      className={`whitespace-nowrap ${
+                                        looksNumeric(val)
+                                          ? "text-right tabular-nums"
+                                          : ""
+                                      }`}
+                                    >
+                                      {String(val)}
+                                    </TableCell>
+                                  );
+                                })}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {dataRows.length > PREVIEW_ROWS && (
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          {showAllDataRows
+                            ? `Showing all ${dataRows.length} rows`
+                            : `Showing ${PREVIEW_ROWS} of ${dataRows.length} rows`}
+                        </p>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => setShowAllDataRows((v) => !v)}
+                        >
+                          {showAllDataRows
+                            ? "Show fewer rows"
+                            : `Show all ${dataRows.length} rows`}
+                        </Button>
+                      </div>
                     )}
-                    {lastResult.production_sync.unmatched_names.length > 0 && (
-                      <details>
-                        <summary className="text-xs text-muted-foreground cursor-pointer">
-                          {lastResult.production_sync.unmatched_names.length} row label
-                          {lastResult.production_sync.unmatched_names.length !== 1 ? "s" : ""} did
-                          not match any existing product
-                        </summary>
-                        <ul className="text-xs text-muted-foreground mt-1 pl-4 list-disc">
-                          {lastResult.production_sync.unmatched_names.map((name) => (
-                            <li key={name}>{name}</li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Template name + production date + submit */}
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  {!matchedTemplate && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                        Template name
+                      </p>
+                      <Input
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        placeholder="e.g. Daily Production Tracker"
+                        className="w-[280px]"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                      Production date
+                    </p>
+                    <Popover open={calOpen} onOpenChange={setCalOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-[200px] justify-start gap-2 text-left font-normal"
+                        >
+                          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          {format(productionDate, "PPP")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={productionDate}
+                          onSelect={(d) => {
+                            if (d) setProductionDate(d);
+                            setCalOpen(false);
+                          }}
+                          disabled={(d) => d > new Date()}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+
+                  <p className="text-xs text-muted-foreground">
+                    {selectedRows.size} of {dataRows.length} data row
+                    {dataRows.length !== 1 ? "s" : ""} selected for import.
+                  </p>
+
+                  {error && <p className="text-sm text-rose-600">{error}</p>}
+
+                  <Button onClick={handleSubmit} disabled={!canSubmit}>
+                    {submitting ? "Importing…" : "Import"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Result */}
+              {lastResult && (
+                <Card
+                  className={
+                    lastResult.production_sync &&
+                    lastResult.production_sync.errors.length > 0
+                      ? "border-rose-200"
+                      : "border-emerald-200"
+                  }
+                >
+                  <CardContent className="pt-6 space-y-2">
+                    <p className="text-sm flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      Imported {lastResult.imported_rows} row
+                      {lastResult.imported_rows !== 1 ? "s" : ""} using template
+                      "{lastResult.template.name}".
+                    </p>
+                    {lastResult.production_sync && (
+                      <div className="text-sm space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">
+                            {lastResult.production_sync.matched} matched
+                          </Badge>
+                          <Badge variant="outline">
+                            {lastResult.production_sync.skipped} skipped
+                          </Badge>
+                          {lastResult.production_sync.errors.length > 0 && (
+                            <Badge variant="destructive">
+                              {lastResult.production_sync.errors.length} error
+                              {lastResult.production_sync.errors.length !== 1
+                                ? "s"
+                                : ""}
+                            </Badge>
+                          )}
+                        </div>
+                        {lastResult.production_sync.errors.length > 0 && (
+                          <details open>
+                            <summary className="text-xs text-rose-600 cursor-pointer font-medium">
+                              {lastResult.production_sync.errors.length} row
+                              {lastResult.production_sync.errors.length !== 1
+                                ? "s"
+                                : ""}{" "}
+                              failed to sync — click to see why
+                            </summary>
+                            <ul className="text-xs mt-1 pl-4 list-disc space-y-1">
+                              {lastResult.production_sync.errors.map(
+                                (err, i) => (
+                                  <li key={i}>
+                                    <span className="font-medium">
+                                      {err.row_name}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      {" "}
+                                      — {err.message}
+                                    </span>
+                                  </li>
+                                ),
+                              )}
+                            </ul>
+                          </details>
+                        )}
+                        {lastResult.production_sync.unmatched_names.length >
+                          0 && (
+                          <details>
+                            <summary className="text-xs text-muted-foreground cursor-pointer">
+                              {
+                                lastResult.production_sync.unmatched_names
+                                  .length
+                              }{" "}
+                              row label
+                              {lastResult.production_sync.unmatched_names
+                                .length !== 1
+                                ? "s"
+                                : ""}{" "}
+                              did not match any existing product
+                            </summary>
+                            <ul className="text-xs text-muted-foreground mt-1 pl-4 list-disc">
+                              {lastResult.production_sync.unmatched_names.map(
+                                (name) => (
+                                  <li key={name}>{name}</li>
+                                ),
+                              )}
+                            </ul>
+                          </details>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
 
@@ -1118,17 +1231,21 @@ export default function ProductionImportForm({ onImported }: Props) {
                   Import selected sheets
                 </CardTitle>
                 <CardDescription>
-                  Each sheet is matched against your saved templates by header labels. Untick any
-                  sheet you don't want to bring in, and check the date guessed from each tab name
-                  before importing — dates are guessed from the sheet name and may need
-                  correcting.
+                  Each sheet is matched against your saved templates by header
+                  labels. Untick any sheet you don't want to bring in, and check
+                  the date guessed from each tab name before importing — dates
+                  are guessed from the sheet name and may need correcting.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {scanningAll ? (
-                  <p className="text-sm text-muted-foreground">Scanning sheets…</p>
+                  <p className="text-sm text-muted-foreground">
+                    Scanning sheets…
+                  </p>
                 ) : sheetMatches.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No sheets found.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No sheets found.
+                  </p>
                 ) : (
                   <div className="rounded-lg border overflow-auto">
                     <Table>
@@ -1156,13 +1273,19 @@ export default function ProductionImportForm({ onImported }: Props) {
                               <Checkbox
                                 checked={m.include}
                                 disabled={!m.template}
-                                onCheckedChange={() => toggleSheetMatchInclude(m.sheetName)}
+                                onCheckedChange={() =>
+                                  toggleSheetMatchInclude(m.sheetName)
+                                }
                               />
                             </TableCell>
-                            <TableCell className="font-medium">{m.sheetName}</TableCell>
+                            <TableCell className="font-medium">
+                              {m.sheetName}
+                            </TableCell>
                             <TableCell>
                               {m.template ? (
-                                <Badge variant="secondary">{m.template.name}</Badge>
+                                <Badge variant="secondary">
+                                  {m.template.name}
+                                </Badge>
                               ) : (
                                 <span className="text-xs text-muted-foreground">
                                   No matching template — skipped
@@ -1175,7 +1298,10 @@ export default function ProductionImportForm({ onImported }: Props) {
                                 value={m.date}
                                 disabled={!m.template}
                                 onChange={(e) =>
-                                  updateSheetMatchDate(m.sheetName, e.target.value)
+                                  updateSheetMatchDate(
+                                    m.sheetName,
+                                    e.target.value,
+                                  )
                                 }
                                 className="w-[150px] h-8"
                               />
@@ -1189,7 +1315,8 @@ export default function ProductionImportForm({ onImported }: Props) {
 
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
-                    {includedSheetCount} of {sheetMatches.length} sheets selected for import.
+                    {includedSheetCount} of {sheetMatches.length} sheets
+                    selected for import.
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
@@ -1198,7 +1325,8 @@ export default function ProductionImportForm({ onImported }: Props) {
                       onClick={toggleAllSheetMatches}
                       disabled={matchableSheetCount === 0}
                     >
-                      {includedSheetCount === matchableSheetCount && matchableSheetCount > 0
+                      {includedSheetCount === matchableSheetCount &&
+                      matchableSheetCount > 0
                         ? "Deselect all"
                         : "Select all"}
                     </Button>
@@ -1210,7 +1338,9 @@ export default function ProductionImportForm({ onImported }: Props) {
                       onClick={submitAllSheets}
                       disabled={batchSubmitting || includedSheetCount === 0}
                     >
-                      {batchSubmitting ? "Importing…" : `Import ${includedSheetCount || ""} sheet${includedSheetCount !== 1 ? "s" : ""}`}
+                      {batchSubmitting
+                        ? "Importing…"
+                        : `Import ${includedSheetCount || ""} sheet${includedSheetCount !== 1 ? "s" : ""}`}
                     </Button>
                   </div>
                 </div>
@@ -1236,7 +1366,9 @@ export default function ProductionImportForm({ onImported }: Props) {
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="font-medium">{r.sheetName}</p>
-                          <p className="text-xs text-muted-foreground">{r.message}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {r.message}
+                          </p>
                           {r.syncErrors && r.syncErrors.length > 0 && (
                             <details className="mt-1">
                               <summary className="text-xs text-rose-600 cursor-pointer font-medium">
@@ -1245,8 +1377,13 @@ export default function ProductionImportForm({ onImported }: Props) {
                               <ul className="text-xs mt-1 pl-4 list-disc space-y-1">
                                 {r.syncErrors.map((err, i) => (
                                   <li key={i}>
-                                    <span className="font-medium">{err.row_name}</span>
-                                    <span className="text-muted-foreground"> — {err.message}</span>
+                                    <span className="font-medium">
+                                      {err.row_name}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      {" "}
+                                      — {err.message}
+                                    </span>
                                   </li>
                                 ))}
                               </ul>

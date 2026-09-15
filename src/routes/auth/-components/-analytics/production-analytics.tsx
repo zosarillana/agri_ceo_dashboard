@@ -53,10 +53,20 @@ import {
 
 import { useProductsStore } from "@/store/products.store";
 import { useProductionStore } from "@/store/production.store";
-import { useProductionRange, aggregateViewItems } from "@/hooks/use-production-range";
+import {
+  useProductionRange,
+  aggregateViewItems,
+} from "@/hooks/use-production-range";
 import { useMultiMonthEntries } from "@/hooks/use-multi-month-entries";
-import { useAnalyticsChart, type ChartSeriesConfig } from "@/hooks/use-analytics-charts";
-import { useProductGroups, getGroupForSlug, PRODUCT_GROUPS } from "@/hooks/use-product-group";
+import {
+  useAnalyticsChart,
+  type ChartSeriesConfig,
+} from "@/hooks/use-analytics-charts";
+import {
+  useProductGroups,
+  getGroupForSlug,
+  PRODUCT_GROUPS,
+} from "@/hooks/use-product-group";
 
 function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
@@ -66,6 +76,13 @@ function fmt(n: number | string | null | undefined): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
+}
+
+function fmtPct(n: number | string | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  const num = typeof n === "string" ? parseFloat(n) : n;
+  if (isNaN(num)) return "—";
+  return `${num.toFixed(1)}%`;
 }
 
 function toMonthStr(d: Date): string {
@@ -92,7 +109,7 @@ function generateMonthOptions(count = 24): { value: string; label: string }[] {
 // then anything ungrouped at the end. Used so the product dropdown lists
 // products in the same order they appear in the tiles/table.
 function sortProductsByGroupOrder(
-  products: { id: number; name: string; slug?: string | null }[]
+  products: { id: number; name: string; slug?: string | null }[],
 ) {
   return [...products].sort((a, b) => {
     const groupA = getGroupForSlug(a.slug);
@@ -177,20 +194,23 @@ function MonthMultiSelect({
     onChange(
       selectedMonths.includes(value)
         ? selectedMonths.filter((m) => m !== value)
-        : [...selectedMonths, value]
+        : [...selectedMonths, value],
     );
   }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-[220px] justify-between font-normal">
+        <Button
+          variant="outline"
+          className="w-[220px] justify-between font-normal"
+        >
           <span className="truncate text-sm">
             {selectedMonths.length === 0
               ? "Select months"
               : selectedMonths.length === 1
-              ? monthLabel(selectedMonths[0])
-              : `${selectedMonths.length} months selected`}
+                ? monthLabel(selectedMonths[0])
+                : `${selectedMonths.length} months selected`}
           </span>
           <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
         </Button>
@@ -248,7 +268,8 @@ function GroupFilterChips({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {PRODUCT_GROUPS.map((group) => {
-        const isActive = selectedKeys.length === 0 || selectedKeys.includes(group.key);
+        const isActive =
+          selectedKeys.length === 0 || selectedKeys.includes(group.key);
         return (
           <button
             key={group.key}
@@ -270,10 +291,20 @@ function GroupFilterChips({
         );
       })}
       <div className="flex items-center gap-1 ml-1">
-        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onSelectAll}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={onSelectAll}
+        >
           All
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onClear}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={onClear}
+        >
           None
         </Button>
       </div>
@@ -296,24 +327,30 @@ function ProductMultiSelect({
 
   // sorted to match PRODUCT_GROUPS' declared order (group 1 → 2 → 3 → ungrouped),
   // same ordering the tiles and table already use
-  const sortedProducts = useMemo(() => sortProductsByGroupOrder(products), [products]);
+  const sortedProducts = useMemo(
+    () => sortProductsByGroupOrder(products),
+    [products],
+  );
 
   const filtered = sortedProducts.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   function toggle(id: number) {
     onChange(
       selectedIds.includes(id)
         ? selectedIds.filter((i) => i !== id)
-        : [...selectedIds, id]
+        : [...selectedIds, id],
     );
   }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-[200px] justify-between font-normal">
+        <Button
+          variant="outline"
+          className="w-[200px] justify-between font-normal"
+        >
           <span className="truncate text-sm">
             {selectedIds.length === 0
               ? "All products"
@@ -398,7 +435,10 @@ function ProductTile({
     <Card className={`overflow-hidden ${!hasActualData ? "opacity-70" : ""}`}>
       <CardContent className="pt-4 pb-4">
         <div className="flex items-center gap-2 mb-2">
-          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
+          <span
+            className="h-2 w-2 rounded-full shrink-0"
+            style={{ backgroundColor: hex }}
+          />
           <p className="text-xs text-muted-foreground truncate">{label}</p>
         </div>
         <p className="text-xl font-bold tracking-tight">
@@ -415,7 +455,11 @@ function ProductTile({
                 : "bg-rose-500/10 text-rose-600"
             }`}
           >
-            {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {isPositive ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
             {isPositive ? "+" : ""}
             {Math.round(pct ?? 0)}%
           </div>
@@ -434,23 +478,50 @@ function ProductTile({
 function TotalRow({
   label,
   totals,
+  unit = "",
   emphasize = false,
 }: {
   label: string;
-  totals: { actual: number; target: number; diff: number; pct: number | null; hasAnyData: boolean };
+  totals: {
+    actual: number;
+    target: number;
+    dly_target: number;
+    dly_yield: number | null;
+    mtd_target: number | null;
+    mtd_yield: number | null;
+    diff: number;
+    pct: number | null;
+    hasAnyData: boolean;
+  };
+  unit?: string;
   emphasize?: boolean;
 }) {
   const isPositive = totals.diff >= 0;
   return (
-    <TableRow className={emphasize ? "bg-muted/70 font-semibold" : "bg-muted/20 font-medium"}>
+    <TableRow
+      className={
+        emphasize ? "bg-muted/70 font-semibold" : "bg-muted/20 font-medium"
+      }
+    >
       <TableCell>{label}</TableCell>
       <TableCell className="text-right tabular-nums">
         {totals.hasAnyData ? fmt(totals.actual) : "—"}
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
-        {fmt(totals.target)}
+        {fmt(totals.dly_target)}
       </TableCell>
-      <TableCell className="text-right text-muted-foreground text-xs">—</TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmtPct(totals.dly_yield)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmt(totals.mtd_target)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmtPct(totals.mtd_yield)}
+      </TableCell>
+      <TableCell className="text-right text-muted-foreground text-xs">
+        {unit}
+      </TableCell>
       <TableCell className="text-right">
         {totals.hasAnyData && totals.target > 0 ? (
           <span
@@ -458,7 +529,11 @@ function TotalRow({
               isPositive ? "text-emerald-600" : "text-rose-600"
             }`}
           >
-            {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {isPositive ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
             {isPositive ? "+" : "-"}
             {fmt(Math.abs(totals.diff))} ({isPositive ? "+" : "-"}
             {Math.round(Math.abs(totals.pct ?? 0))}%)
@@ -510,18 +585,21 @@ export default function ProductionAnalytics() {
     loading: rangeLoading,
   } = useProductionRange(products);
 
-  const { entries: rangeEntries, loading: rangeEntriesLoading } = useProductionStore();
+  const { entries: rangeEntries, loading: rangeEntriesLoading } =
+    useProductionStore();
 
   const [viewMode, setViewMode] = useState<"range" | "month">("range");
-  const [selectedMonths, setSelectedMonths] = useState<string[]>([toMonthStr(new Date())]);
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([
+    toMonthStr(new Date()),
+  ]);
 
   const { entries: monthEntries, loading: monthLoading } = useMultiMonthEntries(
-    viewMode === "month" ? selectedMonths : []
+    viewMode === "month" ? selectedMonths : [],
   );
 
   const monthViewItems = useMemo(
     () => aggregateViewItems(products, monthEntries),
-    [products, monthEntries]
+    [products, monthEntries],
   );
 
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<string[]>([]); // [] = all groups
@@ -529,27 +607,33 @@ export default function ProductionAnalytics() {
   const [chartType, setChartType] = useState<"line" | "bar">("line");
 
   const activeEntries = viewMode === "month" ? monthEntries : rangeEntries;
-  const activeViewItems = viewMode === "month" ? monthViewItems : rangeViewItems;
+  const activeViewItems =
+    viewMode === "month" ? monthViewItems : rangeViewItems;
   const loading =
-    productsLoading || (viewMode === "month" ? monthLoading : rangeLoading || rangeEntriesLoading);
+    productsLoading ||
+    (viewMode === "month" ? monthLoading : rangeLoading || rangeEntriesLoading);
 
   const filteredViewItems = useMemo(() => {
     return activeViewItems.filter((item) => {
       const group = getGroupForSlug(item.slug);
-      const groupOk = selectedGroupKeys.length === 0 || (group && selectedGroupKeys.includes(group.key));
-      const productOk = selectedProductIds.length === 0 || selectedProductIds.includes(item.id);
+      const groupOk =
+        selectedGroupKeys.length === 0 ||
+        (group && selectedGroupKeys.includes(group.key));
+      const productOk =
+        selectedProductIds.length === 0 || selectedProductIds.includes(item.id);
       return groupOk && productOk;
     });
   }, [activeViewItems, selectedGroupKeys, selectedProductIds]);
 
-  const { groups: tableGroups, grandTotal } = useProductGroups(filteredViewItems);
+  const { groups: tableGroups, grandTotal } =
+    useProductGroups(filteredViewItems);
 
   const { chartData, series, byProductMode } = useAnalyticsChart(
     activeEntries,
     products,
     selectedGroupKeys,
     selectedProductIds,
-    viewMode === "month" ? "month" : "day"
+    viewMode === "month" ? "month" : "day",
   );
 
   function toggleGroup(key: string) {
@@ -557,7 +641,9 @@ export default function ProductionAnalytics() {
     setSelectedGroupKeys((prev) => {
       const current = prev.length === 0 ? allKeys : prev;
       const isActive = current.includes(key);
-      const next = isActive ? current.filter((k) => k !== key) : [...current, key];
+      const next = isActive
+        ? current.filter((k) => k !== key)
+        : [...current, key];
       return next.length === allKeys.length ? [] : next;
     });
   }
@@ -570,12 +656,12 @@ export default function ProductionAnalytics() {
       ? selectedMonths.length === 0
         ? "No months selected"
         : selectedMonths.length === 1
-        ? monthLabel(selectedMonths[0])
-        : `${selectedMonths.length} months (${selectedMonths
-            .slice()
-            .sort()
-            .map(monthLabel)
-            .join(", ")})`
+          ? monthLabel(selectedMonths[0])
+          : `${selectedMonths.length} months (${selectedMonths
+              .slice()
+              .sort()
+              .map(monthLabel)
+              .join(", ")})`
       : `${format(from, "PPP")} to ${format(to, "PPP")}`;
 
   return (
@@ -587,7 +673,8 @@ export default function ProductionAnalytics() {
             <div>
               <CardTitle className="text-sm font-medium">Analytics</CardTitle>
               <CardDescription>
-                Compare output across product groups or specific products over time
+                Compare output across product groups or specific products over
+                time
               </CardDescription>
             </div>
 
@@ -748,14 +835,17 @@ export default function ProductionAnalytics() {
                   {series.length === 0
                     ? "Select at least one group or product to see the chart."
                     : viewMode === "month" && selectedMonths.length === 0
-                    ? "Select at least one month to see the chart."
-                    : "No data for the selected period."}
+                      ? "Select at least one month to see the chart."
+                      : "No data for the selected period."}
                 </div>
               ) : (
                 <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     {chartType === "line" ? (
-                      <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                      <LineChart
+                        data={chartData}
+                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                         <XAxis
                           dataKey="date"
@@ -789,7 +879,10 @@ export default function ProductionAnalytics() {
                         ))}
                       </LineChart>
                     ) : (
-                      <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                      <BarChart
+                        data={chartData}
+                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                         <XAxis
                           dataKey="date"
@@ -824,7 +917,9 @@ export default function ProductionAnalytics() {
           {/* Detailed table */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Detailed Breakdown</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Detailed Breakdown
+              </CardTitle>
               <CardDescription>{periodLabel}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -837,10 +932,30 @@ export default function ProductionAnalytics() {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="font-semibold">Product</TableHead>
-                      <TableHead className="text-right font-semibold">Actual</TableHead>
-                      <TableHead className="text-right font-semibold">Target</TableHead>
-                      <TableHead className="text-right font-semibold">Unit</TableHead>
-                      <TableHead className="text-right font-semibold">vs Target</TableHead>
+                      <TableHead className="text-right font-semibold">
+                        Actual
+                      </TableHead>
+                      {/* <TableHead className="text-right font-semibold">
+                        Target
+                      </TableHead> */}
+                      <TableHead className="text-right font-semibold">
+                        Daily Target
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        Daily Yield
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        MTD Target
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        MTD Yield
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        Unit
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        vs Target
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -848,7 +963,7 @@ export default function ProductionAnalytics() {
                       <Fragment key={group.key}>
                         <TableRow className="hover:bg-transparent bg-muted/40">
                           <TableCell
-                            colSpan={5}
+                            colSpan={9}
                             className={`text-xs font-semibold border-l-4 ${group.color.border}`}
                           >
                             <span
@@ -862,10 +977,26 @@ export default function ProductionAnalytics() {
                           if (!item.hasActualData) {
                             return (
                               <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.label}</TableCell>
-                                <TableCell className="text-right text-muted-foreground">—</TableCell>
+                                <TableCell className="font-medium">
+                                  {item.label}
+                                </TableCell>
                                 <TableCell className="text-right text-muted-foreground">
+                                  —
+                                </TableCell>
+                                {/* <TableCell className="text-right text-muted-foreground">
                                   {fmt(item.target)}
+                                </TableCell> */}
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmt(item.dly_target)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmtPct(item.dly_yield)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmt(item.mtd_target)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmtPct(item.mtd_yield)}
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground text-xs">
                                   {item.unit}
@@ -881,26 +1012,43 @@ export default function ProductionAnalytics() {
                           }
 
                           const diff = item.actual! - item.target;
-                          const pct = item.target > 0 ? (diff / item.target) * 100 : null;
+                          const pct =
+                            item.target > 0 ? (diff / item.target) * 100 : null;
                           const isPositive = diff >= 0;
 
                           return (
                             <TableRow key={item.id}>
-                              <TableCell className="font-medium">{item.label}</TableCell>
+                              <TableCell className="font-medium">
+                                {item.label}
+                              </TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {fmt(item.actual!)}
                               </TableCell>
-                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {/* <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {fmt(item.target)}
+                              </TableCell> */}
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmt(item.dly_target)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmtPct(item.dly_yield)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmt(item.mtd_target)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmtPct(item.mtd_yield)}
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground text-xs">
                                 {item.unit}
                               </TableCell>
                               <TableCell className="text-right">
-                                {item.target > 0 ? (
+                                {item.dly_target > 0 ? (
                                   <span
                                     className={`inline-flex items-center gap-1 text-xs font-semibold ${
-                                      isPositive ? "text-emerald-600" : "text-rose-600"
+                                      isPositive
+                                        ? "text-emerald-600"
+                                        : "text-rose-600"
                                     }`}
                                   >
                                     {isPositive ? (
@@ -909,22 +1057,32 @@ export default function ProductionAnalytics() {
                                       <TrendingDown className="h-3 w-3" />
                                     )}
                                     {isPositive ? "+" : "-"}
-                                    {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
+                                    {fmt(Math.abs(diff))} (
+                                    {isPositive ? "+" : "-"}
                                     {Math.round(Math.abs(pct ?? 0))}%)
                                   </span>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground">No target</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    No target
+                                  </span>
                                 )}
                               </TableCell>
                             </TableRow>
                           );
                         })}
 
-                        <TotalRow label={group.subtotalLabel} totals={group.totals} />
+                        <TotalRow
+                          label={group.subtotalLabel}
+                          totals={group.totals}
+                        />
                       </Fragment>
                     ))}
 
-                    <TotalRow label="Grand Total" totals={grandTotal} emphasize />
+                    <TotalRow
+                      label="Grand Total"
+                      totals={grandTotal}
+                      emphasize
+                    />
                   </TableBody>
                 </Table>
               )}

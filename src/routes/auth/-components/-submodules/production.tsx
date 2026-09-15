@@ -61,6 +61,13 @@ function fmt(n: number | string | null | undefined): string {
   });
 }
 
+function fmtPct(n: number | string | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  const num = typeof n === "string" ? parseFloat(n) : n;
+  if (isNaN(num)) return "—";
+  return `${num.toFixed(1)}%`;
+}
+
 function getTodayISO() {
   return new Date().toLocaleDateString("en-CA");
 }
@@ -197,21 +204,46 @@ function TotalRow({
   emphasize = false,
 }: {
   label: string;
-  totals: { actual: number; target: number; diff: number; pct: number | null; hasAnyData: boolean };
+  totals: {
+    actual: number;
+    target: number;
+    dly_target: number;
+    dly_yield: number | null;
+    mtd_target: number | null;
+    mtd_yield: number | null;
+    diff: number;
+    pct: number | null;
+    hasAnyData: boolean;
+  };
   unit?: string;
   emphasize?: boolean;
 }) {
   const isPositive = totals.diff >= 0;
   return (
-    <TableRow className={emphasize ? "bg-muted/70 font-semibold" : "bg-muted/20 font-medium"}>
+    <TableRow
+      className={
+        emphasize ? "bg-muted/70 font-semibold" : "bg-muted/20 font-medium"
+      }
+    >
       <TableCell>{label}</TableCell>
       <TableCell className="text-right tabular-nums">
         {totals.hasAnyData ? fmt(totals.actual) : "—"}
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
-        {fmt(totals.target)}
+        {fmt(totals.dly_target)}
       </TableCell>
-      <TableCell className="text-right text-muted-foreground text-xs">{unit}</TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmtPct(totals.dly_yield)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmt(totals.mtd_target)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmtPct(totals.mtd_yield)}
+      </TableCell>
+      <TableCell className="text-right text-muted-foreground text-xs">
+        {unit}
+      </TableCell>
       <TableCell className="text-right">
         {totals.hasAnyData && totals.target > 0 ? (
           <span
@@ -219,7 +251,11 @@ function TotalRow({
               isPositive ? "text-emerald-600" : "text-rose-600"
             }`}
           >
-            {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {isPositive ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
             {isPositive ? "+" : "-"}
             {fmt(Math.abs(totals.diff))} ({isPositive ? "+" : "-"}
             {Math.round(Math.abs(totals.pct ?? 0))}%)
@@ -243,7 +279,11 @@ export default function ProductionDash() {
 
   const [tab, setTab] = useState<Tab>("view");
 
-  const { products, loading: productsLoading, fetchProducts } = useProductsStore();
+  const {
+    products,
+    loading: productsLoading,
+    fetchProducts,
+  } = useProductsStore();
   useProductionStore();
 
   const {
@@ -426,8 +466,8 @@ export default function ProductionDash() {
                     {mode === "month"
                       ? `No data recorded for ${format(month, "MMMM yyyy")}.`
                       : isSingleDay
-                      ? `No data recorded for ${format(from, "PPP")}.`
-                      : `No data recorded between ${format(from, "PPP")} and ${format(to, "PPP")}.`}
+                        ? `No data recorded for ${format(from, "PPP")}.`
+                        : `No data recorded between ${format(from, "PPP")} and ${format(to, "PPP")}.`}
                   </p>
                 </div>
                 <Button
@@ -446,16 +486,16 @@ export default function ProductionDash() {
                   {mode === "month"
                     ? "Monthly Output Summary"
                     : isSingleDay
-                    ? "Daily Output Summary"
-                    : "Output Summary"}
+                      ? "Daily Output Summary"
+                      : "Output Summary"}
                 </CardTitle>
                 <CardDescription>
                   Actual vs target across all product lines{" "}
                   {mode === "month"
                     ? `for ${format(month, "MMMM yyyy")}`
                     : isSingleDay
-                    ? `for ${format(from, "PPP")}`
-                    : `from ${format(from, "PPP")} to ${format(to, "PPP")}`}
+                      ? `for ${format(from, "PPP")}`
+                      : `from ${format(from, "PPP")} to ${format(to, "PPP")}`}
                   {!hasAllActualData && " (incomplete data)"}
                 </CardDescription>
               </CardHeader>
@@ -464,10 +504,30 @@ export default function ProductionDash() {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="font-semibold">Product</TableHead>
-                      <TableHead className="text-right font-semibold">Actual</TableHead>
-                      <TableHead className="text-right font-semibold">Target</TableHead>
-                      <TableHead className="text-right font-semibold">Unit</TableHead>
-                      <TableHead className="text-right font-semibold">vs Target</TableHead>
+                      <TableHead className="text-right font-semibold">
+                        Actual
+                      </TableHead>
+                      {/* <TableHead className="text-right font-semibold">
+                        Target
+                      </TableHead> */}
+                      <TableHead className="text-right font-semibold">
+                        Daily Target
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        Daily Yield
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        MTD Target
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        MTD Yield
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        Unit
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        vs Target
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -475,7 +535,7 @@ export default function ProductionDash() {
                       <Fragment key={group.key}>
                         <TableRow className="hover:bg-transparent bg-muted/40">
                           <TableCell
-                            colSpan={5}
+                            colSpan={9}
                             className={`text-xs font-semibold border-l-4 ${group.color.border}`}
                           >
                             <span
@@ -489,10 +549,26 @@ export default function ProductionDash() {
                           if (!item.hasActualData) {
                             return (
                               <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.label}</TableCell>
-                                <TableCell className="text-right text-muted-foreground">—</TableCell>
+                                <TableCell className="font-medium">
+                                  {item.label}
+                                </TableCell>
                                 <TableCell className="text-right text-muted-foreground">
+                                  —
+                                </TableCell>
+                                {/* <TableCell className="text-right text-muted-foreground">
                                   {fmt(item.target)}
+                                </TableCell> */}
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmt(item.dly_target)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmtPct(item.dly_yield)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmt(item.mtd_target)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {fmtPct(item.mtd_yield)}
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground text-xs">
                                   {item.unit}
@@ -508,26 +584,43 @@ export default function ProductionDash() {
                           }
 
                           const diff = item.actual! - item.target;
-                          const pct = item.target > 0 ? (diff / item.target) * 100 : null;
+                          const pct =
+                            item.target > 0 ? (diff / item.target) * 100 : null;
                           const isPositive = diff >= 0;
 
                           return (
                             <TableRow key={item.id}>
-                              <TableCell className="font-medium">{item.label}</TableCell>
+                              <TableCell className="font-medium">
+                                {item.label}
+                              </TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {fmt(item.actual!)}
                               </TableCell>
-                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {/* <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {fmt(item.target)}
+                              </TableCell> */}
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmt(item.dly_target)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmtPct(item.dly_yield)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmt(item.mtd_target)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmtPct(item.mtd_yield)}
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground text-xs">
                                 {item.unit}
                               </TableCell>
                               <TableCell className="text-right">
-                                {item.target > 0 ? (
+                                {item.dly_target > 0 ? (
                                   <span
                                     className={`inline-flex items-center gap-1 text-xs font-semibold ${
-                                      isPositive ? "text-emerald-600" : "text-rose-600"
+                                      isPositive
+                                        ? "text-emerald-600"
+                                        : "text-rose-600"
                                     }`}
                                   >
                                     {isPositive ? (
@@ -536,11 +629,14 @@ export default function ProductionDash() {
                                       <TrendingDown className="h-3 w-3" />
                                     )}
                                     {isPositive ? "+" : "-"}
-                                    {fmt(Math.abs(diff))} ({isPositive ? "+" : "-"}
+                                    {fmt(Math.abs(diff))} (
+                                    {isPositive ? "+" : "-"}
                                     {Math.round(Math.abs(pct ?? 0))}%)
                                   </span>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground">No target</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    No target
+                                  </span>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -548,12 +644,21 @@ export default function ProductionDash() {
                         })}
 
                         {/* group subtotal */}
-                        <TotalRow label={group.subtotalLabel} totals={group.totals} />
+                        {/* <TotalRow
+                          label={group.subtotalLabel}
+                          totals={group.totals}
+                          unit=""
+                        /> */}
                       </Fragment>
                     ))}
 
                     {/* grand total across every group */}
-                    <TotalRow label="Grand Total" totals={grandTotal} emphasize />
+                    <TotalRow
+                      label="Grand Total"
+                      totals={grandTotal}
+                      emphasize
+                      unit=""
+                    />
                   </TableBody>
                 </Table>
               </CardContent>

@@ -2,22 +2,6 @@ import { useMemo } from "react";
 
 export type ProductGroupKey = "group-1" | "group-2" | "group-3" | "ungrouped";
 
-function sortProductsByGroupOrder(products: { id: number; name: string; slug?: string | null }[]) {
-  return [...products].sort((a, b) => {
-    const groupA = getGroupForSlug(a.slug);
-    const groupB = getGroupForSlug(b.slug);
-
-    const groupIndexA = groupA ? PRODUCT_GROUPS.findIndex((g) => g.key === groupA.key) : PRODUCT_GROUPS.length;
-    const groupIndexB = groupB ? PRODUCT_GROUPS.findIndex((g) => g.key === groupB.key) : PRODUCT_GROUPS.length;
-
-    if (groupIndexA !== groupIndexB) return groupIndexA - groupIndexB;
-
-    const slugIndexA = groupA ? groupA.slugs.indexOf(a.slug ?? "") : 0;
-    const slugIndexB = groupB ? groupB.slugs.indexOf(b.slug ?? "") : 0;
-
-    return slugIndexA - slugIndexB;
-  });
-}
 
 const normalizeForSlug = (value: string) => {
   return value
@@ -126,6 +110,10 @@ export interface Groupable {
   slug?: string | null;
   actual?: number | null;
   target?: number | null;
+  dly_target?: number | null;
+  dly_yield?: number | null;
+  mtd_target?: number | null;
+  mtd_yield?: number | null;
   hasActualData?: boolean;
   [key: string]: any;
 }
@@ -133,6 +121,10 @@ export interface Groupable {
 export interface GroupTotals {
   actual: number;
   target: number;
+  dly_target: number;
+  dly_yield: number | null;
+  mtd_target: number | null;
+  mtd_yield: number | null;
   diff: number;
   pct: number | null;
   hasAnyData: boolean;
@@ -150,6 +142,7 @@ export interface GroupedResult<T> {
 function computeTotals(items: Groupable[]): GroupTotals {
   let actual = 0;
   let target = 0;
+  let dlyTarget = 0;
   let hasAnyData = false;
 
   for (const item of items) {
@@ -160,12 +153,52 @@ function computeTotals(items: Groupable[]): GroupTotals {
     if (typeof item.target === "number") {
       target += item.target;
     }
+    if (typeof item.dly_target === "number") {
+      dlyTarget += item.dly_target;
+    }
   }
+
+  // dly_yield: average across items that have a value (percentage — same
+  // reasoning as per-product averaging).
+  const dlyYieldItems = items.filter((i) => typeof i.dly_yield === "number");
+  const dlyYield =
+    dlyYieldItems.length > 0
+      ? dlyYieldItems.reduce((sum, i) => sum + (i.dly_yield as number), 0) /
+        dlyYieldItems.length
+      : null;
+
+  // mtd_target / mtd_yield: these are already cumulative per product, so a
+  // group "total" here means summing each product's own latest MTD figure
+  // — that's a legitimate sum (unlike summing one product's MTD across
+  // days, which double-counts). If you'd rather show something else for
+  // the group-level MTD figure, this is the spot to change it.
+  const mtdTargetItems = items.filter((i) => typeof i.mtd_target === "number");
+  const mtdTarget =
+    mtdTargetItems.length > 0
+      ? mtdTargetItems.reduce((sum, i) => sum + (i.mtd_target as number), 0)
+      : null;
+
+  const mtdYieldItems = items.filter((i) => typeof i.mtd_yield === "number");
+  const mtdYield =
+    mtdYieldItems.length > 0
+      ? mtdYieldItems.reduce((sum, i) => sum + (i.mtd_yield as number), 0) /
+        mtdYieldItems.length
+      : null;
 
   const diff = actual - target;
   const pct = target > 0 ? (diff / target) * 100 : null;
 
-  return { actual, target, diff, pct, hasAnyData };
+  return {
+    actual,
+    target,
+    dly_target: dlyTarget,
+    dly_yield: dlyYield,
+    mtd_target: mtdTarget,
+    mtd_yield: mtdYield,
+    diff,
+    pct,
+    hasAnyData,
+  };
 }
 
 export interface UseProductGroupsResult<T> {
@@ -248,19 +281,44 @@ export function useProductGroups<T extends Groupable>(
     // NOT a raw sum of every item — this keeps Group 2's dedup intact
     let grandActual = 0;
     let grandTarget = 0;
+    let grandDlyTarget = 0;
     let grandHasAnyData = false;
+    const grandDlyYieldVals: number[] = [];
+    const grandMtdTargetVals: number[] = [];
+    const grandMtdYieldVals: number[] = [];
+
     for (const g of groups) {
       if (g.totals.hasAnyData) {
         grandActual += g.totals.actual;
         grandHasAnyData = true;
       }
       grandTarget += g.totals.target;
+      grandDlyTarget += g.totals.dly_target;
+      if (g.totals.dly_yield !== null)
+        grandDlyYieldVals.push(g.totals.dly_yield);
+      if (g.totals.mtd_target !== null)
+        grandMtdTargetVals.push(g.totals.mtd_target);
+      if (g.totals.mtd_yield !== null)
+        grandMtdYieldVals.push(g.totals.mtd_yield);
     }
+
     const grandDiff = grandActual - grandTarget;
     const grandPct = grandTarget > 0 ? (grandDiff / grandTarget) * 100 : null;
     const grandTotal: GroupTotals = {
       actual: grandActual,
       target: grandTarget,
+      dly_target: grandDlyTarget,
+      dly_yield: grandDlyYieldVals.length
+        ? grandDlyYieldVals.reduce((a, b) => a + b, 0) /
+          grandDlyYieldVals.length
+        : null,
+      mtd_target: grandMtdTargetVals.length
+        ? grandMtdTargetVals.reduce((a, b) => a + b, 0)
+        : null,
+      mtd_yield: grandMtdYieldVals.length
+        ? grandMtdYieldVals.reduce((a, b) => a + b, 0) /
+          grandMtdYieldVals.length
+        : null,
       diff: grandDiff,
       pct: grandPct,
       hasAnyData: grandHasAnyData,
