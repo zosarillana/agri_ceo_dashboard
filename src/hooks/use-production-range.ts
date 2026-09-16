@@ -78,13 +78,29 @@ export function aggregateViewItems(
           dlyYieldEntries.length
         : null;
 
-    // mtd_target / mtd_yield are already cumulative as of each entry's own
-    // date, so summing across multiple days in a range double-counts. Use
+    // mtd_target is already cumulative as of each entry's own date, so
+    // summing it across multiple days in a range would double-count. Use
     // the value from the latest dated entry in the range instead.
     const sortedProductEntries = [...productEntries].sort((a, b) =>
       a.production_date.localeCompare(b.production_date),
     );
     const latestEntry = sortedProductEntries[sortedProductEntries.length - 1];
+
+    // mtd_yield: same treatment as dly_yield now — it's a percentage, so
+    // over a multi-day range/month we average each day's reported
+    // mtd_yield rather than just taking the latest day's figure. This is
+    // a straight average of each day's already-cumulative MTD percentage
+    // (not re-derived from mtd_total/mtd_target), so it will usually
+    // track close to whatever the last day or two in the range reported,
+    // since MTD percentages tend to move slowly day to day.
+    const mtdYieldEntries = productEntries.filter(
+      (e) => e.mtd_yield !== null && e.mtd_yield !== undefined,
+    );
+    const mtdYieldAvg =
+      mtdYieldEntries.length > 0
+        ? mtdYieldEntries.reduce((sum, e) => sum + Number(e.mtd_yield), 0) /
+          mtdYieldEntries.length
+        : null;
 
     // mtd_total: sum of actual_output from mtdEntries — a separately
     // fetched, always-complete "day 1 of month through as-of-date" array
@@ -111,7 +127,7 @@ export function aggregateViewItems(
       dly_target: dlyTargetSum,
       dly_yield: dlyYieldAvg,
       mtd_target: latestEntry ? Number(latestEntry.mtd_target ?? 0) : null,
-      mtd_yield: latestEntry ? Number(latestEntry.mtd_yield ?? 0) : null,
+      mtd_yield: mtdYieldAvg,
       mtd_total: mtdTotal,
       unit: pr.unit ?? "—",
       hasEntry: productEntries.length > 0,
@@ -136,15 +152,10 @@ export function useProductionRange(products: Product[], initialFrom?: Date, init
   const monthStr = toMonthStr(month);
   const isSingleDay = mode === "range" && fromISO === toISOStr;
 
-  // The date MTD should be "as of": in range mode, the end of the
-  // selected range; in month mode, the end of the selected month.
-  const mtdAsOfISO = mode === "month" ? `${monthStr}-01` : toISOStr;
-  // For month mode we actually want the LAST day being viewed, not the
-  // 1st — recompute properly below via a real Date so month length is
-  // handled correctly (28/29/30/31 days).
+  // The date MTD should be "as of": in month mode, the last day of the
+  // selected month; in range mode, the end of the selected range.
   const mtdAsOf = useMemo(() => {
     if (mode === "month") {
-      // last day of the selected month
       return toISO(new Date(month.getFullYear(), month.getMonth() + 1, 0));
     }
     return toISOStr;
