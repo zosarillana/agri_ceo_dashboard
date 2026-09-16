@@ -517,7 +517,7 @@ export default function ProductionDash() {
                         Daily Yield
                       </TableHead>
                       <TableHead className="text-right font-semibold">
-                        MTD Target
+                        MTD Total
                       </TableHead>
                       <TableHead className="text-right font-semibold">
                         MTD Yield
@@ -564,6 +564,9 @@ export default function ProductionDash() {
                                 <TableCell className="text-right text-muted-foreground">
                                   {fmtPct(item.dly_yield)}
                                 </TableCell>
+                                <TableCell className="text-right tabular-nums text-muted-foreground">
+                                  {fmt(item.mtd_total)}
+                                </TableCell>
                                 <TableCell className="text-right text-muted-foreground">
                                   {fmt(item.mtd_target)}
                                 </TableCell>
@@ -604,6 +607,9 @@ export default function ProductionDash() {
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {fmtPct(item.dly_yield)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {fmt(item.mtd_total)}
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {fmt(item.mtd_target)}
