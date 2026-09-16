@@ -11,19 +11,36 @@ type ProductionStore = {
   saving: boolean;
   error: string | null;
 
+  // 👇 NEW — isolated from `entries` on purpose. `entries` is scoped to
+  // whatever date/range/month the person currently has selected in the
+  // UI (and can be a single day, in which case it's useless for a
+  // month-to-date total). mtdEntries is always "day 1 of the month
+  // through a given as-of date", fetched independently, so mtd_total
+  // stays correct no matter what the main view is currently showing.
+  mtdEntries: ProductionEntry[];
+  mtdLoading: boolean;
+
   fetchEntries: () => Promise<void>;
   fetchByDate: (date: string) => Promise<void>;
-  fetchByRange: (from: string, to: string) => Promise<void>; // 👈 new
+  fetchByRange: (from: string, to: string) => Promise<void>;
+  fetchByMonth: (month: string) => Promise<void>;
+  fetchMtd: (asOfDate: string) => Promise<void>; // 👈 new
   saveEntries: (entries: ProductionEntryPayload[]) => Promise<void>;
   deleteEntry: (id: number) => Promise<void>;
-  fetchByMonth: (month: string) => Promise<void>; // 👈 new
 };
+
+function monthStartISO(dateISO: string): string {
+  return `${dateISO.slice(0, 7)}-01`;
+}
 
 export const useProductionStore = create<ProductionStore>((set, get) => ({
   entries: [],
   loading: false,
   saving: false,
   error: null,
+
+  mtdEntries: [],
+  mtdLoading: false,
 
   fetchEntries: async () => {
     set({ loading: true, error: null });
@@ -54,7 +71,6 @@ export const useProductionStore = create<ProductionStore>((set, get) => ({
     }
   },
 
-  // 👇 NEW
   fetchByRange: async (from: string, to: string) => {
     if (get().loading) return;
     set({ loading: true, error: null });
@@ -67,6 +83,42 @@ export const useProductionStore = create<ProductionStore>((set, get) => ({
       });
     } finally {
       set({ loading: false });
+    }
+  },
+
+  fetchByMonth: async (month: string) => {
+    if (get().loading) return;
+    set({ loading: true, error: null });
+    try {
+      const data = await productionService.getByMonth(month);
+      set({ entries: data });
+    } catch (err: any) {
+      set({
+        error: err?.response?.data?.message ?? "Failed to fetch entries.",
+      });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  // 👇 NEW — fetches day 1 of asOfDate's month through asOfDate itself,
+  // independent of whatever `entries` currently holds. Uses its own
+  // loading flag (mtdLoading) so it never fights with the main
+  // loading state used by the range/month/date views.
+  fetchMtd: async (asOfDate: string) => {
+    if (get().mtdLoading) return;
+    set({ mtdLoading: true });
+    try {
+      const from = monthStartISO(asOfDate);
+      const data = await productionService.getByRange(from, asOfDate);
+      set({ mtdEntries: data });
+    } catch (err: any) {
+      // Deliberately not touching the shared `error` field — an MTD
+      // fetch failure shouldn't surface as an error banner on views
+      // that aren't even displaying MTD figures.
+      set({ mtdEntries: [] });
+    } finally {
+      set({ mtdLoading: false });
     }
   },
 
@@ -101,21 +153,6 @@ export const useProductionStore = create<ProductionStore>((set, get) => ({
       set((state) => ({ entries: state.entries.filter((e) => e.id !== id) }));
     } catch (err: any) {
       set({ error: err?.response?.data?.message ?? "Failed to delete entry." });
-    }
-  },
-
-  fetchByMonth: async (month: string) => {
-    if (get().loading) return;
-    set({ loading: true, error: null });
-    try {
-      const data = await productionService.getByMonth(month);
-      set({ entries: data });
-    } catch (err: any) {
-      set({
-        error: err?.response?.data?.message ?? "Failed to fetch entries.",
-      });
-    } finally {
-      set({ loading: false });
     }
   },
 }));

@@ -417,18 +417,20 @@ function ProductTile({
   unit,
   hex,
   actual,
-  target,
+  dlyTarget,
+  mtdTarget,
   hasActualData,
 }: {
   label: string;
   unit: string;
   hex: string;
   actual: number | null;
-  target: number;
+  dlyTarget: number;
+  mtdTarget: number | null;
   hasActualData: boolean;
 }) {
-  const diff = (actual ?? 0) - target;
-  const pct = target > 0 ? (diff / target) * 100 : null;
+  const diff = (actual ?? 0) - dlyTarget;
+  const pct = dlyTarget > 0 ? (diff / dlyTarget) * 100 : null;
   const isPositive = diff >= 0;
 
   return (
@@ -445,9 +447,12 @@ function ProductTile({
           {hasActualData ? fmt(actual) : "—"}
         </p>
         <p className="text-xs text-muted-foreground">
-          {unit} · target {fmt(target)}
+          {unit} · daily target {fmt(dlyTarget)}
         </p>
-        {hasActualData && target > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          MTD target {fmt(mtdTarget)}
+        </p>
+        {hasActualData && dlyTarget > 0 ? (
           <div
             className={`mt-2 inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded ${
               isPositive
@@ -598,7 +603,7 @@ export default function ProductionAnalytics() {
   );
 
   const monthViewItems = useMemo(
-    () => aggregateViewItems(products, monthEntries),
+    () => aggregateViewItems(products, monthEntries, monthEntries),
     [products, monthEntries],
   );
 
@@ -778,7 +783,8 @@ export default function ProductionAnalytics() {
                         unit={item.unit}
                         hex={group.color.hex}
                         actual={item.actual}
-                        target={item.target}
+                        dlyTarget={item.dly_target}
+                        mtdTarget={item.mtd_target}
                         hasActualData={item.hasActualData}
                       />
                     ))}
@@ -945,6 +951,9 @@ export default function ProductionAnalytics() {
                         Daily Yield
                       </TableHead>
                       <TableHead className="text-right font-semibold">
+                        MTD Total
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
                         MTD Target
                       </TableHead>
                       <TableHead className="text-right font-semibold">
@@ -993,6 +1002,9 @@ export default function ProductionAnalytics() {
                                   {fmtPct(item.dly_yield)}
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground">
+                                  {fmt(item.mtd_total)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
                                   {fmt(item.mtd_target)}
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground">
@@ -1011,9 +1023,11 @@ export default function ProductionAnalytics() {
                             );
                           }
 
-                          const diff = item.actual! - item.target;
+                          const diff = item.actual! - item.dly_target;
                           const pct =
-                            item.target > 0 ? (diff / item.target) * 100 : null;
+                            item.dly_target > 0
+                              ? (diff / item.dly_target) * 100
+                              : null;
                           const isPositive = diff >= 0;
 
                           return (
@@ -1032,6 +1046,9 @@ export default function ProductionAnalytics() {
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {fmtPct(item.dly_yield)}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {fmt(item.mtd_total)}
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {fmt(item.mtd_target)}
@@ -1071,10 +1088,10 @@ export default function ProductionAnalytics() {
                           );
                         })}
 
-                        <TotalRow
+                        {/* <TotalRow
                           label={group.subtotalLabel}
                           totals={group.totals}
-                        />
+                        /> */}
                       </Fragment>
                     ))}
 
