@@ -2,7 +2,6 @@ import { useMemo } from "react";
 
 export type ProductGroupKey = "group-1" | "group-2" | "group-3" | "ungrouped";
 
-
 const normalizeForSlug = (value: string) => {
   return value
     .trim()
@@ -112,6 +111,7 @@ export interface Groupable {
   target?: number | null;
   dly_target?: number | null;
   dly_yield?: number | null;
+  mtd_total?: number | null;
   mtd_target?: number | null;
   mtd_yield?: number | null;
   hasActualData?: boolean;
@@ -123,6 +123,7 @@ export interface GroupTotals {
   target: number;
   dly_target: number;
   dly_yield: number | null;
+  mtd_total: number | null;
   mtd_target: number | null;
   mtd_yield: number | null;
   diff: number;
@@ -178,6 +179,15 @@ function computeTotals(items: Groupable[]): GroupTotals {
       ? mtdTargetItems.reduce((sum, i) => sum + (i.mtd_target as number), 0)
       : null;
 
+  // mtd_total: sum each product's own MTD total — legitimate to sum since
+  // each product's mtd_total is already correctly scoped (day 1 through
+  // as-of-date), unlike averaging a percentage.
+  const mtdTotalItems = items.filter((i) => typeof i.mtd_total === "number");
+  const mtdTotal =
+    mtdTotalItems.length > 0
+      ? mtdTotalItems.reduce((sum, i) => sum + (i.mtd_total as number), 0)
+      : null;
+
   const mtdYieldItems = items.filter((i) => typeof i.mtd_yield === "number");
   const mtdYield =
     mtdYieldItems.length > 0
@@ -195,6 +205,7 @@ function computeTotals(items: Groupable[]): GroupTotals {
     dly_yield: dlyYield,
     mtd_target: mtdTarget,
     mtd_yield: mtdYield,
+    mtd_total: mtdTotal, // 👈 add
     diff,
     pct,
     hasAnyData,
@@ -282,6 +293,7 @@ export function useProductGroups<T extends Groupable>(
     let grandActual = 0;
     let grandTarget = 0;
     let grandDlyTarget = 0;
+    let grandMtdTotal = 0; // 👈 add
     let grandHasAnyData = false;
     const grandDlyYieldVals: number[] = [];
     const grandMtdTargetVals: number[] = [];
@@ -294,6 +306,7 @@ export function useProductGroups<T extends Groupable>(
       }
       grandTarget += g.totals.target;
       grandDlyTarget += g.totals.dly_target;
+      if (g.totals.mtd_total !== null) grandMtdTotal += g.totals.mtd_total; // 👈 add
       if (g.totals.dly_yield !== null)
         grandDlyYieldVals.push(g.totals.dly_yield);
       if (g.totals.mtd_target !== null)
@@ -319,6 +332,7 @@ export function useProductGroups<T extends Groupable>(
         ? grandMtdYieldVals.reduce((a, b) => a + b, 0) /
           grandMtdYieldVals.length
         : null,
+      mtd_total: grandMtdTotal, // 👈 add
       diff: grandDiff,
       pct: grandPct,
       hasAnyData: grandHasAnyData,

@@ -209,6 +209,7 @@ function TotalRow({
     target: number;
     dly_target: number;
     dly_yield: number | null;
+    mtd_total: number | null;
     mtd_target: number | null;
     mtd_yield: number | null;
     diff: number;
@@ -234,6 +235,9 @@ function TotalRow({
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
         {fmtPct(totals.dly_yield)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmt(totals.mtd_total)}
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
         {fmt(totals.mtd_target)}
