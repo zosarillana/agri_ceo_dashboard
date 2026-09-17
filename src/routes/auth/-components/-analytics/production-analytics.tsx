@@ -82,7 +82,7 @@ function fmtPct(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
   const num = typeof n === "string" ? parseFloat(n) : n;
   if (isNaN(num)) return "—";
-  return `${num.toFixed(1)}%`;
+  return `${num.toFixed(2)}%`;
 }
 
 function toMonthStr(d: Date): string {

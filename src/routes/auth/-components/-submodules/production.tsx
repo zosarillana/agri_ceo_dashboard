@@ -65,7 +65,7 @@ function fmtPct(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
   const num = typeof n === "string" ? parseFloat(n) : n;
   if (isNaN(num)) return "—";
-  return `${num.toFixed(1)}%`;
+  return `${num.toFixed(2)}%`;
 }
 
 function getTodayISO() {
@@ -518,6 +518,9 @@ export default function ProductionDash() {
                       </TableHead>
                       <TableHead className="text-right font-semibold">
                         MTD Total
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        MTD Target
                       </TableHead>
                       <TableHead className="text-right font-semibold">
                         MTD Yield
