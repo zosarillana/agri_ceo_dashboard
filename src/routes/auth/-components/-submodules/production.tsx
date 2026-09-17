@@ -593,9 +593,9 @@ export default function ProductionDash() {
                             );
                           }
 
-                          const diff = item.actual! - item.target;
+                          const diff = item.actual! - item.dly_target;
                           const pct =
-                            item.target > 0 ? (diff / item.target) * 100 : null;
+                            item.dly_target > 0 ? (diff / item.dly_target) * 100 : null;
                           const isPositive = diff >= 0;
 
                           return (
