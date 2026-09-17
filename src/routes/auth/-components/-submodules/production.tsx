@@ -65,7 +65,7 @@ function fmtPct(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
   const num = typeof n === "string" ? parseFloat(n) : n;
   if (isNaN(num)) return "—";
-  return `${num.toFixed(1)}%`;
+  return `${num.toFixed(2)}%`;
 }
 
 function getTodayISO() {
@@ -209,6 +209,7 @@ function TotalRow({
     target: number;
     dly_target: number;
     dly_yield: number | null;
+    mtd_total: number | null;
     mtd_target: number | null;
     mtd_yield: number | null;
     diff: number;
@@ -234,6 +235,9 @@ function TotalRow({
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
         {fmtPct(totals.dly_yield)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {fmt(totals.mtd_total)}
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
         {fmt(totals.mtd_target)}
@@ -518,6 +522,9 @@ export default function ProductionDash() {
                       </TableHead>
                       <TableHead className="text-right font-semibold">
                         MTD Total
+                      </TableHead>
+                      <TableHead className="text-right font-semibold">
+                        MTD Target
                       </TableHead>
                       <TableHead className="text-right font-semibold">
                         MTD Yield
