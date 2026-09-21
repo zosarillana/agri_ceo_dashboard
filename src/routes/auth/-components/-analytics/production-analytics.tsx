@@ -958,7 +958,7 @@ export default function ProductionAnalytics() {
           </Card>
 
           <Dialog open={isChartExpanded} onOpenChange={setIsChartExpanded}>
-            <DialogContent className="max-w-[95vw] w-full sm:max-w-6xl">
+            <DialogContent className="max-w-[95vw] w-full sm:max-w-8xl">
               <DialogHeader>
                 <DialogTitle>
                   {byProductMode ? "Output by Product" : "Output by Group"}
