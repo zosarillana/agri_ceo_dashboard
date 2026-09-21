@@ -3,16 +3,12 @@
 import { Fragment, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
-  LineChart,
   Line,
-  BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  ComposedChart,
 } from "recharts";
 import {
   Card,
@@ -41,8 +37,6 @@ import {
   CalendarIcon,
   TrendingUp,
   TrendingDown,
-  LineChart as LineChartIcon,
-  BarChart3,
   CheckCircle2,
   Circle,
   ChevronDown,
@@ -67,7 +61,14 @@ import {
   getGroupForSlug,
   PRODUCT_GROUPS,
 } from "@/hooks/use-product-group";
-
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined) return "—";
   const num = typeof n === "string" ? parseFloat(n) : n;
@@ -613,7 +614,7 @@ export default function ProductionAnalytics() {
 
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<string[]>([]); // [] = all groups
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]); // [] = all products
-  const [chartType, setChartType] = useState<"line" | "bar">("line");
+  const [] = useState<"line" | "bar">("line");
 
   const activeEntries = viewMode === "month" ? monthEntries : rangeEntries;
   const activeViewItems =
@@ -644,6 +645,23 @@ export default function ProductionAnalytics() {
     selectedProductIds,
     viewMode === "month" ? "month" : "day",
   );
+
+  // 👇 add this — builds the ChartConfig the shadcn chart wrapper needs,
+  // one entry per series' actual and target data keys
+  const chartConfig: ChartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    series.forEach((s) => {
+      config[s.actualKey] = {
+        label: `${s.label} (Actual)`,
+        color: s.lineColor,
+      }; // 👈 darker for the bar
+      config[s.targetKey] = {
+        label: `${s.label} (Daily Target)`,
+        color: s.color,
+      }; // 👈 lighter for the line
+    });
+    return config;
+  }, [series]);
 
   function toggleGroup(key: string) {
     const allKeys = PRODUCT_GROUPS.map((g) => g.key);
@@ -815,28 +833,6 @@ export default function ProductionAnalytics() {
                         } shown`}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
-                  <button
-                    onClick={() => setChartType("line")}
-                    className={`p-1.5 rounded-md transition-all ${
-                      chartType === "line"
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <LineChartIcon className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setChartType("bar")}
-                    className={`p-1.5 rounded-md transition-all ${
-                      chartType === "bar"
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <BarChart3 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -849,81 +845,78 @@ export default function ProductionAnalytics() {
                       : "No data for the selected period."}
                 </div>
               ) : (
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    {chartType === "line" ? (
-                      <LineChart
-                        data={chartData}
-                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={(d) =>
-                            viewMode === "month"
-                              ? monthLabel(d as string)
-                              : format(new Date(d as string), "MMM d")
-                          }
-                          fontSize={11}
-                        />
-                        <YAxis fontSize={11} />
-                        <Tooltip
+                <ChartContainer config={chartConfig} className="h-72 w-full">
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 20, right: 16, bottom: 20, left: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(d) =>
+                        viewMode === "month"
+                          ? monthLabel(d as string)
+                          : format(new Date(d as string), "MMM d")
+                      }
+                      fontSize={11}
+                      label={{
+                        value: viewMode === "month" ? "Month" : "Date",
+                        position: "insideBottomRight",
+                        offset: -10,
+                        fontSize: 11,
+                      }}
+                    />
+                    <YAxis
+                      fontSize={11}
+                      tickFormatter={(v) => Number(v).toLocaleString()}
+                      label={{
+                        value: "Output",
+                        angle: -90,
+                        position: "insideLeft",
+                        fontSize: 11,
+                      }}
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
                           labelFormatter={(d) =>
                             viewMode === "month"
                               ? monthLabel(d as string)
                               : format(new Date(d as string), "PPP")
                           }
-                          formatter={(value) => fmt(value as number)}
                         />
-                        <Legend wrapperStyle={{ fontSize: 12 }} />
-                        {series.map((s: ChartSeriesConfig) => (
-                          <Line
-                            key={s.key}
-                            type="monotone"
-                            dataKey={s.label}
-                            stroke={s.color}
-                            strokeWidth={2}
-                            dot={false}
-                            connectNulls
-                          />
-                        ))}
-                      </LineChart>
-                    ) : (
-                      <BarChart
-                        data={chartData}
-                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={(d) =>
-                            viewMode === "month"
-                              ? monthLabel(d as string)
-                              : format(new Date(d as string), "MMM d")
-                          }
-                          fontSize={11}
-                        />
-                        <YAxis fontSize={11} />
-                        <Tooltip
-                          labelFormatter={(d) =>
-                            viewMode === "month"
-                              ? monthLabel(d as string)
-                              : format(new Date(d as string), "PPP")
-                          }
-                          formatter={(value) => fmt(value as number)}
-                        />
-                        <Legend wrapperStyle={{ fontSize: 12 }} />
-                        {series.map((s: ChartSeriesConfig) => (
-                          <Bar key={s.key} dataKey={s.label} fill={s.color} />
-                        ))}
-                      </BarChart>
-                    )}
-                  </ResponsiveContainer>
-                </div>
+                      }
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    {series.map((s: ChartSeriesConfig) => (
+                      <Bar
+                        key={`${s.key}-actual`}
+                        dataKey={s.actualKey}
+                        fill={`var(--color-${s.actualKey})`}
+                        radius={[3, 3, 0, 0]}
+                      />
+                    ))}
+                    {series.map((s: ChartSeriesConfig) => (
+                      <Line
+                        key={`${s.key}-target`}
+                        type="monotone"
+                        dataKey={s.targetKey}
+                        stroke={`var(--color-${s.targetKey})`}
+                        strokeWidth={2}
+                        strokeDasharray="4 3"
+                        dot={{
+                          r: 3,
+                          strokeWidth: 1,
+                          fill: `var(--color-${s.targetKey})`,
+                        }}
+                        connectNulls
+                      />
+                    ))}
+                  </ComposedChart>
+                </ChartContainer>
               )}
             </CardContent>
           </Card>
-
           {/* Detailed table */}
           <Card>
             <CardHeader className="pb-2">
