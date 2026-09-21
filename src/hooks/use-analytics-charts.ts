@@ -13,8 +13,9 @@ export interface ChartSeriesConfig {
   key: string;
   label: string;
   color: string;
-  // A darker shade of `color`, used for the target line so it reads as
-  // visually distinct from its matching bar rather than blending into it.
+  // The color-wheel opposite (complementary hue) of `color`, boosted for
+  // vibrancy — used for the target line so it visually pops against its
+  // matching bar instead of just being a duller/darker version of it.
   lineColor: string;
   // CSS-variable-safe data keys — no spaces or special characters, since
   // these get interpolated straight into `--color-${key}` CSS custom
@@ -49,19 +50,64 @@ function toSafeKey(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// Darkens a #rrggbb hex color by `amount` (0–1, where 0 = unchanged and
-// 1 = black), used so a series' line reads as a deeper shade of its own
-// bar color instead of matching it exactly.
-function darkenColor(hex: string, amount = 0.40): string {
+function hexToHsl(hex: string): [number, number, number] {
   const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!match) return hex;
-  const [, rHex, gHex, bHex] = match;
-  const scale = (component: string) =>
-    Math.max(0, Math.round(parseInt(component, 16) * (1 - amount)));
-  const r = scale(rHex).toString(16).padStart(2, "0");
-  const g = scale(gHex).toString(16).padStart(2, "0");
-  const b = scale(bHex).toString(16).padStart(2, "0");
-  return `#${r}${g}${b}`;
+  if (!match) return [0, 0, 0];
+  const r = parseInt(match[1], 16) / 255;
+  const g = parseInt(match[2], 16) / 255;
+  const b = parseInt(match[3], 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) * 60; break;
+      case g: h = ((b - r) / d + 2) * 60; break;
+      case b: h = ((r - g) / d + 4) * 60; break;
+    }
+  }
+  return [h, s, l];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+
+  const toHex = (v: number) =>
+    Math.round((v + m) * 255).toString(16).padStart(2, "0");
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// Returns the color-wheel opposite of `hex` (hue rotated 180°), with
+// saturation and lightness pushed toward vibrant/bright rather than a
+// muted complementary tone — meant for a line that visually pops against
+// its matching bar color instead of blending or looking washed out.
+function complementaryColor(hex: string): string {
+  const [h, , l] = hexToHsl(hex);
+  const complementHue = h + 180;
+  const brightSaturation = 0.85; // vivid, not pastel
+  // Keep lightness in a punchy-but-visible band regardless of the base
+  // color's own lightness, so the line reads clearly on both light/dark
+  // chart backgrounds.
+  const brightLightness = Math.min(0.65, Math.max(0.45, l));
+  return hslToHex(complementHue, brightSaturation, brightLightness);
 }
 
 /**
@@ -69,8 +115,9 @@ function darkenColor(hex: string, amount = 0.40): string {
  * month. Each series (one per selected PRODUCT, or one per GROUP if no
  * products are selected) carries two metrics per bucket:
  *   - actual_output, summed — meant to render as a Bar
- *   - dly_target, summed — meant to render as a Line overlay, in a
- *     darker shade of the same series' bar color
+ *   - dly_target, summed — meant to render as a Line overlay, in the
+ *     complementary (color-wheel opposite) hue of the bar, boosted for
+ *     vibrancy
  *
  * Every series/bucket combination is backfilled to 0 (not left
  * `undefined`) so lines draw continuously across the full date range
@@ -102,7 +149,7 @@ export function useAnalyticsChart(
             key: String(p.id),
             label: p.name,
             color,
-            lineColor: darkenColor(color),
+            lineColor: complementaryColor(color),
             actualKey: `${safe}-actual`,
             targetKey: `${safe}-target`,
           };
@@ -114,7 +161,7 @@ export function useAnalyticsChart(
       key: g.key,
       label: g.label,
       color: g.color.hex,
-      lineColor: darkenColor(g.color.hex),
+      lineColor: complementaryColor(g.color.hex),
       actualKey: `${g.key}-actual`,
       targetKey: `${g.key}-target`,
     }));

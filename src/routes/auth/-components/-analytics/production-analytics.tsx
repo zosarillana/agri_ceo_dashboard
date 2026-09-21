@@ -1,5 +1,11 @@
 "use client";
-
+import { Maximize2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Fragment, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
@@ -53,6 +59,7 @@ import {
 } from "@/hooks/use-production-range";
 import { useMultiMonthEntries } from "@/hooks/use-multi-month-entries";
 import {
+  ChartPoint,
   useAnalyticsChart,
   type ChartSeriesConfig,
 } from "@/hooks/use-analytics-charts";
@@ -582,6 +589,88 @@ function AnalyticsSkeleton() {
   );
 }
 
+function AnalyticsChartBody({
+  chartData,
+  chartConfig,
+  series,
+  viewMode,
+  heightClass,
+}: {
+  chartData: ChartPoint[];
+  chartConfig: ChartConfig;
+  series: ChartSeriesConfig[];
+  viewMode: "range" | "month";
+  heightClass: string;
+}) {
+  return (
+    <ChartContainer config={chartConfig} className={`${heightClass} w-full`}>
+      <ComposedChart
+        data={chartData}
+        margin={{ top: 20, right: 16, bottom: 20, left: 8 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={(d) =>
+            viewMode === "month"
+              ? monthLabel(d as string)
+              : format(new Date(d as string), "MMM d")
+          }
+          fontSize={11}
+          label={{
+            value: viewMode === "month" ? "Month" : "Date",
+            position: "insideBottomRight",
+            offset: -10,
+            fontSize: 11,
+          }}
+        />
+        <YAxis
+          fontSize={11}
+          tickFormatter={(v) => Number(v).toLocaleString()}
+          label={{
+            value: "Output",
+            angle: -90,
+            position: "insideLeft",
+            fontSize: 11,
+          }}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(d) =>
+                viewMode === "month"
+                  ? monthLabel(d as string)
+                  : format(new Date(d as string), "PPP")
+              }
+            />
+          }
+        />
+        <ChartLegend content={<ChartLegendContent />} />
+        {series.map((s: ChartSeriesConfig) => (
+          <Bar
+            key={`${s.key}-actual`}
+            dataKey={s.actualKey}
+            fill={`var(--color-${s.actualKey})`}
+            radius={[3, 3, 0, 0]}
+          />
+        ))}
+        {series.map((s: ChartSeriesConfig) => (
+          <Line
+            key={`${s.key}-target`}
+            type="monotone"
+            dataKey={s.targetKey}
+            stroke={`var(--color-${s.targetKey})`}
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            dot={{ r: 3, strokeWidth: 1, fill: `var(--color-${s.targetKey})` }}
+            connectNulls
+          />
+        ))}
+      </ComposedChart>
+    </ChartContainer>
+  );
+}
+
 // ── main component ──────────────────────────────────────────────────────
 export default function ProductionAnalytics() {
   const { products, loading: productsLoading } = useProductsStore();
@@ -597,11 +686,12 @@ export default function ProductionAnalytics() {
 
   const { entries: rangeEntries, loading: rangeEntriesLoading } =
     useProductionStore();
-
+    
   const [viewMode, setViewMode] = useState<"range" | "month">("range");
   const [selectedMonths, setSelectedMonths] = useState<string[]>([
     toMonthStr(new Date()),
   ]);
+  const [isChartExpanded, setIsChartExpanded] = useState(false); // ✅ moved here
 
   const { entries: monthEntries, loading: monthLoading } = useMultiMonthEntries(
     viewMode === "month" ? selectedMonths : [],
@@ -833,6 +923,17 @@ export default function ProductionAnalytics() {
                         } shown`}
                   </CardDescription>
                 </div>
+                {hasAnyChartData && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setIsChartExpanded(true)}
+                    aria-label="Expand chart"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -845,78 +946,36 @@ export default function ProductionAnalytics() {
                       : "No data for the selected period."}
                 </div>
               ) : (
-                <ChartContainer config={chartConfig} className="h-72 w-full">
-                  <ComposedChart
-                    data={chartData}
-                    margin={{ top: 20, right: 16, bottom: 20, left: 8 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(d) =>
-                        viewMode === "month"
-                          ? monthLabel(d as string)
-                          : format(new Date(d as string), "MMM d")
-                      }
-                      fontSize={11}
-                      label={{
-                        value: viewMode === "month" ? "Month" : "Date",
-                        position: "insideBottomRight",
-                        offset: -10,
-                        fontSize: 11,
-                      }}
-                    />
-                    <YAxis
-                      fontSize={11}
-                      tickFormatter={(v) => Number(v).toLocaleString()}
-                      label={{
-                        value: "Output",
-                        angle: -90,
-                        position: "insideLeft",
-                        fontSize: 11,
-                      }}
-                    />
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          labelFormatter={(d) =>
-                            viewMode === "month"
-                              ? monthLabel(d as string)
-                              : format(new Date(d as string), "PPP")
-                          }
-                        />
-                      }
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    {series.map((s: ChartSeriesConfig) => (
-                      <Bar
-                        key={`${s.key}-actual`}
-                        dataKey={s.actualKey}
-                        fill={`var(--color-${s.actualKey})`}
-                        radius={[3, 3, 0, 0]}
-                      />
-                    ))}
-                    {series.map((s: ChartSeriesConfig) => (
-                      <Line
-                        key={`${s.key}-target`}
-                        type="monotone"
-                        dataKey={s.targetKey}
-                        stroke={`var(--color-${s.targetKey})`}
-                        strokeWidth={2}
-                        strokeDasharray="4 3"
-                        dot={{
-                          r: 3,
-                          strokeWidth: 1,
-                          fill: `var(--color-${s.targetKey})`,
-                        }}
-                        connectNulls
-                      />
-                    ))}
-                  </ComposedChart>
-                </ChartContainer>
+                <AnalyticsChartBody
+                  chartData={chartData}
+                  chartConfig={chartConfig}
+                  series={series}
+                  viewMode={viewMode}
+                  heightClass="h-72"
+                />
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={isChartExpanded} onOpenChange={setIsChartExpanded}>
+            <DialogContent className="max-w-[95vw] w-full sm:max-w-6xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {byProductMode ? "Output by Product" : "Output by Group"}
+                  {viewMode === "month" ? " (by Month)" : ""}
+                </DialogTitle>
+              </DialogHeader>
+              {hasAnyChartData && (
+                <AnalyticsChartBody
+                  chartData={chartData}
+                  chartConfig={chartConfig}
+                  series={series}
+                  viewMode={viewMode}
+                  heightClass="h-[70vh]"
+                />
+              )}
+            </DialogContent>
+          </Dialog>
           {/* Detailed table */}
           <Card>
             <CardHeader className="pb-2">
